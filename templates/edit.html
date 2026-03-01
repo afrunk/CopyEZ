@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}编辑素材 - CopyEZ{% endblock %}
+
+{% block content %}
+  <section class="page-section">
+    <h1 class="page-heading">编辑素材</h1>
+
+    {% if error %}
+      <div class="form-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" class="note-form" id="edit-form">
+      <div class="form-row form-row-title">
+        <label for="title">标题</label>
+        <div class="title-input-wrapper">
+          <input
+            type="text"
+            id="title"
+            name="title"
+            required
+            value="{{ title or '' }}"
+          />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="mainCategory">一级分类</label>
+        <select id="mainCategory" name="mainCategory">
+          <option value="">请选择（可选）</option>
+          <option value="全文" {% if mainCategory == '全文' %}selected{% endif %}>全文</option>
+          <option value="框架" {% if mainCategory == '框架' %}selected{% endif %}>框架</option>
+          <option value="短文摘要" {% if mainCategory == '短文摘要' %}selected{% endif %}>短文摘要</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label for="subCategory">二级分类</label>
+        <input
+          type="text"
+          id="subCategory"
+          name="subCategory"
+          placeholder="从下拉列表选择，或输入新分类（保存时自动添加）"
+          value="{{ subCategory or '' }}"
+        />
+      </div>
+
+      <div class="form-row">
+        <label for="tags_json">三级标签（可选）</label>
+        <div id="tag-selector-container"></div>
+        <input
+          type="hidden"
+          id="tags_json"
+          name="tags_json"
+          value="{{ tags_json or '[]' }}"
+        />
+      </div>
+
+      <div class="form-row form-row-inline">
+        <div class="form-col">
+          <label for="publishDate">发布日期（可选）</label>
+          <input
+            type="date"
+            id="publishDate"
+            name="publishDate"
+            value="{{ publishDate or '' }}"
+          />
+        </div>
+        <div class="form-col">
+          <label for="sourceUrl">原文链接（可选）</label>
+          <input
+            type="url"
+            id="sourceUrl"
+            name="sourceUrl"
+            value="{{ sourceUrl or '' }}"
+            placeholder="https://example.com/article"
+          />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="content">内容</label>
+        <textarea id="content" name="content" rows="20" required placeholder="保留你输入的 #、##、### 标记，以及所有手动换行，用于公文层级渲染">{% if content %}{{ content|e }}{% endif %}</textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary" id="save-btn">保存</button>
+        <span id="save-status" class="save-status" style="display: none; margin-left: 12px; color: #666; font-size: 14px;"></span>
+        <a href="{{ url_for('view_note', note_id=note.id) }}" class="btn-secondary">取消</a>
+      </div>
+    </form>
+  </section>
+
+  <script src="{{ url_for('static', filename='category-selector.js') }}"></script>
+  <script>
+    (function () {
+      // 初始化分类选择器
+      if (document.getElementById("subCategory")) {
+        new CategorySelector("subCategory", {
+          mainCategoryInputId: "mainCategory"
+        });
+      }
+      
+      // 初始化标签选择器
+      if (document.getElementById("tag-selector-container")) {
+        new TagSelector("tag-selector-container", "tags_json", {
+          placeholder: "点击输入框选择预置标签，或输入新标签后按 Enter 添加"
+        });
+      }
+      
+      var form = document.getElementById("edit-form");
+      var saveBtn = document.getElementById("save-btn");
+      var saveStatus = document.getElementById("save-status");
+      var isSaving = false;
+
+      // 异步保存函数
+      function saveNote() {
+        if (isSaving) {
+          return; // 防止重复提交
+        }
+
+        // 验证必填字段
+        var title = document.getElementById("title").value.trim();
+        var content = document.getElementById("content").value.trim();
+        if (!title || !content) {
+          alert("标题和内容不能为空");
+          return;
+        }
+
+        isSaving = true;
+        saveBtn.disabled = true;
+        saveStatus.style.display = "inline";
+        saveStatus.textContent = "正在写入数据库...";
+        saveStatus.style.color = "#666";
+
+        // 收集表单数据
+        var formData = new FormData(form);
+
+        // 发送异步请求
+        fetch(form.action, {
+          method: "POST",
+          body: formData,
+          headers: {
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        })
+        .then(function(response) {
+          if (!response.ok) {
+            throw new Error("保存失败: " + response.status);
+          }
+          // 尝试解析JSON响应
+          return response.json().then(function(data) {
+            if (data.success) {
+              saveStatus.textContent = "保存成功！";
+              saveStatus.style.color = "#10b981";
+              
+              // 等待一小段时间确保数据库写入完成，然后强制刷新页面
+              setTimeout(function() {
+                // 使用时间戳参数，触发详情页的强制刷新逻辑
+                // 详情页会检测到此参数后执行 window.location.reload() 强制刷新
+                window.location.href = data.redirect_url + "?t=" + Date.now();
+              }, 300);
+            } else {
+              throw new Error(data.message || "保存失败");
+            }
+          }).catch(function(jsonError) {
+            // 如果不是JSON响应，可能是重定向，使用传统方式
+            saveStatus.textContent = "保存成功！";
+            saveStatus.style.color = "#10b981";
+            setTimeout(function() {
+              var noteId = {{ note.id }};
+              // 使用时间戳参数，触发详情页的强制刷新逻辑
+              window.location.href = "/note/" + noteId + "?t=" + Date.now();
+            }, 300);
+          });
+        })
+        .catch(function(error) {
+          console.error("保存失败:", error);
+          saveStatus.textContent = "保存失败，请重试";
+          saveStatus.style.color = "#ef4444";
+          saveBtn.disabled = false;
+          isSaving = false;
+        });
+      }
+
+      // 表单提交事件：阻止默认提交，使用异步保存
+      form.addEventListener("submit", function(e) {
+        e.preventDefault();
+        saveNote();
+      });
+
+      // Ctrl + S / Cmd + S 触发保存
+      window.addEventListener("keydown", function (e) {
+        var isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+        var saveKey =
+          (!isMac && e.ctrlKey && e.key === "s") ||
+          (isMac && e.metaKey && e.key === "s");
+
+        if (saveKey) {
+          e.preventDefault();
+          if (!isSaving) {
+            saveNote();
+          }
+        }
+      });
+    })();
+  </script>
+{% endblock %}
+

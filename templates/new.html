@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}新建素材 - CopyEZ{% endblock %}
+
+{% block content %}
+  <section class="page-section">
+    <h1 class="page-heading">新建素材</h1>
+
+    {% if error %}
+      <div class="form-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" class="note-form">
+      <div class="form-row form-row-title">
+        <label for="title">标题</label>
+        <div class="title-input-wrapper">
+          <input
+            type="text"
+            id="title"
+            name="title"
+            required
+            value="{{ title or '' }}"
+          />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="mainCategory">一级分类</label>
+        <select id="mainCategory" name="mainCategory">
+          <option value="">请选择（可选）</option>
+          <option value="全文" {% if mainCategory == '全文' %}selected{% endif %}>全文</option>
+          <option value="框架" {% if mainCategory == '框架' %}selected{% endif %}>框架</option>
+          <option value="短文摘要" {% if mainCategory == '短文摘要' %}selected{% endif %}>短文摘要</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label for="subCategory">二级分类</label>
+        <input
+          type="text"
+          id="subCategory"
+          name="subCategory"
+          placeholder="从下拉列表选择，或输入新分类（保存时自动添加）"
+          value="{{ subCategory or '' }}"
+        />
+      </div>
+
+      <div class="form-row">
+        <label for="tags_json">三级标签（可选）</label>
+        <div id="tag-selector-container"></div>
+        <input
+          type="hidden"
+          id="tags_json"
+          name="tags_json"
+          value="[]"
+        />
+      </div>
+
+      <div class="form-row form-row-inline">
+        <div class="form-col">
+          <label for="publishDate">发布日期（可选）</label>
+          <input
+            type="date"
+            id="publishDate"
+            name="publishDate"
+          />
+        </div>
+        <div class="form-col">
+          <label for="sourceUrl">原文链接（可选）</label>
+          <input
+            type="url"
+            id="sourceUrl"
+            name="sourceUrl"
+            placeholder="https://example.com/article"
+          />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="content">内容</label>
+        <textarea
+          id="content"
+          name="content"
+          rows="20"
+          required
+          placeholder="支持用 # 一级标题、## 二级标题、### 三级标题 来表示层级；其他行会自动按公文正文样式排版。"
+        >{{ content or '' }}</textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">保存</button>
+        <a href="{{ url_for('notes') }}" class="btn-secondary">取消</a>
+      </div>
+    </form>
+  </section>
+  <script src="{{ url_for('static', filename='category-selector.js') }}"></script>
+  <script>
+    (function () {
+      // 初始化分类选择器
+      if (document.getElementById("subCategory")) {
+        new CategorySelector("subCategory", {
+          mainCategoryInputId: "mainCategory"
+        });
+      }
+      
+      // 初始化标签选择器
+      if (document.getElementById("tag-selector-container")) {
+        new TagSelector("tag-selector-container", "tags_json", {
+          placeholder: "点击输入框选择预置标签，或输入新标签后按 Enter 添加"
+        });
+      }
+      
+    })();
+  </script>
+{% endblock %}
+

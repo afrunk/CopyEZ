@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}素材列表 - CopyEZ{% endblock %}
+
+{% block header_search %}
+  <!-- 导航栏中间的搜索框 -->
+  <div class="header-search-container">
+    <form class="header-search-form" method="GET" action="{{ url_for('notes') }}" id="search-form">
+      <input 
+        type="text" 
+        name="q" 
+        class="header-search-input" 
+        placeholder="Search title, content, tags..." 
+        value="{{ search_query }}"
+        autocomplete="off"
+      />
+      {% if current_main_category %}
+        <input type="hidden" name="mainCategory" value="{{ current_main_category }}" />
+      {% endif %}
+      {% if current_sub_category %}
+        <input type="hidden" name="subCategory" value="{{ current_sub_category }}" />
+      {% endif %}
+      {% if current_tag %}
+        <input type="hidden" name="tag" value="{{ current_tag }}" />
+      {% endif %}
+    </form>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="index-layout">
+    <!-- 主内容区：列表 -->
+    <main class="index-main-content">
+      <!-- 分类/标签过滤模式提示 -->
+      {% if current_main_category or current_sub_category or current_tag %}
+        <div class="tag-filter-banner">
+          <span class="tag-filter-label">
+            {% if current_sub_category %}
+              分类过滤：<strong>{{ current_sub_category }}</strong>
+            {% elif current_main_category %}
+              分类过滤：<strong>{{ current_main_category }}</strong>
+            {% elif current_tag %}
+              标签过滤：<strong>{{ current_tag }}</strong>
+            {% endif %}
+          </span>
+          <button class="btn-clear-filter" onclick="clearAllFilters()">清除筛选</button>
+        </div>
+      {% endif %}
+
+      <!-- 搜索结果容器 -->
+      <div id="search-results-container" class="search-results-container" style="display: none;"></div>
+
+      <!-- 文章列表 -->
+      <div class="notes-list-container">
+        {% if grouped_notes %}
+          <ul class="note-list">
+            {% for date_key, notes_in_date in grouped_notes %}
+              <!-- 日期分割栏 -->
+              <li class="date-divider">
+                <div class="date-divider-content">
+                  <span class="date-divider-line"></span>
+                  <span class="date-divider-text">{{ date_key.strftime("%Y年%m月%d日") }}</span>
+                  <span class="date-divider-line"></span>
+                </div>
+              </li>
+              
+              <!-- 该日期下的所有素材卡片 -->
+              {% for note in notes_in_date %}
+                <li class="note-list-item" data-note-id="{{ note.id }}">
+                  <div class="note-row">
+                    <a
+                      href="{{ url_for('view_note', note_id=note.id) }}"
+                      class="note-title"
+                    >
+                      {{ note.title }}
+                    </a>
+                    <!-- 分类标签组：一级分类、二级分类、三级标签 -->
+                    <div class="note-categories-group">
+                      {% if note.mainCategory %}
+                        <span 
+                          class="note-category tag-level-1"
+                          onclick="filterByMainCategory('{{ note.mainCategory }}'); event.stopPropagation();"
+                          title="点击过滤一级分类"
+                        >
+                          {{ note.mainCategory }}
+                        </span>
+                      {% endif %}
+                      {% if note.subCategory %}
+                        <span 
+                          class="note-category tag-level-2"
+                          onclick="filterBySubCategory('{{ note.mainCategory or '' }}', '{{ note.subCategory }}'); event.stopPropagation();"
+                          title="点击过滤二级分类"
+                        >
+                          {{ note.subCategory }}
+                        </span>
+                      {% endif %}
+                      {% set tags_list = note.get_tags_list() %}
+                      {% if tags_list %}
+                        {% for tag in tags_list %}
+                          <span 
+                            class="note-category tag-level-3"
+                            onclick="filterByTag('{{ tag }}'); event.stopPropagation();"
+                            title="点击过滤此标签"
+                          >
+                            {{ tag }}
+                          </span>
+                        {% endfor %}
+                      {% endif %}
+                    </div>
+                    <time class="note-time">
+                      {{ note.created_at.strftime("%H:%M") }}
+                    </time>
+                  </div>
+                  <button 
+                    class="note-delete-btn" 
+                    data-note-id="{{ note.id }}"
+                    aria-label="删除文章"
+                    title="删除文章"
+                  >
+                    🗑️
+                  </button>
+                </li>
+              {% endfor %}
+            {% endfor %}
+          </ul>
+        {% else %}
+          <!-- 空状态：求真务实书法背景 -->
+          <div class="empty-state">
+            <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
+            <p class="empty-state-text">
+              {% if current_main_category or current_sub_category or current_tag or search_query %}
+                当前筛选条件下没有找到素材
+              {% else %}
+                还没有任何素材，点击右上角"新建素材"开始录入。
+              {% endif %}
+            </p>
+          </div>
+        {% endif %}
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // 一级分类过滤
+    function filterByMainCategory(category) {
+      const url = new URL('{{ url_for("notes") }}', window.location.origin);
+      url.searchParams.set('mainCategory', category);
+      url.searchParams.delete('subCategory'); // 切换一级分类时清除二级分类
+      url.searchParams.delete('tag'); // 清除标签过滤
+      url.searchParams.delete('q'); // 清除搜索
+      window.location.href = url.toString();
+    }
+
+    // 二级分类过滤
+    function filterBySubCategory(mainCategory, subCategory) {
+      const url = new URL('{{ url_for("notes") }}', window.location.origin);
+      url.searchParams.set('mainCategory', mainCategory);
+      url.searchParams.set('subCategory', subCategory);
+      url.searchParams.delete('tag'); // 清除标签过滤
+      url.searchParams.delete('q'); // 清除搜索
+      window.location.href = url.toString();
+    }
+
+    // 三级标签过滤
+    function filterByTag(tag) {
+      const url = new URL('{{ url_for("notes") }}', window.location.origin);
+      url.searchParams.set('tag', tag);
+      url.searchParams.delete('q'); // 清除搜索
+      window.location.href = url.toString();
+    }
+
+    // 清除所有筛选
+    function clearAllFilters() {
+      const url = new URL('{{ url_for("notes") }}', window.location.origin);
+      url.searchParams.delete('mainCategory');
+      url.searchParams.delete('subCategory');
+      url.searchParams.delete('tag');
+      url.searchParams.delete('q');
+      window.location.href = url.toString();
+    }
+
+    // 搜索功能：防抖实时搜索
+    let searchDebounceTimer = null;
+    const searchInput = document.querySelector('.header-search-input');
+    const searchForm = document.getElementById('search-form');
+    const searchResultsContainer = document.getElementById('search-results-container');
+    const notesListContainer = document.querySelector('.notes-list-container');
+
+    // 防抖搜索函数
+    function performSearch(query) {
+      const trimmedQuery = query ? query.trim() : '';
+      
+      if (!trimmedQuery || trimmedQuery.length === 0) {
+        // 清除搜索，显示列表
+        if (searchResultsContainer) {
+          searchResultsContainer.style.display = 'none';
+          searchResultsContainer.innerHTML = '';
+        }
+        if (notesListContainer) {
+          notesListContainer.style.display = 'block';
+        }
+        return;
+      }
+
+      // 显示加载状态
+      if (searchResultsContainer) {
+        searchResultsContainer.innerHTML = '<div class="search-loading">搜索中...</div>';
+        searchResultsContainer.style.display = 'block';
+      }
+      if (notesListContainer) {
+        notesListContainer.style.display = 'none';
+      }
+
+      // 发送搜索请求（API 路径保持不变，因为它是独立的 API 端点）
+      fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}`)
+        .then(response => response.json())
+        .then(data => {
+          if (searchResultsContainer) {
+            renderSearchResults(data.results || [], trimmedQuery);
+          }
+        })
+        .catch(error => {
+          console.error('搜索错误:', error);
+          if (searchResultsContainer) {
+            searchResultsContainer.innerHTML = '<div class="search-error">搜索失败，请稍后重试</div>';
+          }
+        });
+    }
+
+    // 渲染搜索结果
+    function renderSearchResults(results, query) {
+      if (results.length === 0) {
+        searchResultsContainer.innerHTML = `
+          <div class="search-empty-state">
+            <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
+            <p class="empty-state-text">未找到相关素材，请尝试其他关键词</p>
+          </div>
+        `;
+        return;
+      }
+
+      const resultsHTML = results.map(result => {
+        const highlightedSnippet = highlightKeywords(result.snippet, query);
+        return `
+          <div class="search-result-card" data-note-id="${result.note_id}" data-keyword="${encodeURIComponent(query)}">
+            <div class="search-result-header">
+              <h3 class="search-result-title">${escapeHtml(result.title)}</h3>
+              <span class="search-result-meta">${result.date}</span>
+            </div>
+            <div class="search-result-snippet">${highlightedSnippet}</div>
+            <div class="search-result-footer">
+              ${result.mainCategory ? `<span class="search-result-category tag-level-1">${escapeHtml(result.mainCategory)}</span>` : ''}
+              ${result.subCategory ? `<span class="search-result-category tag-level-2">${escapeHtml(result.subCategory)}</span>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      searchResultsContainer.innerHTML = `<div class="search-results-list">${resultsHTML}</div>`;
+
+      // 绑定点击事件
+      searchResultsContainer.querySelectorAll('.search-result-card').forEach(card => {
+        card.addEventListener('click', function() {
+          const noteId = this.dataset.noteId;
+          const keyword = decodeURIComponent(this.dataset.keyword);
+          // 笔记详情页路径保持不变
+          window.location.href = `/note/${noteId}?highlight=${encodeURIComponent(keyword)}`;
+        });
+      });
+    }
+
+    // 高亮关键词
+    function highlightKeywords(text, query) {
+      if (!query || !text) return escapeHtml(text);
+      const keywords = query.trim().split(/\s+/).filter(k => k.length > 0);
+      let highlighted = escapeHtml(text);
+      keywords.forEach(keyword => {
+        const regex = new RegExp(`(${escapeRegex(keyword)})`, 'gi');
+        highlighted = highlighted.replace(regex, '<mark class="search-highlight">$1</mark>');
+      });
+      return highlighted;
+    }
+
+    // 转义HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // 转义正则表达式特殊字符
+    function escapeRegex(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    // 搜索框输入事件
+    if (searchInput) {
+      searchInput.addEventListener('input', function(e) {
+        const query = e.target.value;
+        
+        // 清除之前的定时器
+        if (searchDebounceTimer) {
+          clearTimeout(searchDebounceTimer);
+        }
+
+        // 设置新的定时器（500ms防抖）
+        searchDebounceTimer = setTimeout(() => {
+          performSearch(query);
+        }, 500);
+      });
+
+      // 表单提交事件：回车键直接提交表单
+      if (searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+          // 允许表单正常提交，页面会跳转到搜索结果页面
+          // 不需要阻止默认行为
+        });
+      }
+    }
+
+    // 页面加载时，如果有搜索词，执行搜索
+    if (searchInput && searchInput.value) {
+      performSearch(searchInput.value);
+    }
+  </script>
+{% endblock %}

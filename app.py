@@ -1,0 +1,1422 @@
+from datetime import datetime
+import re
+
+from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect, text
+from markupsafe import Markup
+import json
+import markdown
+
+app = Flask(__name__)
+
+# 使用本地 sqlite 数据库存储素材（项目根目录）
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///copyez.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# 禁用模板缓存，确保每次请求都重新渲染模板（开发环境）
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+# 性能优化配置（针对 2核2G 阿里云服务器）
+# 禁用 JSON 排序，减少 CPU 开销
+app.config["JSON_SORT_KEYS"] = False
+# 设置 JSON 响应不自动格式化，减少内存占用
+app.config["JSONIFY_PRETTYPRINT_REGULAR"] = False
+# SQLAlchemy 连接池配置：限制连接数，避免内存占用过高
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_size": 5,  # 连接池大小
+    "max_overflow": 10,  # 最大溢出连接数
+    "pool_pre_ping": True,  # 连接前检查连接有效性
+    "pool_recycle": 3600,  # 连接回收时间（秒）
+}
+
+db = SQLAlchemy(app)
+
+
+def ensure_schema():
+    """
+    简单的"自修复"逻辑：
+    - 发现本地 sqlite 里还没有 notes.updated_at，就自动补一个列，避免手动删库。
+    - 发现没有 notes.annotations 和 notes.global_thought，也自动补上。
+    - 发现没有 notes.mainCategory, notes.subCategory, notes.tags_json，也自动补上。
+    """
+    engine = db.engine
+    insp = inspect(engine)
+
+    # 如果 notes 表还不存在，交给 create_all 去创建即可
+    if "notes" not in insp.get_table_names():
+        return
+
+    cols = [c["name"] for c in insp.get_columns("notes")]
+    
+    # 迁移 updated_at 字段
+    if "updated_at" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE notes ADD COLUMN updated_at DATETIME"))
+    
+    # 迁移 annotations 字段（用于存储划线批注的 JSON）
+    if "annotations" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE notes ADD COLUMN annotations TEXT"))
+    
+    # 迁移 global_thought 字段（用于存储深度思考笔记）
+    if "global_thought" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE notes ADD COLUMN global_thought TEXT"))
+    
+    # 迁移 mainCategory 字段（一级分类：全文、框架、短文摘要）
+    if "mainCategory" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE notes ADD COLUMN mainCategory VARCHAR(50)"))
+    
+    # 迁移 subCategory 字段（二级分类：讲话精神、调研报告等）
+    if "subCategory" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE notes ADD COLUMN subCategory VARCHAR(100)"))
+    
+    # 迁移 tags_json 字段（三级标签：数组形式，JSON 存储）
+    if "tags_json" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE notes ADD COLUMN tags_json TEXT"))
+            # 将现有的 tags 字段（逗号分隔字符串）迁移到 tags_json（JSON 数组）
+            # 注意：这里只迁移结构，不迁移数据，因为旧数据格式不同
+    
+    # 迁移 publishDate 字段（发布日期：YYYY-MM-DD 格式）
+    if "publishDate" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE notes ADD COLUMN publishDate VARCHAR(10)"))
+    
+    # 迁移 sourceUrl 字段（原文链接：URL 字符串）
+    if "sourceUrl" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE notes ADD COLUMN sourceUrl VARCHAR(500)"))
+    
+    # 创建 custom_categories 表（如果不存在）
+    if "custom_categories" not in insp.get_table_names():
+        db.create_all()
+        # 初始化预置分类
+        _init_preset_categories()
+    else:
+        # 如果表已存在，检查是否需要初始化预置分类
+        if CustomCategory.query.count() == 0:
+            _init_preset_categories()
+
+
+def _init_preset_categories():
+    """初始化预置的二级分类到数据库"""
+    for main_cat, sub_cats in PRESET_CATEGORIES.items():
+        for sub_cat in sub_cats:
+            # 检查是否已存在
+            existing = CustomCategory.query.filter_by(name=sub_cat).first()
+            if not existing:
+                category = CustomCategory(name=sub_cat, main_category=main_cat)
+                db.session.add(category)
+    db.session.commit()
+
+
+class Note(db.Model):
+    __tablename__ = "notes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    tags = db.Column(db.String(255), nullable=True)  # 保留旧字段以兼容
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # 记录最近一次编辑时间，支持"二次加工 / 修改"场景
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # 存储划线的位置、颜色和批注内容（JSON 格式）
+    annotations = db.Column(db.Text, nullable=True)
+    # 存储右侧总体的深度思考笔记
+    global_thought = db.Column(db.Text, nullable=True)
+    # 一级分类：全文、框架、短文摘要（三选一）
+    mainCategory = db.Column(db.String(50), nullable=True)
+    # 二级分类：讲话精神、调研报告、会议精神、经验材料综述、讲话材料等
+    subCategory = db.Column(db.String(100), nullable=True)
+    # 三级标签：数组形式，JSON 存储，如 ['政法类型', '专项行动']
+    tags_json = db.Column(db.Text, nullable=True)
+    # 发布日期：YYYY-MM-DD 格式
+    publishDate = db.Column(db.String(10), nullable=True)
+    # 原文链接：URL 字符串
+    sourceUrl = db.Column(db.String(500), nullable=True)
+    
+    def get_tags_list(self):
+        """获取标签列表（从 tags_json 解析）"""
+        if self.tags_json:
+            try:
+                return json.loads(self.tags_json)
+            except:
+                return []
+        return []
+    
+    def set_tags_list(self, tags_list):
+        """设置标签列表（保存为 JSON）"""
+        if tags_list:
+            self.tags_json = json.dumps(tags_list, ensure_ascii=False)
+        else:
+            self.tags_json = None
+
+
+class CustomCategory(db.Model):
+    """用户自定义的二级分类"""
+    __tablename__ = "custom_categories"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    main_category = db.Column(db.String(50), nullable=True)  # 关联的一级分类（可选）
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "main_category": self.main_category
+        }
+
+
+# 预置的公文分类知识库
+PRESET_CATEGORIES = {
+    "全文": [
+        "大、中型会议讲话",
+        "座谈会发言",
+        "开班动员",
+        "总结讲话",
+        "调研报告",
+        "年度工作总结",
+        "述职报告",
+        "专题请示",
+        "实施方案",
+        "暂行办法",
+        "指导意见",
+        "行动计划",
+        "典型经验材料",
+        "先进事迹",
+        "工作综述",
+        "信息快报",
+        "批复",
+        "通报",
+        "通知",
+        "函询"
+    ],
+    "框架": [
+        "讲话框架",
+        "报告框架",
+        "方案框架",
+        "总结框架"
+    ],
+    "短文摘要": [
+        "要点摘要",
+        "核心观点",
+        "金句摘录"
+    ]
+}
+
+# 预置的三级标签（业务/领域）
+PRESET_TAGS = [
+    # 政法业务
+    "平安建设",
+    "法治建设",
+    "社会治理",
+    "扫黑除恶",
+    "维稳工作",
+    # 组织人事
+    "队伍建设",
+    "廉政教育",
+    "教育整顿",
+    "基层党建",
+    # 专项行动
+    "大练兵",
+    "大排查",
+    "利剑行动",
+    "清网行动",
+    # 其他常用标签
+    "党建",
+    "政法类型",
+    "专项行动",
+    "安全生产",
+    "环境保护",
+    "乡村振兴",
+    "经济发展"
+]
+
+
+def clean_word_formatting(text: str) -> str:
+    """
+    清理从 Word 粘贴过来的格式问题：
+    - 移除段首多余空格和特殊空白符（如 &nbsp;）
+    - 统一处理全角/半角空格
+    """
+    # 移除段首的连续空格（包括全角空格）
+    text = re.sub(r'^[\s\u3000\u00A0]+', '', text)
+    # 移除 HTML 实体空格
+    text = text.replace('&nbsp;', ' ')
+    text = text.replace('\u00A0', ' ')  # 不间断空格
+    text = text.replace('\u3000', ' ')  # 全角空格
+    # 清理多余的连续空格
+    text = re.sub(r' +', ' ', text)
+    return text.strip()
+
+
+def deep_clean_content(content: str) -> str:
+    """
+    深度清洗函数：对从 Word 粘贴的长文本执行强力格式清洗
+    - 逐行扫描：将内容按行分割
+    - 正则清洗：对每一行执行 re.sub(r'^[ \t\u00A0\u3000]+', '', line)
+      - [ \t] 匹配普通空格和制表符
+      - \u00A0 匹配 Word 常见的 &nbsp;（不间断空格）
+      - \u3000 匹配中文全角空格
+    - 规范化换行：合并连续的多个空行为一个
+    - 预期结果：数据库中存储的每一段开头都必须是"绝对顶格"的汉字，没有任何空白
+    """
+    if not content:
+        return content
+    
+    # 统一换行符为 \n
+    content = content.replace("\r\n", "\n").replace("\r", "\n")
+    
+    # 逐行扫描并清洗：去除每一行行首的所有空格、制表符、不间断空格、全角空格
+    # 使用 re.MULTILINE 标志，确保 ^ 匹配每一行的开头
+    content = re.sub(r'^[ \t\u00A0\u3000]+', '', content, flags=re.MULTILINE)
+    
+    # 规范化换行：将连续的多个空行（2个及以上）合并为一个空行
+    content = re.sub(r'\n\n+', '\n\n', content)
+    
+    # 去除首尾的空白字符（但保留内部的换行结构）
+    content = content.strip()
+    
+    return content
+
+
+def render_content(raw_content: str, return_toc: bool = False):
+    """
+    内容解析器（彻底修复版）：彻底修复长文档多个自然段被合并为一个 <p> 标签的问题
+    
+    核心策略：
+    1. 行首去污：只删除行首空白字符，保留空行本身
+    2. 强制段落分隔：确保每个非空行都被空行包围，强制 Markdown 识别为独立段落
+    3. Markdown 渲染后，在 HTML 层面再次强制拆分段落（双重保险）
+    
+    参数:
+        raw_content: 原始 Markdown 内容
+        return_toc: 如果为 True，返回 (html, toc_html) 元组；否则只返回 html
+    
+    返回:
+        如果 return_toc=False: Markup(html)
+        如果 return_toc=True: (Markup(html), toc_html)
+    """
+    if not raw_content:
+        if return_toc:
+            return Markup(''), ''
+        return Markup('')
+    
+    # 统一换行符为 \n
+    raw_content = raw_content.replace("\r\n", "\n").replace("\r", "\n")
+    
+    # 第一步：行首去污
+    # 使用 lstrip 只删除行首的空白字符，保留空行本身
+    lines = [line.lstrip(' \t\u00A0\u3000') for line in raw_content.splitlines()]
+    
+    # 第二步：强制段落识别
+    # 核心策略：确保每个非空行都被识别为独立段落
+    # 规则：每个非空行后面都必须有一个空行（除非下一行已经是空行）
+    # 这样，无论原始内容中两个段落之间是否有空行，最终都会变成独立段落
+    processed_lines = []
+    for i, line in enumerate(lines):
+        # 如果当前行非空
+        if line.strip():
+            processed_lines.append(line)
+            # 如果不是最后一行
+            if i < len(lines) - 1:
+                next_line = lines[i + 1]
+                # 如果下一行也非空，必须在当前行后面加一个空行
+                # 如果下一行是空行，就不加（保持原有的空行）
+                if next_line.strip():
+                    processed_lines.append('')
+            # 如果是最后一行且非空，后面不需要加空行
+        else:
+            # 如果当前行是空行，保持原样（不做任何处理）
+            processed_lines.append(line)
+    
+    cleaned_content = '\n'.join(processed_lines)
+    
+    # 标题标准修正 - 确保 # 后面必须有空格
+    cleaned_content = re.sub(r'^(#+)([^#\s])', r'\1 \2', cleaned_content, flags=re.MULTILINE)
+    
+    # 规范化换行 - 将连续的多个空行合并为一个空行（最多保留一个空行）
+    # 注意：这个操作必须在添加空行之后进行，确保每个段落之间只有一个空行
+    cleaned_content = re.sub(r'\n\n+', '\n\n', cleaned_content)
+    
+    # 去除首尾空白字符
+    cleaned_content = cleaned_content.strip()
+    
+    # 第三步：配置 Markdown 解析器，强制生成唯一的英文 ID
+    # 使用计数器生成 section-1, section-2, section-3... 格式的 ID
+    section_counter = [0]  # 使用列表以便在闭包中修改
+    
+    def english_slugify(text, separator='-'):
+        """
+        生成英文 ID：section-1, section-2, section-3...
+        注意：Python-Markdown 的 slugify 函数只接受一个参数（text），
+        但我们可以使用闭包来维护计数器，实现用户要求的 'section-' + str(y) 格式
+        """
+        section_counter[0] += 1
+        return f'section-{section_counter[0]}'
+    
+    # 配置 markdown 扩展：toc 扩展会自动为标题生成 ID
+    # 注意：我们通过在每个非空行后添加空行来让 Markdown 识别为独立段落
+    # 不使用 nl2br，因为我们已经通过添加空行来确保段落分隔
+    md = markdown.Markdown(
+        extensions=['toc', 'fenced_code', 'tables'],
+        extension_configs={
+            'toc': {
+                'baselevel': 1,
+                'slugify': english_slugify  # 强制使用英文 ID（通过闭包实现计数器）
+            }
+        }
+    )
+    
+    # 转换为 HTML
+    html = md.convert(cleaned_content)
+    
+    # 核心：从解析器对象中显式提取生成的 TOC
+    toc_html = md.toc if hasattr(md, 'toc') and md.toc else ''
+
+    # 第四步：在 HTML 层面强制拆分段落（双重保险）
+    # 策略1：把 <p> 里的 <br> 强制拆成多个段落
+    import re as re_module
+
+    def split_paragraphs_by_br(html_content: str) -> str:
+        pattern = re_module.compile(r'<p([^>]*)>(.*?)</p>', re_module.DOTALL)
+
+        def _replace(match):
+            attrs = match.group(1)
+            inner = match.group(2)
+
+            # 根据 <br> / <br /> / <br/> 分割
+            parts = re_module.split(r'<br\s*/?>\s*', inner)
+            parts = [p for p in parts if p.strip()]
+
+            # 如果没有 <br>，保持原状
+            if len(parts) <= 1:
+                return match.group(0)
+
+            # 否则每一段独立成 <p>
+            return ''.join(f'<p{attrs}>{p}</p>' for p in parts)
+
+        return pattern.sub(_replace, html_content)
+
+    html = split_paragraphs_by_br(html)
+    
+    # 策略2：基于原始内容的行信息，强制拆分被合并的段落
+    # 如果 Markdown 把多个段落合并成了一个 <p>，我们需要基于原始行信息拆分
+    # 方法：保存原始非空行的列表（排除标题），然后在 HTML 中查找对应的长段落，强制拆分
+    original_paragraph_lines = [line.strip() for line in lines if line.strip() and not line.strip().startswith('#')]
+    
+    def force_split_merged_paragraphs(html_content: str, original_lines: list) -> str:
+        """
+        如果 <p> 标签内容包含了多个原始行，强制拆分成多个 <p> 标签
+        这是最后的保险措施，确保每个原始行都成为独立的段落
+        """
+        if len(original_lines) <= 1:
+            # 如果原始内容只有一个段落，不需要拆分
+            return html_content
+        
+        # 匹配所有 <p> 标签
+        pattern = re_module.compile(r'<p([^>]*)>(.*?)</p>', re_module.DOTALL)
+        
+        def _replace(match):
+            attrs = match.group(1)
+            inner = match.group(2)
+            
+            # 移除 HTML 标签，获取纯文本内容（用于匹配）
+            text_content = re_module.sub(r'<[^>]+>', '', inner).strip()
+            
+            # 检查这个段落是否包含了多个原始行的文本
+            # 方法：检查原始行列表中，有多少行的文本出现在这个段落中
+            matching_lines = []
+            for orig_line in original_lines:
+                orig_text = orig_line.strip()
+                # 如果原始行的文本出现在段落中（作为子字符串，且长度足够）
+                # 使用更严格的匹配：原始行文本必须完整出现在段落中，且长度至少15个字符
+                if orig_text and len(orig_text) >= 15 and orig_text in text_content:
+                    matching_lines.append(orig_text)
+            
+            # 如果匹配到多个原始行（2个或更多），尝试拆分
+            if len(matching_lines) >= 2:
+                # 按照原始行的顺序，在 HTML 中找到每个原始行的位置，然后拆分
+                # 方法：找到每个原始行文本在 HTML 中的位置，然后在那里插入 </p><p> 标签
+                parts = []
+                remaining_html = inner
+                remaining_text = text_content
+                
+                # 按照原始行的顺序，依次查找每个原始行的位置并拆分
+                for i, orig_text in enumerate(matching_lines):
+                    if i == len(matching_lines) - 1:
+                        # 最后一个，直接添加剩余部分
+                        parts.append(remaining_html)
+                        break
+                    
+                    # 在剩余文本中查找当前原始行的位置
+                    pos_in_text = remaining_text.find(orig_text)
+                    if pos_in_text == -1:
+                        # 如果找不到，跳过这个原始行
+                        continue
+                    
+                    # 找到文本位置后，需要找到对应的 HTML 位置
+                    # 方法：计算文本位置对应的 HTML 位置（考虑 HTML 标签）
+                    html_pos = 0
+                    text_pos = 0
+                    for char in remaining_html:
+                        if text_pos >= pos_in_text + len(orig_text):
+                            break
+                        if char == '<':
+                            # 跳过 HTML 标签
+                            while html_pos < len(remaining_html) and remaining_html[html_pos] != '>':
+                                html_pos += 1
+                            if html_pos < len(remaining_html):
+                                html_pos += 1
+                            continue
+                        if text_pos < pos_in_text + len(orig_text):
+                            html_pos += 1
+                            text_pos += 1
+                    
+                    # 在找到的位置插入 </p><p> 标签
+                    if html_pos > 0 and html_pos < len(remaining_html):
+                        parts.append(remaining_html[:html_pos])
+                        remaining_html = remaining_html[html_pos:]
+                        remaining_text = remaining_text[pos_in_text + len(orig_text):]
+                    else:
+                        # 如果计算位置失败，尝试使用文本位置估算
+                        # 简化方法：按照文本比例估算 HTML 位置
+                        text_ratio = (pos_in_text + len(orig_text)) / len(remaining_text) if remaining_text else 0
+                        html_split_pos = int(len(remaining_html) * text_ratio)
+                        if html_split_pos > 0 and html_split_pos < len(remaining_html):
+                            parts.append(remaining_html[:html_split_pos])
+                            remaining_html = remaining_html[html_split_pos:]
+                            remaining_text = remaining_text[pos_in_text + len(orig_text):]
+                
+                # 如果成功拆分成多个部分，重新组合成多个 <p> 标签
+                if len(parts) >= 2:
+                    return ''.join(f'<p{attrs}>{part}</p>' for part in parts if part.strip())
+            
+            return match.group(0)  # 保持原样
+        
+        return pattern.sub(_replace, html_content)
+    
+    # 启用强制拆分逻辑，作为最后的保险措施
+    html = force_split_merged_paragraphs(html, original_paragraph_lines)
+    
+    # 后处理 - 为标题添加 class 和确保 ID 存在，为段落添加 class
+    # 为 h1, h2, h3 添加 heading class 和 level class（如果还没有 class）
+    def add_heading_class(match):
+        level = match.group(1)  # 1, 2, 3 (数字字符串)
+        attrs = match.group(2)  # 现有属性
+        
+        # 检查是否已有 class
+        if 'class=' not in attrs:
+            attrs = f'{attrs} class="heading level-{level}"'
+        elif 'heading' not in attrs:
+            # 如果已有 class 但没有 heading，则追加
+            attrs = re_module.sub(
+                r'class="([^"]*)"',
+                rf'class="\1 heading level-{level}"',
+                attrs
+            )
+        
+        return f'<h{level}{attrs}>'
+    
+    html = re_module.sub(
+        r'<h([123])([^>]*)>',
+        add_heading_class,
+        html
+    )
+    
+    # 为段落添加 paragraph class（包括已有 class 的情况）
+    def add_paragraph_class(match):
+        attrs = match.group(1)
+        if 'class=' not in attrs:
+            attrs = f'{attrs} class="paragraph"'
+        elif 'paragraph' not in attrs:
+            # 如果已有 class 但没有 paragraph，则追加
+            attrs = re_module.sub(
+                r'class="([^"]*)"',
+                r'class="\1 paragraph"',
+                attrs
+            )
+        return f'<p{attrs}>'
+    
+    html = re_module.sub(
+        r'<p([^>]*)>',
+        add_paragraph_class,
+        html
+    )
+    
+    # 确保所有标题都有 ID（如果 toc 扩展没有生成，则使用 section-N 格式）
+    header_index = [0]  # 使用列表以便在闭包中修改
+    
+    def ensure_all_headings_have_id(html_content):
+        nonlocal header_index
+        
+        # 匹配所有 h1, h2, h3 标签（包括开始和结束标签）
+        # 使用非贪婪匹配来处理标题内容可能包含 HTML 的情况
+        pattern = r'<h([123])([^>]*)>(.*?)</h\1>'
+        
+        def replace_heading(match):
+            nonlocal header_index
+            level = match.group(1)
+            attrs = match.group(2)
+            content = match.group(3)
+            
+            # 检查是否已有 id
+            if 'id=' not in attrs:
+                header_index[0] += 1
+                heading_id = f"section-{header_index[0]}"
+                attrs = f'{attrs} id="{heading_id}"'
+            
+            return f'<h{level}{attrs}>{content}</h{level}>'
+        
+        return re_module.sub(pattern, replace_heading, html_content, flags=re_module.DOTALL)
+    
+    html = ensure_all_headings_have_id(html)
+    
+    # 第五步：清除空段落标签（禁止空行渲染）
+    # 移除所有空的 <p></p>、<p> </p>、<p>&nbsp;</p> 等空段落标签
+    def remove_empty_paragraphs(html_content: str) -> str:
+        """
+        移除所有空段落标签，避免产生额外的、不可控的垂直间距
+        - <p></p>
+        - <p> </p>（仅包含空白字符）
+        - <p>&nbsp;</p>（包含不间断空格）
+        - <p>\u00A0</p>（包含不间断空格）
+        - <p>\u3000</p>（包含全角空格）
+        """
+        # 匹配所有 <p> 标签及其内容
+        pattern = re_module.compile(r'<p([^>]*)>(.*?)</p>', re_module.DOTALL)
+        
+        def _replace(match):
+            attrs = match.group(1)
+            inner = match.group(2)
+            
+            # 移除所有 HTML 标签，获取纯文本内容
+            text_content = re_module.sub(r'<[^>]+>', '', inner)
+            # 移除所有空白字符（包括空格、制表符、换行符、不间断空格、全角空格等）
+            text_content = re_module.sub(r'[\s\u00A0\u3000]+', '', text_content)
+            
+            # 如果纯文本内容为空，则移除这个段落标签
+            if not text_content.strip():
+                return ''
+            
+            # 否则保持原样
+            return match.group(0)
+        
+        html_content = pattern.sub(_replace, html_content)
+        
+        # 清理可能产生的连续空行（多个空段落被移除后可能留下的）
+        html_content = re_module.sub(r'\n\s*\n\s*\n+', '\n\n', html_content)
+        
+        return html_content
+    
+    html = remove_empty_paragraphs(html)
+    
+    # 根据参数决定返回值
+    if return_toc:
+        return Markup(html), toc_html
+    return Markup(html)
+
+
+@app.context_processor
+def inject_helpers():
+    # 让模板里可以直接使用 render_content
+    return {"render_content": render_content}
+
+
+@app.route("/")
+def index():
+    """门户主页：展示 Logo 和入口卡片"""
+    return render_template("portal.html")
+
+
+@app.route("/notes")
+def notes():
+    """笔记列表页：扁平化列表，按创建日期分组展示，支持分类过滤和搜索"""
+    # 获取查询参数
+    main_category = request.args.get("mainCategory", "").strip()
+    sub_category = request.args.get("subCategory", "").strip()
+    tag_filter = request.args.get("tag", "").strip()
+    search_query = request.args.get("q", "").strip()
+    global_search = request.args.get("global", "false").lower() == "true"
+    
+    # 构建查询
+    query = Note.query
+    
+    # 一级分类过滤
+    if main_category:
+        query = query.filter(Note.mainCategory == main_category)
+    
+    # 二级分类过滤
+    if sub_category:
+        query = query.filter(Note.subCategory == sub_category)
+    
+    # 三级标签过滤（在 tags_json JSON 中搜索）
+    if tag_filter:
+        query = query.filter(Note.tags_json.like(f'%"{tag_filter}"%'))
+    
+    # 搜索：如果不在全局搜索模式，且已选择二级分类，则只在当前分类搜索
+    if search_query:
+        if not global_search and sub_category:
+            # 分类内搜索：标题和内容
+            query = query.filter(
+                db.or_(
+                    Note.title.like(f'%{search_query}%'),
+                    Note.content.like(f'%{search_query}%')
+                )
+            )
+        else:
+            # 全局搜索：标题、内容、标签
+            query = query.filter(
+                db.or_(
+                    Note.title.like(f'%{search_query}%'),
+                    Note.content.like(f'%{search_query}%'),
+                    Note.tags.like(f'%{search_query}%'),
+                    Note.tags_json.like(f'%{search_query}%')
+                )
+            )
+    
+    notes = query.order_by(Note.created_at.desc()).all()
+    
+    # 按创建日期分组
+    grouped_notes = {}
+    for note in notes:
+        # 获取日期部分（年-月-日），忽略时间
+        date_key = note.created_at.date()
+        if date_key not in grouped_notes:
+            grouped_notes[date_key] = []
+        grouped_notes[date_key].append(note)
+    
+    # 转换为列表，按日期倒序排列
+    grouped_list = sorted(grouped_notes.items(), key=lambda x: x[0], reverse=True)
+    
+    # 获取所有分类数据用于侧边栏
+    all_notes = Note.query.all()
+    main_categories = set()
+    sub_categories = {}
+    all_tags = set()
+    
+    for note in all_notes:
+        if note.mainCategory:
+            main_categories.add(note.mainCategory)
+            if note.mainCategory not in sub_categories:
+                sub_categories[note.mainCategory] = set()
+        if note.subCategory:
+            if note.mainCategory:
+                sub_categories[note.mainCategory].add(note.subCategory)
+        # 收集所有标签
+        tags_list = note.get_tags_list()
+        all_tags.update(tags_list)
+    
+    # 转换为排序列表
+    main_categories = sorted(main_categories)
+    for key in sub_categories:
+        sub_categories[key] = sorted(sub_categories[key])
+    all_tags = sorted(all_tags)
+    
+    return render_template(
+        "index.html",
+        grouped_notes=grouped_list,
+        main_categories=main_categories,
+        sub_categories=sub_categories,
+        all_tags=all_tags,
+        current_main_category=main_category,
+        current_sub_category=sub_category,
+        current_tag=tag_filter,
+        search_query=search_query,
+        global_search=global_search
+    )
+
+
+@app.route("/note/<int:note_id>")
+def view_note(note_id: int):
+    """阅读页：按照公文 A4 版式展示内容"""
+    # 强制数据透传：每次都从数据库直接读取最新数据，严禁使用任何中间缓存
+    # 1. 先清除session中可能存在的该对象缓存（只清除当前note对象，不影响其他查询）
+    try:
+        # 尝试获取可能已存在的对象
+        existing_note = db.session.get(Note, note_id)
+        if existing_note:
+            db.session.expire(existing_note)
+    except Exception:
+        pass
+    
+    # 2. 使用新的查询，确保从数据库读取最新数据
+    note = db.session.query(Note).filter_by(id=note_id).first_or_404()
+    
+    # 3. 强制刷新对象，确保获取最新的数据库内容（重新从数据库加载所有字段）
+    db.session.expire(note)
+    db.session.refresh(note)
+    
+    # 渲染内容并提取 TOC（使用最新从数据库读取的content）
+    content_html, toc_html = render_content(note.content, return_toc=True)
+
+    # 调试输出：打印数据库内容和渲染后的HTML（前500字符），用于排查缓存问题
+    try:
+        print(f"\n====== DEBUG NOTE {note_id} CONTENT START ======")
+        print(f"[DB Content] 前500字符: {note.content[:500]}")
+        print(f"[Rendered HTML] 前500字符: {str(content_html)[:500]}")
+        print(f"======= DEBUG NOTE {note_id} CONTENT END =======\n")
+    except Exception as e:
+        print(f"[WARN] Failed to print content for note {note_id}: {e}")
+
+    # 调试输出：在终端打印后端生成的大纲 HTML，方便排查为什么前端没有展示
+    try:
+        print("\n====== DEBUG TOC_HTML START ======")
+        if toc_html:
+            # 为了避免一次性输出太长，只显示前 2000 个字符
+            preview = toc_html[:2000]
+            print(preview)
+            if len(toc_html) > 2000:
+                print(f"... (total length: {len(toc_html)} chars, only preview above)")
+        else:
+            print("toc_html is EMPTY or None")
+        print("======= DEBUG TOC_HTML END =======\n")
+    except Exception as e:
+        # 即便调试输出失败，也不要影响正常请求
+        print(f"[WARN] Failed to print toc_html for note {note_id}: {e}")
+    
+    response = make_response(render_template("note.html", note=note, content_html=content_html, toc_html=toc_html))
+    # 添加缓存控制头，防止浏览器缓存页面内容
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
+@app.route("/api/note/<int:note_id>/annotations", methods=["GET", "POST"])
+def note_annotations(note_id: int):
+    """API：获取或保存笔记的批注数据"""
+    note = Note.query.get_or_404(note_id)
+    
+    if request.method == "POST":
+        data = request.get_json()
+        annotations_json = json.dumps(data.get("annotations", []), ensure_ascii=False)
+        note.annotations = annotations_json
+        db.session.commit()
+        response = jsonify({"success": True})
+        # 添加no-cache头部，确保每次获取最新数据
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+    
+    # GET：返回批注数据
+    if note.annotations:
+        try:
+            annotations = json.loads(note.annotations)
+        except:
+            annotations = []
+    else:
+        annotations = []
+    
+    response = jsonify({"annotations": annotations})
+    # 添加no-cache头部，确保每次获取最新数据
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
+@app.route("/api/note/<int:note_id>/detail", methods=["GET"])
+def get_note_detail(note_id: int):
+    """API：获取笔记详情（JSON格式），强制从数据库读取最新数据"""
+    # 强制数据透传：每次都从数据库直接读取最新数据，严禁使用任何中间缓存
+    # 1. 先清除session中可能存在的该对象缓存（只清除当前note对象，不影响其他查询）
+    try:
+        existing_note = db.session.get(Note, note_id)
+        if existing_note:
+            db.session.expire(existing_note)
+    except Exception:
+        pass
+    
+    # 2. 使用新的查询，确保从数据库读取最新数据
+    note = db.session.query(Note).filter_by(id=note_id).first_or_404()
+    
+    # 3. 强制刷新对象，确保获取最新的数据库内容（重新从数据库加载所有字段）
+    db.session.expire(note)
+    db.session.refresh(note)
+    
+    # 渲染内容并提取 TOC
+    content_html, toc_html = render_content(note.content, return_toc=True)
+    
+    response = jsonify({
+        "id": note.id,
+        "title": note.title,
+        "content": note.content,  # 原始内容
+        "content_html": content_html,  # 渲染后的HTML
+        "toc_html": toc_html,
+        "mainCategory": note.mainCategory,
+        "subCategory": note.subCategory,
+        "tags_list": note.get_tags_list(),
+        "publishDate": note.publishDate,
+        "sourceUrl": note.sourceUrl,
+        "created_at": note.created_at.isoformat() if note.created_at else None,
+        "updated_at": note.updated_at.isoformat() if note.updated_at else None
+    })
+    # 添加no-cache头部，确保每次获取最新数据
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
+@app.route("/api/note/<int:note_id>/delete", methods=["DELETE"])
+def delete_note(note_id: int):
+    """API：删除文章"""
+    note = Note.query.get_or_404(note_id)
+    db.session.delete(note)
+    db.session.commit()
+    return jsonify({"success": True, "message": "文章已删除"})
+
+
+@app.route("/api/note/<int:note_id>/related", methods=["GET"])
+def get_related_notes(note_id: int):
+    """API：获取关联文章（知识图谱）
+    
+    根据当前文章的 subCategory（二级分类）和 tags（三级标签）检索相似度最高的前5篇文章。
+    逻辑权重：相同标签 > 相同二级分类。
+    
+    同时支持脉络识别：如果标题包含'方案'、'计划'或'行动'，自动检索标题中包含相同关键词的'总结'、'通报'或'调研报告'。
+    """
+    note = Note.query.get_or_404(note_id)
+    
+    # 获取当前文章的标签列表
+    current_tags = note.get_tags_list()
+    current_sub_category = note.subCategory
+    current_title = note.title
+    
+    # 构建查询：排除当前文章
+    query = Note.query.filter(Note.id != note_id)
+    
+    # 脉络识别：检测标题中的关键词
+    task_chain_keywords = []
+    task_chain_types = []
+    
+    # 检测标题中是否包含"方案"、"计划"或"行动"
+    trigger_keywords = ['方案', '计划', '行动']
+    found_trigger = None
+    
+    for keyword in trigger_keywords:
+        if keyword in current_title:
+            found_trigger = keyword
+            task_chain_keywords.append(keyword)
+            break
+    
+    # 如果检测到触发关键词，设置要检索的类型
+    if found_trigger:
+        task_chain_types = ['总结', '通报', '调研报告']
+    
+    # 如果检测到任务链，优先检索任务链相关文章
+    task_chain_notes = []
+    if task_chain_keywords and task_chain_types:
+        # 检索标题中包含触发关键词（如"方案"）且包含类型关键词（如"总结"、"通报"、"调研报告"）的文章
+        task_query = Note.query.filter(Note.id != note_id)
+        
+        # 构建标题匹配条件：必须包含触发关键词（如"方案"）
+        trigger_conditions = []
+        for keyword in task_chain_keywords:
+            trigger_conditions.append(Note.title.like(f'%{keyword}%'))
+        
+        # 构建类型匹配条件：标题中包含类型关键词（"总结"、"通报"、"调研报告"）
+        type_conditions = []
+        for doc_type in task_chain_types:
+            type_conditions.append(Note.title.like(f'%{doc_type}%'))
+        
+        if trigger_conditions and type_conditions:
+            # 必须同时满足：包含触发关键词 AND 包含类型关键词
+            task_query = task_query.filter(
+                db.or_(*trigger_conditions)
+            ).filter(
+                db.or_(*type_conditions)
+            )
+        
+        task_chain_notes = task_query.order_by(Note.created_at.desc()).limit(5).all()
+    
+    # 计算相似度并排序
+    related_notes = []
+    
+    # 获取所有其他文章
+    all_notes = query.all()
+    
+    for other_note in all_notes:
+        score = 0
+        other_tags = other_note.get_tags_list()
+        
+        # 计算标签匹配分数（权重更高）
+        if current_tags and other_tags:
+            common_tags = set(current_tags) & set(other_tags)
+            score += len(common_tags) * 10  # 每个相同标签 +10 分
+        
+        # 计算二级分类匹配分数（权重较低）
+        if current_sub_category and other_note.subCategory == current_sub_category:
+            score += 5  # 相同二级分类 +5 分
+        
+        if score > 0:
+            related_notes.append({
+                'note': other_note,
+                'score': score
+            })
+    
+    # 按分数降序排序，取前5个
+    related_notes.sort(key=lambda x: x['score'], reverse=True)
+    related_notes = related_notes[:5]
+    
+    # 构建返回结果
+    result = {
+        'related': [],
+        'task_chain': {
+            'detected': len(task_chain_notes) > 0,
+            'keywords': task_chain_keywords,
+            'notes': []
+        }
+    }
+    
+    # 格式化关联文章
+    for item in related_notes:
+        note_obj = item['note']
+        result['related'].append({
+            'id': note_obj.id,
+            'title': note_obj.title,
+            'subCategory': note_obj.subCategory or '',
+            'publishDate': note_obj.publishDate or '',
+            'score': item['score']
+        })
+    
+    # 格式化任务链文章
+    for task_note in task_chain_notes:
+        result['task_chain']['notes'].append({
+            'id': task_note.id,
+            'title': task_note.title,
+            'subCategory': task_note.subCategory or '',
+            'publishDate': task_note.publishDate or ''
+        })
+    
+    response = jsonify(result)
+    # 添加no-cache头部，确保每次获取最新数据
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
+@app.route("/api/note/<int:note_id>/global-thought", methods=["GET", "POST", "DELETE"])
+def note_global_thought(note_id: int):
+    """API：获取或保存笔记的深度思考内容（块状化存储）"""
+    note = Note.query.get_or_404(note_id)
+    
+    if request.method == "POST":
+        data = request.get_json()
+        # 块状化存储：每个笔记块作为独立记录
+        thought_data = {
+            "id": data.get("id") or f"thought_{datetime.utcnow().timestamp()}_{note_id}",
+            "content": data.get("content", ""),
+            "created_at": data.get("created_at") or datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        # 解析现有的笔记块列表
+        if note.global_thought:
+            try:
+                thoughts = json.loads(note.global_thought)
+                if not isinstance(thoughts, list):
+                    thoughts = []
+            except:
+                thoughts = []
+        else:
+            thoughts = []
+        
+        # 更新或添加笔记块
+        existing_index = next((i for i, t in enumerate(thoughts) if t.get("id") == thought_data["id"]), None)
+        if existing_index is not None:
+            thoughts[existing_index] = thought_data
+        else:
+            thoughts.append(thought_data)
+        
+        note.global_thought = json.dumps(thoughts, ensure_ascii=False)
+        db.session.commit()
+        response = jsonify({"success": True, "thought": thought_data})
+        # 添加no-cache头部，确保每次获取最新数据
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+    
+    if request.method == "DELETE":
+        data = request.get_json()
+        thought_id = data.get("id")
+        
+        if note.global_thought and thought_id:
+            try:
+                thoughts = json.loads(note.global_thought)
+                if isinstance(thoughts, list):
+                    thoughts = [t for t in thoughts if t.get("id") != thought_id]
+                    note.global_thought = json.dumps(thoughts, ensure_ascii=False) if thoughts else None
+                    db.session.commit()
+            except:
+                pass
+        
+        response = jsonify({"success": True})
+        # 添加no-cache头部，确保每次获取最新数据
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+    
+    # GET：返回所有笔记块
+    if note.global_thought:
+        try:
+            thoughts = json.loads(note.global_thought)
+            if not isinstance(thoughts, list):
+                thoughts = []
+        except:
+            thoughts = []
+    else:
+        thoughts = []
+    
+    response = jsonify({"thoughts": thoughts})
+    # 添加no-cache头部，确保每次获取最新数据
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
+@app.route("/new", methods=["GET", "POST"])
+def new_note():
+    """
+    简单的新建素材页面：
+    - 标题
+    - 一级分类（全文、框架、短文摘要）
+    - 二级分类（讲话精神、调研报告等）
+    - 三级标签（数组形式）
+    - 内容（支持 # / ## / ### 作为标题）
+    先保证可以录入素材，再优化编辑体验。
+    """
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        mainCategory = request.form.get("mainCategory", "").strip() or None
+        subCategory = request.form.get("subCategory", "").strip() or None
+        tags_input = request.form.get("tags", "").strip()  # 旧字段兼容
+        tags_json_input = request.form.get("tags_json", "").strip()  # 新字段：逗号分隔的标签
+        publishDate = request.form.get("publishDate", "").strip() or None
+        sourceUrl = request.form.get("sourceUrl", "").strip() or None
+        raw_content = request.form.get("content", "")
+        
+        # 执行深度格式清洗：去除行首空格，规范化换行
+        content = deep_clean_content(raw_content)
+
+        # 校验时再使用 strip 判断是否为空，避免误删有效换行
+        if not title or not content.strip():
+            # 很简单的校验，后面可以做更友好的提示
+            return render_template(
+                "new.html",
+                error="标题和内容不能为空",
+                title=title,
+                mainCategory=mainCategory,
+                subCategory=subCategory,
+                tags=tags_input,
+                tags_json=tags_json_input,
+                publishDate=publishDate or "",
+                sourceUrl=sourceUrl or "",
+                content=content,
+            )
+
+        # 处理三级标签（tags_json）- 现在从隐藏输入框获取 JSON 数组
+        tags_list = []
+        if tags_json_input:
+            try:
+                # 尝试解析 JSON 数组
+                tags_list = json.loads(tags_json_input)
+            except:
+                # 兼容旧格式：逗号分隔字符串
+                tags_list = [tag.strip() for tag in tags_json_input.split(",") if tag.strip()]
+
+        # 如果二级分类是新的，自动添加到数据库
+        if subCategory:
+            existing = CustomCategory.query.filter_by(name=subCategory).first()
+            if not existing:
+                new_category = CustomCategory(name=subCategory, main_category=mainCategory)
+                db.session.add(new_category)
+
+        note = Note(
+            title=title,
+            tags=tags_input,  # 保留旧字段兼容
+            content=content,
+            mainCategory=mainCategory,
+            subCategory=subCategory,
+            publishDate=publishDate,
+            sourceUrl=sourceUrl
+        )
+        note.set_tags_list(tags_list)
+        
+        db.session.add(note)
+        db.session.commit()
+
+        return redirect(url_for("view_note", note_id=note.id))
+
+    # GET 请求：传递预置分类和标签数据
+    all_categories = CustomCategory.query.order_by(CustomCategory.name).all()
+    categories_by_main = {}
+    for cat in all_categories:
+        main = cat.main_category or "其他"
+        if main not in categories_by_main:
+            categories_by_main[main] = []
+        categories_by_main[main].append(cat.name)
+    
+    return render_template("new.html", 
+                         preset_categories=PRESET_CATEGORIES,
+                         categories_by_main=categories_by_main,
+                         preset_tags=PRESET_TAGS)
+
+
+@app.route("/edit/<int:note_id>", methods=["GET", "POST"])
+def edit_note(note_id: int):
+    """
+    二次加工 / 修改已有素材：
+    - GET: 回填已有 title / tags / content / 分类 到纯净编辑表单
+    - POST: 保存用户修改，更新 updated_at，保持用户的 # / ## 标记与换行结构
+    """
+    note = Note.query.get_or_404(note_id)
+
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        mainCategory = request.form.get("mainCategory", "").strip() or None
+        subCategory = request.form.get("subCategory", "").strip() or None
+        tags = request.form.get("tags", "").strip()  # 旧字段兼容
+        tags_json_input = request.form.get("tags_json", "").strip()  # 新字段
+        publishDate = request.form.get("publishDate", "").strip() or None
+        sourceUrl = request.form.get("sourceUrl", "").strip() or None
+        raw_content = request.form.get("content", "")
+
+        # 执行深度格式清洗：去除行首空格，规范化换行（与新建时保持一致）
+        content = deep_clean_content(raw_content)
+
+        if not title or not content.strip():
+            return render_template(
+                "edit.html",
+                error="标题和内容不能为空",
+                note=note,
+                title=title,
+                mainCategory=mainCategory,
+                subCategory=subCategory,
+                tags=tags,
+                tags_json=tags_json_input,
+                publishDate=publishDate or "",
+                sourceUrl=sourceUrl or "",
+                content=content,
+            )
+
+        # 处理三级标签（tags_json）- 现在从隐藏输入框获取 JSON 数组
+        tags_list = []
+        if tags_json_input:
+            try:
+                # 尝试解析 JSON 数组
+                tags_list = json.loads(tags_json_input)
+            except:
+                # 兼容旧格式：逗号分隔字符串
+                tags_list = [tag.strip() for tag in tags_json_input.split(",") if tag.strip()]
+
+        # 如果二级分类是新的，自动添加到数据库
+        if subCategory:
+            existing = CustomCategory.query.filter_by(name=subCategory).first()
+            if not existing:
+                new_category = CustomCategory(name=subCategory, main_category=mainCategory)
+                db.session.add(new_category)
+
+        note.title = title
+        note.tags = tags  # 保留旧字段兼容
+        note.content = content
+        note.mainCategory = mainCategory
+        note.subCategory = subCategory
+        note.publishDate = publishDate
+        note.sourceUrl = sourceUrl
+        note.set_tags_list(tags_list)
+        note.updated_at = datetime.utcnow()
+
+        db.session.commit()
+        
+        # 确保数据已刷新：从数据库重新加载对象，避免缓存问题
+        # 强制刷新对象，确保获取最新的数据库内容
+        db.session.expire(note)
+        db.session.refresh(note)
+
+        # 如果是异步请求（AJAX），返回JSON响应
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                "success": True,
+                "message": "保存成功",
+                "note_id": note.id,
+                "redirect_url": url_for("view_note", note_id=note.id)
+            }), 200
+
+        return redirect(url_for("view_note", note_id=note.id))
+
+    # GET：回填原始内容，保留用户的 # / ## / ### 与所有手动换行
+    tags_list = note.get_tags_list()
+    
+    # 传递预置分类和标签数据
+    all_categories = CustomCategory.query.order_by(CustomCategory.name).all()
+    categories_by_main = {}
+    for cat in all_categories:
+        main = cat.main_category or "其他"
+        if main not in categories_by_main:
+            categories_by_main[main] = []
+        categories_by_main[main].append(cat.name)
+    
+    return render_template(
+        "edit.html",
+        note=note,
+        title=note.title,
+        tags=note.tags or "",
+        tags_json=json.dumps(tags_list, ensure_ascii=False) if tags_list else "[]",
+        mainCategory=note.mainCategory or "",
+        subCategory=note.subCategory or "",
+        publishDate=note.publishDate or "",
+        sourceUrl=note.sourceUrl or "",
+        content=note.content,
+        preset_categories=PRESET_CATEGORIES,
+        categories_by_main=categories_by_main,
+        preset_tags=PRESET_TAGS,
+    )
+
+
+@app.route("/api/categories", methods=["GET"])
+def get_categories():
+    """获取所有二级分类（按一级分类分组）"""
+    main_category = request.args.get("mainCategory", "").strip()
+    
+    if main_category:
+        # 如果指定了一级分类，优先返回相关的二级分类
+        categories = CustomCategory.query.filter_by(main_category=main_category).order_by(CustomCategory.name).all()
+        other_categories = CustomCategory.query.filter(CustomCategory.main_category != main_category).order_by(CustomCategory.name).all()
+        result = [cat.name for cat in categories] + [cat.name for cat in other_categories]
+    else:
+        # 返回所有分类
+        categories = CustomCategory.query.order_by(CustomCategory.name).all()
+        result = [cat.name for cat in categories]
+    
+    return jsonify({"categories": result})
+
+
+@app.route("/api/tags", methods=["GET"])
+def get_tags():
+    """获取所有预置的三级标签"""
+    return jsonify({"tags": PRESET_TAGS})
+
+
+@app.route("/api/search", methods=["GET"])
+def search_notes():
+    """搜索API：返回包含关键词片段和上下文的搜索结果"""
+    search_query = request.args.get("q", "").strip()
+    
+    if not search_query:
+        return jsonify({"results": []})
+    
+    # 构建搜索查询：标题、内容、标签
+    query = Note.query.filter(
+        db.or_(
+            Note.title.like(f'%{search_query}%'),
+            Note.content.like(f'%{search_query}%'),
+            Note.tags.like(f'%{search_query}%'),
+            Note.tags_json.like(f'%{search_query}%')
+        )
+    ).order_by(Note.created_at.desc())
+    
+    notes = query.all()
+    results = []
+    
+    for note in notes:
+        # 提取匹配的片段
+        snippets = []
+        
+        # 检查标题匹配
+        if search_query.lower() in note.title.lower():
+            snippets.append({
+                "text": note.title,
+                "type": "title"
+            })
+        
+        # 检查内容匹配
+        if note.content:
+            content_lower = note.content.lower()
+            query_lower = search_query.lower()
+            
+            # 找到所有匹配位置
+            start_pos = 0
+            while True:
+                pos = content_lower.find(query_lower, start_pos)
+                if pos == -1:
+                    break
+                
+                # 提取前后50字的上下文
+                context_start = max(0, pos - 50)
+                context_end = min(len(note.content), pos + len(search_query) + 50)
+                snippet_text = note.content[context_start:context_end]
+                
+                # 如果不在开头，添加省略号
+                if context_start > 0:
+                    snippet_text = "..." + snippet_text
+                if context_end < len(note.content):
+                    snippet_text = snippet_text + "..."
+                
+                snippets.append({
+                    "text": snippet_text,
+                    "type": "content",
+                    "position": pos
+                })
+                
+                start_pos = pos + 1
+        
+        # 如果没有找到匹配片段，使用标题和内容开头
+        if not snippets:
+            content_preview = note.content[:100] + "..." if note.content and len(note.content) > 100 else (note.content or "")
+            snippets.append({
+                "text": note.title + (f" - {content_preview}" if content_preview else ""),
+                "type": "preview"
+            })
+        
+        # 使用第一个匹配的片段，优先使用内容匹配
+        content_snippets = [s for s in snippets if s.get("type") == "content"]
+        if content_snippets:
+            snippet = content_snippets[0]["text"]
+        else:
+            snippet = snippets[0]["text"] if snippets else note.title
+        
+        results.append({
+            "note_id": note.id,
+            "title": note.title,
+            "snippet": snippet,
+            "mainCategory": note.mainCategory,
+            "subCategory": note.subCategory,
+            "date": note.created_at.strftime("%Y年%m月%d日")
+        })
+    
+    return jsonify({"results": results})
+
+
+@app.route("/guide")
+def guide():
+    """功能指南页面：展示所有功能点的交互式演示"""
+    return render_template("guide.html")
+
+
+if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+        ensure_schema()
+    # 生产环境配置：关闭 debug 模式，限制线程和进程数以节省资源
+    # 针对 2核2G 服务器，使用单线程模式避免资源竞争
+    app.run(
+        debug=False,  # 生产环境关闭 debug
+        host="0.0.0.0",
+        port=5000,
+        threaded=True,  # 启用多线程（Flask 默认）
+        processes=1  # 单进程模式，避免多进程占用过多内存
+    )
+

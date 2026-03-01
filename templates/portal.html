@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>CopyEZ | 公文素材库</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        background-color: #ffffff;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow-x: hidden;
+      }
+
+      .portal-container {
+        width: 100%;
+        max-width: 1200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+      }
+
+      .portal-entry-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 48px 64px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        max-width: 600px;
+        width: 100%;
+        text-align: center;
+        border: 1px solid rgba(0, 0, 0, 0.04);
+      }
+
+      .portal-entry-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      }
+
+      .portal-entry-title {
+        font-size: 32px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 16px;
+        letter-spacing: 1px;
+      }
+
+      .portal-entry-description {
+        font-size: 16px;
+        color: #666;
+        line-height: 1.6;
+        font-weight: 300;
+      }
+
+      @media (max-width: 768px) {
+        .portal-entry-card {
+          padding: 36px 32px;
+          max-width: 90%;
+        }
+
+        .portal-entry-title {
+          font-size: 24px;
+        }
+
+        .portal-entry-description {
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="portal-container">
+      <a href="{{ url_for('notes') }}" class="portal-entry-card">
+        <div class="portal-entry-title">CopyEZ | 公文素材库</div>
+        <div class="portal-entry-description">深度适配公文逻辑的沉浸式管理系统</div>
+      </a>
+    </div>
+  </body>
+</html>

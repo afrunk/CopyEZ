@@ -1,0 +1,967 @@
+{% extends "base.html" %}
+
+{% block title %}{{ note.title }} - 素材阅读{% endblock %}
+
+{# 只在详情页，在顶部导航的 + 按钮右侧显示“编辑”入口 #}
+{% block header_actions %}
+  <a
+    href="{{ url_for('edit_note', note_id=note.id) }}"
+    class="btn-flat-primary"
+    title="编辑当前素材"
+    aria-label="编辑当前素材"
+  >
+    <span class="icon-edit"></span>
+  </a>
+{% endblock %}
+
+{% block app_shell_prefix %}
+{% endblock %}
+
+{% block content %}
+  <section class="reader-layout">
+    <div class="content-container">
+      <div class="reader-page a4-paper" id="article-container">
+        <div class="reader-inner">
+          <h1 class="doc-title">
+            {{ note.title }}
+          </h1>
+
+          <article class="doc-content">
+            {{ content_html | safe }}
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <!-- 侧边栏拉环（现代化长条形拉环设计） -->
+    <button 
+      id="sidebar-toggle-btn" 
+      class="sidebar-collapse-toggle" 
+      title="收起/展开侧边栏"
+      aria-label="收起/展开侧边栏"
+    >
+      <span class="toggle-handle">
+        <span class="toggle-dot"></span>
+        <span class="toggle-dot"></span>
+        <span class="toggle-dot"></span>
+      </span>
+      <span class="toggle-arrow-expanded">&lt;</span>
+      <span class="toggle-arrow-collapsed">&gt;</span>
+    </button>
+
+    <aside class="reader-sidebar" id="reader-sidebar">
+      <!-- 第一块：素材档案中心 -->
+      <div class="sidebar-section">
+        <h2 class="sidebar-title document-info-title">
+          <span class="sidebar-title-text">DOCUMENT INFO</span>
+        </h2>
+        <div class="sidebar-content">
+          <div class="article-attributes-panel">
+            {% if note.mainCategory %}
+              <div class="attribute-item">
+                <div class="attribute-indicator"></div>
+                <div class="attribute-content">
+                  <div class="attribute-label">一级分类</div>
+                  <div 
+                    class="attribute-value attribute-level-1"
+                    onclick="filterByMainCategory('{{ note.mainCategory }}')"
+                    title="点击过滤一级分类：{{ note.mainCategory }}"
+                  >
+                    {{ note.mainCategory }}
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+            {% if note.subCategory %}
+              <div class="attribute-item">
+                <div class="attribute-indicator"></div>
+                <div class="attribute-content">
+                  <div class="attribute-label">二级分类</div>
+                  <div 
+                    class="attribute-value attribute-level-2"
+                    onclick="filterBySubCategory('{{ note.mainCategory or '' }}', '{{ note.subCategory }}')"
+                    title="点击过滤二级分类：{{ note.subCategory }}"
+                  >
+                    {{ note.subCategory }}
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+            {% set tags_list = note.get_tags_list() %}
+            {% if tags_list %}
+              <div class="attribute-item">
+                <div class="attribute-indicator"></div>
+                <div class="attribute-content">
+                  <div class="attribute-label">三级标签</div>
+                  <div class="attribute-tags">
+                    {% for tag in tags_list %}
+                      <span 
+                        class="attribute-tag attribute-level-3"
+                        onclick="filterByTag('{{ tag }}')"
+                        title="点击过滤标签：{{ tag }}"
+                      >
+                        {{ tag }}
+                      </span>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+            {% if note.publishDate or note.sourceUrl %}
+              <div class="attribute-item attribute-item-combined">
+                <div class="attribute-indicator"></div>
+                <div class="attribute-content">
+                  <div class="attribute-label">
+                    {% if note.publishDate and note.sourceUrl %}
+                      发布日期 | 原文链接
+                    {% elif note.publishDate %}
+                      发布日期
+                    {% else %}
+                      原文链接
+                    {% endif %}
+                  </div>
+                  <div class="attribute-value-combined">
+                    {% if note.publishDate %}
+                      <span class="attribute-value attribute-date">{{ note.publishDate }}</span>
+                    {% endif %}
+                    {% if note.publishDate and note.sourceUrl %}
+                      <span class="attribute-separator">|</span>
+                    {% endif %}
+                    {% if note.sourceUrl %}
+                      <a 
+                        href="{{ note.sourceUrl }}" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        class="attribute-value attribute-link"
+                        title="在新窗口打开原文链接"
+                      >
+                        查看原文
+                      </a>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+            {% if not note.mainCategory and not note.subCategory and not tags_list and not note.publishDate and not note.sourceUrl %}
+              <p class="sidebar-tip">暂无属性信息</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- 第二块：知识图谱（关联档案） -->
+      <div class="sidebar-section">
+        <h2 class="sidebar-title">
+          <div class="sidebar-title-left">
+            <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="2" x2="12" y2="6"></line>
+              <line x1="12" y1="18" x2="12" y2="22"></line>
+              <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+              <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+              <line x1="2" y1="12" x2="6" y2="12"></line>
+              <line x1="18" y1="12" x2="22" y2="12"></line>
+              <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+              <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+            </svg>
+            <span class="sidebar-title-text"><span class="sidebar-title-en">KNOWLEDGE GRAPH</span> 关联档案</span>
+          </div>
+        </h2>
+        <div class="sidebar-content">
+          <div id="knowledge-graph-container">
+            <div class="knowledge-graph-loading">加载关联素材...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第三块：大纲提炼 -->
+      <div class="sidebar-section">
+        <h2 class="sidebar-title">
+          <div class="sidebar-title-left">
+            <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+            <span class="sidebar-title-text"><span class="sidebar-title-en">OUTLINE</span> 大纲提炼</span>
+          </div>
+          <button class="sidebar-toggle" aria-label="展开/收起">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+        </h2>
+        <div class="sidebar-content">
+          {% if toc_html %}
+            {{ toc_html | safe }}
+          {% else %}
+            <nav class="outline-nav" id="outline-nav">
+              <!-- 如果没有后端生成的 TOC，通过 JavaScript 自动生成 -->
+            </nav>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- 第四块：动态批注 -->
+      <div class="sidebar-section">
+        <h2 class="sidebar-title">
+          <div class="sidebar-title-left">
+            <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span class="sidebar-title-text"><span class="sidebar-title-en">ANNOTATIONS</span> 批注笔记</span>
+          </div>
+        </h2>
+        <div class="sidebar-content">
+          <div class="annotations-container" id="annotations-list">
+            <!-- 通过 JavaScript 动态添加 -->
+          </div>
+          <p class="sidebar-tip" id="annotations-empty">
+            选中文字后点击「写批注」按钮添加批注
+          </p>
+        </div>
+      </div>
+
+      <!-- 第五块：深度思考 -->
+      <div class="sidebar-section">
+        <h2 class="sidebar-title">
+          <div class="sidebar-title-left">
+            <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+            <span class="sidebar-title-text"><span class="sidebar-title-en">THOUGHTS</span> 深度思考</span>
+          </div>
+        </h2>
+        <div class="sidebar-content">
+          <div class="thought-input-container">
+            <textarea
+              id="global-thought-input"
+              class="global-thought-input"
+              placeholder="在这里记录你的深度思考和总结..."
+              rows="4"
+            ></textarea>
+            <button id="thought-submit-btn" class="thought-submit-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+              提交
+            </button>
+          </div>
+          <div class="thoughts-list" id="thoughts-list">
+            <!-- 通过 JavaScript 动态添加笔记块 -->
+          </div>
+        </div>
+      </div>
+    </aside>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='annotations.js') }}"></script>
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <script>
+    // 强制数据透传：检测URL参数，如果是编辑后跳转（带时间戳），强制刷新页面以拉取数据库最新内容
+    (function() {
+      'use strict';
+      
+      // 检查是否已经处理过刷新（防止重复刷新）
+      if (sessionStorage.getItem('notePageRefreshed') === 'true') {
+        // 清除标记，允许下次编辑后再次刷新
+        sessionStorage.removeItem('notePageRefreshed');
+        return; // 已经刷新过，不再重复刷新
+      }
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const timestamp = urlParams.get('t');
+      
+      // 如果URL中有时间戳参数，说明是编辑后跳转，需要强制刷新以确保获取最新数据
+      if (timestamp) {
+        // 设置标记，防止重复刷新
+        sessionStorage.setItem('notePageRefreshed', 'true');
+        
+        // 移除时间戳参数，避免重复刷新
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('t');
+        
+        // 保留其他参数（如 highlight）
+        const otherParams = [];
+        newUrl.searchParams.forEach((value, key) => {
+          if (key !== 't' && key !== '_nocache') {
+            otherParams.push(key + '=' + encodeURIComponent(value));
+          }
+        });
+        
+        // 强制刷新页面，确保从服务器拉取最新数据（不使用缓存）
+        // 方法：使用 window.location.href 重新赋值，添加随机参数强制绕过缓存
+        const baseUrl = window.location.pathname;
+        const queryString = otherParams.length > 0 
+          ? '?' + otherParams.join('&') + '&_nocache=' + Date.now()
+          : '?_nocache=' + Date.now();
+        
+        window.location.href = baseUrl + queryString;
+        return; // 停止执行后续代码，等待页面刷新
+      }
+    })();
+    
+    // 一级分类过滤
+    function filterByMainCategory(category) {
+      const url = new URL('{{ url_for("notes") }}', window.location.origin);
+      url.searchParams.set('mainCategory', category);
+      url.searchParams.delete('subCategory');
+      url.searchParams.delete('tag');
+      window.location.href = url.toString();
+    }
+
+    // 二级分类过滤
+    function filterBySubCategory(mainCategory, subCategory) {
+      const url = new URL('{{ url_for("notes") }}', window.location.origin);
+      if (mainCategory) {
+        url.searchParams.set('mainCategory', mainCategory);
+      }
+      url.searchParams.set('subCategory', subCategory);
+      url.searchParams.delete('tag');
+      window.location.href = url.toString();
+    }
+
+    // 三级标签过滤
+    function filterByTag(tag) {
+      const url = new URL('{{ url_for("notes") }}', window.location.origin);
+      url.searchParams.set('tag', tag);
+      window.location.href = url.toString();
+    }
+
+    // 关键词高亮和定位功能（重构版：解决渲染时序问题，优化视觉持久度）
+    (function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let highlightKeyword = urlParams.get('highlight');
+      
+      if (!highlightKeyword) {
+        console.log('[搜索高亮] 未发现 highlight 参数，跳过高亮逻辑');
+        return;
+      }
+      
+      // 安全解码 URL 参数（增强容错）
+      try {
+        highlightKeyword = decodeURIComponent(highlightKeyword);
+        console.log('[搜索高亮] URL 参数解码成功:', highlightKeyword);
+      } catch (e) {
+        console.warn('[搜索高亮] URL 参数解码失败，使用原始值:', e);
+        // 如果解码失败，尝试多次解码
+        try {
+          highlightKeyword = decodeURIComponent(decodeURIComponent(highlightKeyword));
+        } catch (e2) {
+          // 如果还是失败，使用原始值
+        }
+      }
+      
+      if (!highlightKeyword || highlightKeyword.trim() === '') {
+        console.log('[搜索高亮] 关键词为空，跳过高亮逻辑');
+        return;
+      }
+
+      const docContent = document.querySelector('.doc-content');
+      if (!docContent) {
+        console.warn('[搜索高亮] 未找到 .doc-content 容器');
+        return;
+      }
+
+      console.log('[搜索高亮] 初始化高亮系统，关键词:', highlightKeyword);
+      console.log('[搜索高亮] 当前容器状态:', {
+        hasContent: docContent.innerHTML.length > 0,
+        textLength: docContent.textContent.length,
+        childNodes: docContent.childNodes.length
+      });
+
+      // 转义正则表达式特殊字符
+      function escapeRegex(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+
+      // 跨标签匹配：检查关键词是否被 HTML 标签切断
+      function findCrossTagMatches(element, keyword) {
+        const fullText = element.textContent || '';
+        const escapedKeyword = escapeRegex(keyword);
+        const regex = new RegExp(escapedKeyword, 'gi');
+        
+        if (!regex.test(fullText)) {
+          return null; // 全文未找到关键词
+        }
+
+        // 如果全文能找到，说明关键词存在，但可能被标签切断
+        // 返回匹配信息，用于后续处理
+        return {
+          found: true,
+          keyword: keyword
+        };
+      }
+
+      // 高亮关键词：使用 TreeWalker 遍历文本节点并包裹匹配文本（支持跨标签匹配）
+      function highlightKeywords(element, keyword) {
+        let highlightCount = 0;
+        
+        // 首先检查是否存在跨标签匹配的情况
+        const crossTagMatch = findCrossTagMatches(element, keyword);
+        if (!crossTagMatch) {
+          console.log('[搜索高亮] 全文未找到关键词:', keyword);
+          return 0;
+        }
+
+        // 转义关键词用于正则匹配
+        const escapedKeyword = escapeRegex(keyword);
+        
+        // 方法1：标准文本节点匹配（处理未被标签切断的情况）
+        const walker = document.createTreeWalker(
+          element,
+          NodeFilter.SHOW_TEXT,
+          {
+            acceptNode: function(node) {
+              // 跳过已经包含高亮标记的节点
+              if (node.parentElement && node.parentElement.classList.contains('search-highlight')) {
+                return NodeFilter.FILTER_REJECT;
+              }
+              // 跳过 script 和 style 标签
+              const parent = node.parentElement;
+              if (parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) {
+                return NodeFilter.FILTER_REJECT;
+              }
+              return NodeFilter.FILTER_ACCEPT;
+            }
+          },
+          false
+        );
+
+        const textNodes = [];
+        let node;
+        while (node = walker.nextNode()) {
+          textNodes.push(node);
+        }
+
+        // 处理每个文本节点
+        textNodes.forEach(textNode => {
+          const text = textNode.textContent;
+          const regex = new RegExp(`(${escapedKeyword})`, 'gi');
+          
+          if (regex.test(text)) {
+            const highlightedText = text.replace(regex, '<mark class="search-highlight">$1</mark>');
+            
+            // 创建临时容器来解析 HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = highlightedText;
+            
+            // 获取父节点
+            const parent = textNode.parentNode;
+            
+            // 将临时容器中的节点插入到原位置
+            const fragment = document.createDocumentFragment();
+            while (tempDiv.firstChild) {
+              fragment.appendChild(tempDiv.firstChild);
+            }
+            
+            // 替换原文本节点
+            parent.replaceChild(fragment, textNode);
+            
+            // 统计匹配数量
+            const matches = text.match(regex);
+            if (matches) {
+              highlightCount += matches.length;
+            }
+          }
+        });
+
+        // 方法2：如果标准匹配未找到，尝试跨标签匹配（处理被 <span> 等标签切断的情况）
+        if (highlightCount === 0) {
+          console.log('[搜索高亮] 标准匹配未找到，尝试跨标签匹配');
+          
+          // 获取所有文本内容
+          const fullText = element.textContent || '';
+          const regex = new RegExp(escapedKeyword, 'gi');
+          const matches = fullText.match(regex);
+          
+          if (matches && matches.length > 0) {
+            console.log('[搜索高亮] 发现跨标签匹配，匹配数量:', matches.length);
+            
+            // 对于跨标签匹配，使用更安全的方式：只替换文本内容，不替换 HTML 标签
+            // 创建一个临时容器，克隆原始元素
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = element.innerHTML;
+            
+            // 递归处理所有文本节点
+            function processTextNodes(node) {
+              if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent;
+                const textRegex = new RegExp(`(${escapedKeyword})`, 'gi');
+                if (textRegex.test(text)) {
+                  const highlightedText = text.replace(textRegex, '<mark class="search-highlight">$1</mark>');
+                  const tempDiv = document.createElement('div');
+                  tempDiv.innerHTML = highlightedText;
+                  
+                  const parent = node.parentNode;
+                  const fragment = document.createDocumentFragment();
+                  while (tempDiv.firstChild) {
+                    fragment.appendChild(tempDiv.firstChild);
+                  }
+                  parent.replaceChild(fragment, node);
+                  
+                  return true; // 表示找到了匹配
+                }
+              } else if (node.nodeType === Node.ELEMENT_NODE) {
+                // 跳过 script 和 style 标签
+                if (node.tagName === 'SCRIPT' || node.tagName === 'STYLE') {
+                  return false;
+                }
+                // 递归处理子节点
+                const childNodes = Array.from(node.childNodes);
+                for (let child of childNodes) {
+                  if (processTextNodes(child)) {
+                    return true;
+                  }
+                }
+              }
+              return false;
+            }
+            
+            // 处理临时容器中的所有文本节点
+            processTextNodes(tempContainer);
+            
+            // 如果找到了匹配，更新原始元素
+            if (tempContainer.querySelector('.search-highlight')) {
+              element.innerHTML = tempContainer.innerHTML;
+              highlightCount = matches.length;
+              console.log('[搜索高亮] 跨标签匹配成功，已更新 DOM');
+            }
+          }
+        }
+
+        return highlightCount;
+      }
+
+      // 执行高亮和滚动定位
+      function performHighlight() {
+        const highlightCount = highlightKeywords(docContent, highlightKeyword);
+        
+        console.log('[搜索高亮] 高亮执行完成，发现关键词数量:', highlightCount);
+        console.log('[搜索高亮] 当前容器状态:', {
+          hasContent: docContent.innerHTML.length > 0,
+          textLength: docContent.textContent.length,
+          highlightElements: docContent.querySelectorAll('.search-highlight').length
+        });
+
+        if (highlightCount === 0) {
+          console.warn('[搜索高亮] 未找到匹配的关键词，可能原因：');
+          console.warn('  1. 关键词被 HTML 标签复杂切断');
+          console.warn('  2. 内容尚未完全加载');
+          console.warn('  3. 关键词编码问题');
+          return false;
+        }
+
+        // 查找第一个高亮元素并滚动到它
+        setTimeout(() => {
+          const firstHighlight = docContent.querySelector('.search-highlight');
+          if (firstHighlight) {
+            console.log('[搜索高亮] 找到第一个高亮元素，开始滚动定位');
+            
+            // 滚动到目标位置（居中显示）
+            firstHighlight.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center'
+            });
+            
+            console.log('[搜索高亮] 滚动定位完成');
+          } else {
+            console.warn('[搜索高亮] 未找到高亮元素，无法滚动定位');
+          }
+        }, 100);
+
+        return true;
+      }
+
+      // 重试机制：如果首次扫描未发现关键词，每隔 500ms 重新扫描一次，共尝试 5 次
+      let retryCount = 0;
+      const MAX_RETRIES = 5;
+      const RETRY_INTERVAL = 500;
+
+      function tryHighlightWithRetry() {
+        const success = performHighlight();
+        
+        if (!success && retryCount < MAX_RETRIES) {
+          retryCount++;
+          console.log(`[搜索高亮] 第 ${retryCount} 次重试（共 ${MAX_RETRIES} 次）`);
+          setTimeout(tryHighlightWithRetry, RETRY_INTERVAL);
+        } else if (!success) {
+          console.error('[搜索高亮] 所有重试均失败，停止尝试');
+        }
+      }
+
+      // 观察者模式：使用 MutationObserver 监听正文容器变化
+      const observer = new MutationObserver(function(mutations) {
+        let shouldRetry = false;
+        
+        mutations.forEach(function(mutation) {
+          if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            // 检查是否有新的文本节点被添加
+            for (let node of mutation.addedNodes) {
+              if (node.nodeType === Node.TEXT_NODE || 
+                  (node.nodeType === Node.ELEMENT_NODE && node.textContent)) {
+                shouldRetry = true;
+                break;
+              }
+            }
+          } else if (mutation.type === 'characterData') {
+            // 文本内容发生变化
+            shouldRetry = true;
+          }
+        });
+
+        if (shouldRetry) {
+          console.log('[搜索高亮] 检测到内容变化，重新执行高亮扫描');
+          // 检查是否已经有高亮，如果没有则重试
+          const existingHighlights = docContent.querySelectorAll('.search-highlight');
+          if (existingHighlights.length === 0) {
+            retryCount = 0; // 重置重试计数
+            tryHighlightWithRetry();
+          }
+        }
+      });
+
+      // 开始观察正文容器
+      observer.observe(docContent, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+
+      console.log('[搜索高亮] MutationObserver 已启动，监听容器变化');
+
+      // 首次执行高亮
+      tryHighlightWithRetry();
+
+      // 清理功能：只有用户点击页面任意位置时才移除高亮（移除滚动清理逻辑）
+      let highlightRemoved = false;
+
+      function removeHighlights() {
+        if (highlightRemoved) return;
+        
+        console.log('[搜索高亮] 用户触发清理，移除所有高亮');
+        
+        const highlights = docContent.querySelectorAll('.search-highlight');
+        highlights.forEach(highlight => {
+          const parent = highlight.parentNode;
+          const text = highlight.textContent;
+          const textNode = document.createTextNode(text);
+          parent.replaceChild(textNode, highlight);
+          // 合并相邻的文本节点
+          parent.normalize();
+        });
+        
+        highlightRemoved = true;
+        observer.disconnect(); // 停止观察
+        console.log('[搜索高亮] 高亮已移除，观察者已断开');
+      }
+
+      // 监听点击事件：点击非高亮区域时移除高亮
+      document.addEventListener('click', function(e) {
+        // 如果点击的是高亮元素或其子元素，不移除高亮
+        if (e.target.classList.contains('search-highlight') || 
+            e.target.closest('.search-highlight')) {
+          return;
+        }
+        // 点击其他位置时移除高亮
+        removeHighlights();
+      }, { once: false });
+
+      // 监听新的搜索：如果 URL 中的 highlight 参数发生变化，移除旧的高亮
+      let lastHighlightKeyword = highlightKeyword;
+      window.addEventListener('popstate', function() {
+        const newParams = new URLSearchParams(window.location.search);
+        const newKeyword = newParams.get('highlight');
+        if (newKeyword !== lastHighlightKeyword) {
+          console.log('[搜索高亮] 检测到新的搜索关键词，移除旧高亮');
+          removeHighlights();
+        }
+      });
+    })();
+
+    // 知识图谱（关联档案）功能
+    (function() {
+      'use strict';
+      
+      const noteId = {{ note.id }};
+      const container = document.getElementById('knowledge-graph-container');
+      
+      if (!container) {
+        console.warn('[知识图谱] 未找到容器元素');
+        return;
+      }
+      
+      // 获取关联文章
+      fetch(`/api/note/${noteId}/related`)
+        .then(response => response.json())
+        .then(data => {
+          container.innerHTML = '';
+          
+          // 检查是否有任务链
+          if (data.task_chain && data.task_chain.detected && data.task_chain.notes.length > 0) {
+            const taskChainDiv = document.createElement('div');
+            taskChainDiv.className = 'knowledge-graph-task-chain';
+            taskChainDiv.innerHTML = '<div class="task-chain-label">检测到相关任务链</div>';
+            
+            const taskChainList = document.createElement('div');
+            taskChainList.className = 'knowledge-graph-timeline';
+            
+            data.task_chain.notes.forEach((note, index) => {
+              const item = createTimelineItem(note, index, data.task_chain.notes.length);
+              taskChainList.appendChild(item);
+            });
+            
+            taskChainDiv.appendChild(taskChainList);
+            container.appendChild(taskChainDiv);
+          }
+          
+          // 显示关联文章
+          if (data.related && data.related.length > 0) {
+            const relatedDiv = document.createElement('div');
+            relatedDiv.className = 'knowledge-graph-related';
+            
+            if (data.task_chain && data.task_chain.detected) {
+              // 如果有任务链，添加分隔
+              const separator = document.createElement('div');
+              separator.className = 'knowledge-graph-separator';
+              relatedDiv.appendChild(separator);
+            }
+            
+            const timeline = document.createElement('div');
+            timeline.className = 'knowledge-graph-timeline';
+            
+            data.related.forEach((note, index) => {
+              const item = createTimelineItem(note, index, data.related.length);
+              timeline.appendChild(item);
+            });
+            
+            relatedDiv.appendChild(timeline);
+            container.appendChild(relatedDiv);
+          } else if (!data.task_chain || !data.task_chain.detected || data.task_chain.notes.length === 0) {
+            // 如果没有关联文章且没有任务链，显示提示
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'knowledge-graph-empty';
+            emptyDiv.textContent = '暂无关联素材';
+            container.appendChild(emptyDiv);
+          }
+        })
+        .catch(error => {
+          console.error('[知识图谱] 加载失败:', error);
+          container.innerHTML = '<div class="knowledge-graph-error">加载失败，请稍后重试</div>';
+        });
+      
+      // 创建时间轴条目
+      function createTimelineItem(note, index, total) {
+        const item = document.createElement('div');
+        item.className = 'knowledge-graph-item';
+        if (index < total - 1) {
+          item.classList.add('has-line');
+        }
+        
+        // 点击跳转：保留当前搜索/筛选状态
+        item.addEventListener('click', function(e) {
+          e.preventDefault();
+          const currentUrl = new URL(window.location.href);
+          const newUrl = new URL(`/note/${note.id}`, window.location.origin);
+          
+          // 保留 highlight 参数（如果有）
+          const highlight = currentUrl.searchParams.get('highlight');
+          if (highlight) {
+            newUrl.searchParams.set('highlight', highlight);
+          }
+          
+          // 平滑跳转
+          window.location.href = newUrl.toString();
+        });
+        
+        // 分类标签
+        const category = document.createElement('div');
+        category.className = 'knowledge-graph-category';
+        category.textContent = note.subCategory || '未分类';
+        item.appendChild(category);
+        
+        // 标题
+        const title = document.createElement('div');
+        title.className = 'knowledge-graph-title';
+        title.textContent = note.title || '无标题';
+        item.appendChild(title);
+        
+        // 发布日期
+        if (note.publishDate) {
+          const date = document.createElement('div');
+          date.className = 'knowledge-graph-date';
+          date.textContent = note.publishDate;
+          item.appendChild(date);
+        }
+        
+        return item;
+      }
+    })();
+
+    // 侧边栏拉环功能（现代化交互）
+    (function() {
+      'use strict';
+      
+      const collapseBtn = document.getElementById('sidebar-toggle-btn');
+      const sidebar = document.getElementById('reader-sidebar');
+      const readerLayout = document.querySelector('.reader-layout');
+      
+      if (!collapseBtn || !sidebar || !readerLayout) {
+        console.warn('[侧边栏拉环] 未找到必要的 DOM 元素');
+        return;
+      }
+      
+      // 鼠标位置跟踪
+      let mouseX = 0;
+      let mouseY = 0;
+      let lastMouseMoveTime = Date.now();
+      let autoHideTimeout = null;
+      const AUTO_HIDE_DELAY = 3000; // 3秒未移动后自动隐藏
+      const RIGHT_EDGE_THRESHOLD = 150; // 鼠标靠近屏幕右侧150px时显示拉环
+      
+      // 更新拉环位置，使其紧贴侧边栏左边缘（固定在视口中）
+      function updateButtonPosition() {
+        if (readerLayout.classList.contains('sidebar-collapsed')) {
+          // 收起状态：拉环紧贴屏幕右边缘
+          collapseBtn.style.right = '0';
+          collapseBtn.style.left = 'auto';
+        } else {
+          // 展开状态：拉环紧贴侧边栏左边缘
+          const sidebarRect = sidebar.getBoundingClientRect();
+          collapseBtn.style.left = sidebarRect.left + 'px'; // 紧贴左边缘
+          collapseBtn.style.right = 'auto';
+        }
+      }
+      
+      // 检测鼠标是否靠近屏幕右侧
+      function checkMouseNearRight() {
+        const windowWidth = window.innerWidth;
+        const distanceFromRight = windowWidth - mouseX;
+        
+        if (distanceFromRight <= RIGHT_EDGE_THRESHOLD) {
+          // 鼠标靠近右侧，显示拉环
+          collapseBtn.classList.add('mouse-near-right');
+        } else {
+          // 鼠标远离右侧，恢复默认透明度（但保持可点击）
+          collapseBtn.classList.remove('mouse-near-right');
+        }
+      }
+      
+      // 处理鼠标移动
+      function handleMouseMove(e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        lastMouseMoveTime = Date.now();
+        
+        // 清除自动隐藏
+        if (autoHideTimeout) {
+          clearTimeout(autoHideTimeout);
+          autoHideTimeout = null;
+        }
+        collapseBtn.classList.remove('auto-hidden');
+        
+        // 检测是否靠近右侧
+        checkMouseNearRight();
+        
+        // 设置新的自动隐藏定时器
+        autoHideTimeout = setTimeout(function() {
+          collapseBtn.classList.add('auto-hidden');
+        }, AUTO_HIDE_DELAY);
+      }
+      
+      // 监听滚动事件，实时更新拉环位置（因为侧边栏是sticky定位，位置会变化）
+      let scrollTimeout = null;
+      function handleScroll() {
+        if (!readerLayout.classList.contains('sidebar-collapsed')) {
+          // 使用防抖，避免频繁更新
+          if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+          }
+          scrollTimeout = setTimeout(updateButtonPosition, 10);
+        }
+      }
+      
+      // 从 localStorage 读取状态
+      const savedState = localStorage.getItem('sidebarCollapsed');
+      const isCollapsed = savedState === 'true';
+      
+      // 初始化状态
+      if (isCollapsed) {
+        readerLayout.classList.add('sidebar-collapsed');
+      }
+      
+      // 初始化拉环位置
+      updateButtonPosition();
+      
+      // 切换侧边栏状态
+      function toggleSidebar() {
+        const isCurrentlyCollapsed = readerLayout.classList.contains('sidebar-collapsed');
+        
+        if (isCurrentlyCollapsed) {
+          // 展开侧边栏
+          readerLayout.classList.remove('sidebar-collapsed');
+          localStorage.setItem('sidebarCollapsed', 'false');
+        } else {
+          // 收起侧边栏
+          readerLayout.classList.add('sidebar-collapsed');
+          localStorage.setItem('sidebarCollapsed', 'true');
+        }
+        
+        // 更新拉环位置
+        setTimeout(updateButtonPosition, 50); // 等待CSS过渡完成
+      }
+      
+      // 拉环点击事件（统一处理收起和展开）
+      collapseBtn.addEventListener('click', function(e) {
+        e.stopPropagation(); // 防止事件冒泡
+        toggleSidebar();
+      });
+      
+      // 窗口大小改变时更新拉环位置
+      window.addEventListener('resize', updateButtonPosition);
+      
+      // 监听滚动事件，实时更新拉环位置（因为侧边栏是sticky定位）
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      
+      // 监听鼠标移动，实现智能显示和自动隐藏
+      document.addEventListener('mousemove', handleMouseMove, { passive: true });
+      
+      // 鼠标进入拉环时，确保显示
+      collapseBtn.addEventListener('mouseenter', function() {
+        collapseBtn.classList.remove('auto-hidden');
+        collapseBtn.classList.add('mouse-near-right');
+      });
+      
+      // 使用ResizeObserver监听侧边栏大小变化
+      if (window.ResizeObserver) {
+        const resizeObserver = new ResizeObserver(function() {
+          if (!readerLayout.classList.contains('sidebar-collapsed')) {
+            updateButtonPosition();
+          }
+        });
+        resizeObserver.observe(sidebar);
+        resizeObserver.observe(readerLayout);
+      }
+      
+      // 初始化：检测鼠标位置
+      setTimeout(function() {
+        checkMouseNearRight();
+        // 如果鼠标3秒未移动，自动隐藏
+        autoHideTimeout = setTimeout(function() {
+          collapseBtn.classList.add('auto-hidden');
+        }, AUTO_HIDE_DELAY);
+      }, 100);
+      
+      console.log('[侧边栏拉环] 初始化完成，当前状态:', isCollapsed ? '收起' : '展开');
+    })();
+  </script>
+{% endblock %}
