@@ -30,17 +30,17 @@
 {% block content %}
   <div class="index-layout">
     <!-- 主内容区：列表 -->
-    <main class="index-main-content">
+    <main class="index-main-content{% if current_tag %} tag-collection-mode{% endif %}">
       <!-- 分类/标签过滤模式提示 -->
       {% if current_main_category or current_sub_category or current_tag %}
-        <div class="tag-filter-banner">
-          <span class="tag-filter-label">
+        <div class="tag-filter-banner{% if current_tag %} tag-collection-banner{% endif %}">
+          <span class="tag-filter-label{% if current_tag %} tag-collection-title{% endif %}">
             {% if current_sub_category %}
               分类过滤：<strong>{{ current_sub_category }}</strong>
             {% elif current_main_category %}
               分类过滤：<strong>{{ current_main_category }}</strong>
             {% elif current_tag %}
-              标签过滤：<strong>{{ current_tag }}</strong>
+              专题合集：<strong>{{ current_tag }}</strong>
             {% endif %}
           </span>
           <button class="btn-clear-filter" onclick="clearAllFilters()">清除筛选</button>
@@ -52,89 +52,143 @@
 
       <!-- 文章列表 -->
       <div class="notes-list-container">
-        {% if grouped_notes %}
-          <ul class="note-list">
-            {% for date_key, notes_in_date in grouped_notes %}
-              <!-- 日期分割栏 -->
-              <li class="date-divider">
-                <div class="date-divider-content">
-                  <span class="date-divider-line"></span>
-                  <span class="date-divider-text">{{ date_key.strftime("%Y年%m月%d日") }}</span>
-                  <span class="date-divider-line"></span>
-                </div>
-              </li>
-              
-              <!-- 该日期下的所有素材卡片 -->
-              {% for note in notes_in_date %}
-                <li class="note-list-item" data-note-id="{{ note.id }}">
-                  <div class="note-row">
-                    <a
-                      href="{{ url_for('view_note', note_id=note.id) }}"
-                      class="note-title"
-                    >
-                      {{ note.title }}
-                    </a>
-                    <!-- 分类标签组：一级分类、二级分类、三级标签 -->
-                    <div class="note-categories-group">
-                      {% if note.mainCategory %}
-                        <span 
-                          class="note-category tag-level-1"
-                          onclick="filterByMainCategory('{{ note.mainCategory }}'); event.stopPropagation();"
-                          title="点击过滤一级分类"
-                        >
-                          {{ note.mainCategory }}
-                        </span>
-                      {% endif %}
-                      {% if note.subCategory %}
-                        <span 
-                          class="note-category tag-level-2"
-                          onclick="filterBySubCategory('{{ note.mainCategory or '' }}', '{{ note.subCategory }}'); event.stopPropagation();"
-                          title="点击过滤二级分类"
-                        >
-                          {{ note.subCategory }}
-                        </span>
-                      {% endif %}
-                      {% set tags_list = note.get_tags_list() %}
-                      {% if tags_list %}
-                        {% for tag in tags_list %}
-                          <span 
-                            class="note-category tag-level-3"
-                            onclick="filterByTag('{{ tag }}'); event.stopPropagation();"
-                            title="点击过滤此标签"
-                          >
-                            {{ tag }}
-                          </span>
-                        {% endfor %}
-                      {% endif %}
-                    </div>
-                    <time class="note-time">
-                      {{ note.created_at.strftime("%H:%M") }}
-                    </time>
-                  </div>
-                  <button 
-                    class="note-delete-btn" 
-                    data-note-id="{{ note.id }}"
-                    aria-label="删除文章"
-                    title="删除文章"
+        {% if current_tag %}
+          {% if tag_collection_notes %}
+            <ul class="collection-toc" id="collection-toc">
+              {% for note in tag_collection_notes %}
+                <li class="collection-toc-item" data-note-id="{{ note.id }}">
+                  <a
+                    class="collection-toc-link"
+                    href="{{ url_for('view_note', note_id=note.id, tag=current_tag) }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="{{ note.title }}"
                   >
-                    🗑️
-                  </button>
+                    <span class="collection-toc-index">{{ "%02d"|format(loop.index) }}</span>
+                    <span class="collection-toc-title">{{ note.title }}</span>
+                    <time class="collection-toc-date">
+                      {% if note.publishDate %}
+                        {{ note.publishDate }}
+                      {% else %}
+                        {{ note.created_at.strftime("%Y-%m-%d") }}
+                      {% endif %}
+                    </time>
+                  </a>
                 </li>
               {% endfor %}
-            {% endfor %}
-          </ul>
+            </ul>
+
+            <script>
+              // 将当前标签合集序列写入 sessionStorage，供详情页“上一篇/下一篇”使用
+              (function() {
+                try {
+                  const tag = {{ current_tag|tojson }};
+                  const items = Array.from(document.querySelectorAll('#collection-toc [data-note-id]')).map(li => {
+                    const id = parseInt(li.getAttribute('data-note-id'), 10);
+                    const link = li.querySelector('a.collection-toc-link');
+                    const title = link ? (link.querySelector('.collection-toc-title')?.textContent || '') : '';
+                    const date = link ? (link.querySelector('.collection-toc-date')?.textContent || '') : '';
+                    return { id, title, date };
+                  });
+                  sessionStorage.setItem('tagCollection:' + tag, JSON.stringify(items));
+                } catch (e) {
+                  // ignore
+                }
+              })();
+            </script>
+          {% else %}
+            <div class="empty-state">
+              <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
+              <p class="empty-state-text">当前筛选条件下没有找到素材</p>
+            </div>
+          {% endif %}
         {% else %}
-          <!-- 空状态：求真务实书法背景 -->
-          <div class="empty-state">
-            <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
-            <p class="empty-state-text">
-              {% if current_main_category or current_sub_category or current_tag or search_query %}
-                当前筛选条件下没有找到素材
-              {% else %}
-                还没有任何素材，点击右上角"新建素材"开始录入。
-              {% endif %}
-            </p>
-          </div>
+          {% if grouped_notes %}
+            <ul class="note-list">
+              {% for date_key, notes_in_date in grouped_notes %}
+                <!-- 日期分割栏 -->
+                <li class="date-divider">
+                  <div class="date-divider-content">
+                    <span class="date-divider-line"></span>
+                    <span class="date-divider-text">{{ date_key.strftime("%Y年%m月%d日") }}</span>
+                    <span class="date-divider-line"></span>
+                  </div>
+                </li>
+                
+                <!-- 该日期下的所有素材卡片 -->
+                {% for note in notes_in_date %}
+                  <li class="note-list-item" data-note-id="{{ note.id }}">
+                    <div class="note-row">
+                      <a
+                        href="{{ url_for('view_note', note_id=note.id) }}"
+                        class="note-title"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {{ note.title }}
+                      </a>
+                      <!-- 分类标签组：一级分类、二级分类、三级标签 -->
+                      <div class="note-categories-group">
+                        {% if note.mainCategory %}
+                          <span 
+                            class="note-category tag-level-1"
+                            onclick='filterByMainCategory({{ note.mainCategory|tojson }}); event.stopPropagation();'
+                            title="点击过滤一级分类"
+                          >
+                            {{ note.mainCategory }}
+                          </span>
+                        {% endif %}
+                        {% if note.subCategory %}
+                          <span 
+                            class="note-category tag-level-2"
+                            onclick='filterBySubCategory({{ (note.mainCategory or "")|tojson }}, {{ note.subCategory|tojson }}); event.stopPropagation();'
+                            title="点击过滤二级分类"
+                          >
+                            {{ note.subCategory }}
+                          </span>
+                        {% endif %}
+                        {% set tags_list = note.get_tags_list() %}
+                        {% if tags_list %}
+                          {% for tag in tags_list %}
+                            <span 
+                              class="note-category tag-level-3"
+                              onclick='filterByTag({{ tag|tojson }}); event.stopPropagation();'
+                              title="点击过滤此标签"
+                            >
+                              {{ tag }}
+                            </span>
+                          {% endfor %}
+                        {% endif %}
+                      </div>
+                      <time class="note-time">
+                        {{ note.created_at.strftime("%H:%M") }}
+                      </time>
+                    </div>
+                    <button 
+                      class="note-delete-btn" 
+                      data-note-id="{{ note.id }}"
+                      aria-label="删除文章"
+                      title="删除文章"
+                    >
+                      🗑️
+                    </button>
+                  </li>
+                {% endfor %}
+              {% endfor %}
+            </ul>
+          {% else %}
+            <!-- 空状态：求真务实书法背景 -->
+            <div class="empty-state">
+              <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
+              <p class="empty-state-text">
+                {% if current_main_category or current_sub_category or current_tag or search_query %}
+                  当前筛选条件下没有找到素材
+                {% else %}
+                  还没有任何素材，点击右上角"新建素材"开始录入。
+                {% endif %}
+              </p>
+            </div>
+          {% endif %}
         {% endif %}
       </div>
     </main>
@@ -264,7 +318,8 @@
           const noteId = this.dataset.noteId;
           const keyword = decodeURIComponent(this.dataset.keyword);
           // 笔记详情页路径保持不变
-          window.location.href = `/note/${noteId}?highlight=${encodeURIComponent(keyword)}`;
+          const url = `/note/${noteId}?highlight=${encodeURIComponent(keyword)}`;
+          window.open(url, '_blank', 'noopener,noreferrer');
         });
       });
     }

@@ -26,9 +26,79 @@
             {{ note.title }}
           </h1>
 
+          <!-- 上一篇 / 下一篇（支持专题合集上下文） -->
+          <nav class="reader-prev-next" aria-label="文章导航">
+            {% if nav_prev %}
+              <a
+                class="reader-nav-link reader-nav-prev"
+                href="{{ url_for('view_note', note_id=nav_prev.id, tag=current_tag) if current_tag else url_for('view_note', note_id=nav_prev.id) }}"
+                title="上一篇：{{ nav_prev.title }}"
+              >
+                上一篇：<span class="reader-nav-title">{{ nav_prev.title }}</span>
+              </a>
+            {% else %}
+              <span class="reader-nav-link reader-nav-prev is-disabled" aria-disabled="true">上一篇：无</span>
+            {% endif %}
+
+            <a
+              class="reader-nav-link reader-nav-back"
+              href="{{ url_for('notes', tag=current_tag) if current_tag else url_for('notes') }}"
+              title="返回{{ '专题合集' if current_tag else '列表' }}"
+            >
+              返回{{ '专题合集' if current_tag else '列表' }}
+            </a>
+
+            {% if nav_next %}
+              <a
+                class="reader-nav-link reader-nav-next"
+                href="{{ url_for('view_note', note_id=nav_next.id, tag=current_tag) if current_tag else url_for('view_note', note_id=nav_next.id) }}"
+                title="下一篇：{{ nav_next.title }}"
+              >
+                下一篇：<span class="reader-nav-title">{{ nav_next.title }}</span>
+              </a>
+            {% else %}
+              <span class="reader-nav-link reader-nav-next is-disabled" aria-disabled="true">下一篇：无</span>
+            {% endif %}
+          </nav>
+
           <article class="doc-content">
             {{ content_html | safe }}
           </article>
+
+          <!-- 底部再放一组，长文阅读更省滚动 -->
+          <nav class="reader-prev-next reader-prev-next-bottom" aria-label="文章导航（底部）">
+            {% if nav_prev %}
+              <a
+                class="reader-nav-link reader-nav-prev"
+                href="{{ url_for('view_note', note_id=nav_prev.id, tag=current_tag) if current_tag else url_for('view_note', note_id=nav_prev.id) }}"
+                title="上一篇：{{ nav_prev.title }}"
+              >
+                上一篇：<span class="reader-nav-title">{{ nav_prev.title }}</span>
+              </a>
+            {% else %}
+              <span class="reader-nav-link reader-nav-prev is-disabled" aria-disabled="true">上一篇：无</span>
+            {% endif %}
+
+            <a
+              class="reader-nav-link reader-nav-back"
+              href="{{ url_for('notes', tag=current_tag) if current_tag else url_for('notes') }}"
+              title="返回{{ '专题合集' if current_tag else '列表' }}"
+            >
+              返回{{ '专题合集' if current_tag else '列表' }}
+            </a>
+
+            {% if nav_next %}
+              <a
+                class="reader-nav-link reader-nav-next"
+                href="{{ url_for('view_note', note_id=nav_next.id, tag=current_tag) if current_tag else url_for('view_note', note_id=nav_next.id) }}"
+                title="下一篇：{{ nav_next.title }}"
+              >
+                下一篇：<span class="reader-nav-title">{{ nav_next.title }}</span>
+              </a>
+            {% else %}
+              <span class="reader-nav-link reader-nav-next is-disabled" aria-disabled="true">下一篇：无</span>
+            {% endif %}
+          </nav>
         </div>
       </div>
     </div>
@@ -64,7 +134,7 @@
                   <div class="attribute-label">一级分类</div>
                   <div 
                     class="attribute-value attribute-level-1"
-                    onclick="filterByMainCategory('{{ note.mainCategory }}')"
+                    onclick='filterByMainCategory({{ note.mainCategory|tojson }})'
                     title="点击过滤一级分类：{{ note.mainCategory }}"
                   >
                     {{ note.mainCategory }}
@@ -79,7 +149,7 @@
                   <div class="attribute-label">二级分类</div>
                   <div 
                     class="attribute-value attribute-level-2"
-                    onclick="filterBySubCategory('{{ note.mainCategory or '' }}', '{{ note.subCategory }}')"
+                    onclick='filterBySubCategory({{ (note.mainCategory or "")|tojson }}, {{ note.subCategory|tojson }})'
                     title="点击过滤二级分类：{{ note.subCategory }}"
                   >
                     {{ note.subCategory }}
@@ -97,7 +167,7 @@
                     {% for tag in tags_list %}
                       <span 
                         class="attribute-tag attribute-level-3"
-                        onclick="filterByTag('{{ tag }}')"
+                        onclick='filterByTag({{ tag|tojson }})'
                         title="点击过滤标签：{{ tag }}"
                       >
                         {{ tag }}
@@ -267,46 +337,102 @@
   <script src="{{ url_for('static', filename='annotations.js') }}"></script>
   <script src="{{ url_for('static', filename='main.js') }}"></script>
   <script>
-    // 强制数据透传：检测URL参数，如果是编辑后跳转（带时间戳），强制刷新页面以拉取数据库最新内容
+    // 强制数据透传：检测URL参数，如果是编辑后跳转（带时间戳），强制从 API 重新加载最新内容
     (function() {
       'use strict';
       
-      // 检查是否已经处理过刷新（防止重复刷新）
-      if (sessionStorage.getItem('notePageRefreshed') === 'true') {
-        // 清除标记，允许下次编辑后再次刷新
-        sessionStorage.removeItem('notePageRefreshed');
-        return; // 已经刷新过，不再重复刷新
-      }
-      
       const urlParams = new URLSearchParams(window.location.search);
       const timestamp = urlParams.get('t');
+      const forceRefresh = urlParams.get('_nocache');
       
-      // 如果URL中有时间戳参数，说明是编辑后跳转，需要强制刷新以确保获取最新数据
-      if (timestamp) {
-        // 设置标记，防止重复刷新
-        sessionStorage.setItem('notePageRefreshed', 'true');
+      // 如果URL中有时间戳参数或强制刷新参数，说明是编辑后跳转，需要强制从 API 重新加载数据
+      if (timestamp || forceRefresh) {
+        console.log('[详情页] 检测到编辑后跳转，开始从 API 重新加载内容');
         
-        // 移除时间戳参数，避免重复刷新
-        const newUrl = new URL(window.location.href);
-        newUrl.searchParams.delete('t');
+        // 获取笔记 ID
+        const noteIdMatch = window.location.pathname.match(/\/note\/(\d+)/);
+        if (!noteIdMatch) {
+          console.error('[详情页] 无法获取笔记 ID');
+          return;
+        }
         
-        // 保留其他参数（如 highlight）
-        const otherParams = [];
-        newUrl.searchParams.forEach((value, key) => {
-          if (key !== 't' && key !== '_nocache') {
-            otherParams.push(key + '=' + encodeURIComponent(value));
+        const noteId = parseInt(noteIdMatch[1]);
+        
+        // 从 API 重新加载内容（强制不使用缓存）
+        fetch(`/api/note/${noteId}/detail?_nocache=${Date.now()}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
           }
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log('[详情页] API 数据加载成功');
+          
+          // 更新标题
+          const titleElement = document.querySelector('.doc-title');
+          if (titleElement && data.title) {
+            titleElement.textContent = data.title;
+          }
+          
+          // 更新正文内容
+          const docContent = document.querySelector('.doc-content');
+          if (docContent && data.content_html) {
+            // 保存当前滚动位置
+            const scrollY = window.scrollY;
+            
+            // 更新内容
+            docContent.innerHTML = data.content_html;
+            
+            // 恢复标题 ID（确保后端生成的 ID 仍然存在）
+            const headings = docContent.querySelectorAll('h1.heading, h2.heading, h3.heading');
+            headings.forEach((heading, index) => {
+              if (!heading.id) {
+                heading.id = `header-${index}`;
+              }
+            });
+            
+            // 触发自定义事件，通知大纲和批注需要重新加载
+            window.dispatchEvent(new CustomEvent('contentReloaded'));
+            
+            // 恢复滚动位置（延迟执行，确保 DOM 更新完成）
+            requestAnimationFrame(() => {
+              window.scrollTo(0, scrollY);
+            });
+          }
+          
+          // 更新大纲（如果有）
+          const tocContainer = document.querySelector('.toc');
+          if (tocContainer && data.toc_html) {
+            tocContainer.innerHTML = data.toc_html;
+          }
+          
+          // 移除 URL 参数，避免重复刷新
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('t');
+          newUrl.searchParams.delete('_nocache');
+          
+          // 保留其他参数（如 highlight）
+          const otherParams = [];
+          newUrl.searchParams.forEach((value, key) => {
+            if (key !== 't' && key !== '_nocache') {
+              otherParams.push(key + '=' + encodeURIComponent(value));
+            }
+          });
+          
+          const newQueryString = otherParams.length > 0 ? '?' + otherParams.join('&') : '';
+          window.history.replaceState({}, '', window.location.pathname + newQueryString);
+          
+          console.log('[详情页] 内容更新完成');
+        })
+        .catch(err => {
+          console.error('[详情页] API 数据加载失败:', err);
+          // 如果 API 加载失败，回退到页面刷新
+          const baseUrl = window.location.pathname;
+          const queryString = '?_nocache=' + Date.now();
+          window.location.href = baseUrl + queryString;
         });
-        
-        // 强制刷新页面，确保从服务器拉取最新数据（不使用缓存）
-        // 方法：使用 window.location.href 重新赋值，添加随机参数强制绕过缓存
-        const baseUrl = window.location.pathname;
-        const queryString = otherParams.length > 0 
-          ? '?' + otherParams.join('&') + '&_nocache=' + Date.now()
-          : '?_nocache=' + Date.now();
-        
-        window.location.href = baseUrl + queryString;
-        return; // 停止执行后续代码，等待页面刷新
       }
     })();
     

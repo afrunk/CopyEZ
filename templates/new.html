@@ -96,17 +96,44 @@
   <script src="{{ url_for('static', filename='category-selector.js') }}"></script>
   <script>
     (function () {
+      let categorySelector = null;
+      let tagSelector = null;
+      
       // 初始化分类选择器
       if (document.getElementById("subCategory")) {
-        new CategorySelector("subCategory", {
+        categorySelector = new CategorySelector("subCategory", {
           mainCategoryInputId: "mainCategory"
         });
       }
       
       // 初始化标签选择器
       if (document.getElementById("tag-selector-container")) {
-        new TagSelector("tag-selector-container", "tags_json", {
+        tagSelector = new TagSelector("tag-selector-container", "tags_json", {
           placeholder: "点击输入框选择预置标签，或输入新标签后按 Enter 添加"
+        });
+      }
+      
+      // 监听一级分类变化，自动刷新分类列表
+      const mainCategorySelect = document.getElementById("mainCategory");
+      if (mainCategorySelect && categorySelector) {
+        mainCategorySelect.addEventListener("change", function() {
+          // 一级分类变化时，重新加载分类列表
+          categorySelector.loadCategories();
+        });
+      }
+      
+      // 表单提交时，保存成功后刷新列表（如果用户在同一页面多次添加）
+      const form = document.querySelector(".note-form");
+      if (form) {
+        form.addEventListener("submit", function(e) {
+          // 注意：由于是同步提交，这里只是标记，实际刷新会在页面重新加载时进行
+          // 但为了确保数据一致性，我们在提交前先刷新一次列表
+          if (categorySelector) {
+            categorySelector.loadCategories();
+          }
+          if (tagSelector) {
+            tagSelector.loadTags();
+          }
         });
       }
       

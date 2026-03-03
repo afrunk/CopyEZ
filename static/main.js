@@ -725,7 +725,9 @@
   'use strict';
   
   const LOCK_PASSWORD = '0739';
-  const LOCK_STORAGE_KEY = 'lockScreenUnlocked';
+  // 将解锁状态持久化到 localStorage，并增加有效期，确保跨标签页/浏览器重启共享状态
+  const LOCK_STORAGE_KEY = 'lockScreenUnlocked_v2';
+  const LOCK_MAX_AGE_DAYS = 7; // 解锁状态默认有效期（单位：天）
   const SCROLL_THRESHOLD = 1000; // 累积滚动1000px才完全拉开
   const PASSWORD_REVEAL_THRESHOLD = 0.4; // 幕布拉开40%时显示密码层
   const SVG_FADE_OUT_THRESHOLD = 0.8; // 幕布拉开80%时图片渐隐
@@ -766,11 +768,41 @@
   let isUnlocking = false; // 是否正在解锁（防止重复触发）
   
   /**
-   * 检查是否已解锁（从 sessionStorage 读取）
+   * 检查是否已解锁（从 localStorage 读取，并校验有效期）
    */
   function isUnlocked() {
     try {
-      return sessionStorage.getItem(LOCK_STORAGE_KEY) === 'true';
+      const raw = window.localStorage.getItem(LOCK_STORAGE_KEY);
+      if (!raw) return false;
+
+      let data = null;
+      try {
+        data = JSON.parse(raw);
+      } catch (e) {
+        // 旧版本可能直接存的是 'true' 字符串，兼容处理：视为已解锁但无过期时间
+        if (raw === 'true') {
+          return true;
+        }
+        return false;
+      }
+
+      if (!data || !data.unlocked) {
+        return false;
+      }
+
+      // 没有过期时间，视为未解锁（防御性处理）
+      if (!data.expiresAt) {
+        return false;
+      }
+
+      const now = Date.now();
+      if (now > data.expiresAt) {
+        // 已过期，主动清理本地缓存
+        window.localStorage.removeItem(LOCK_STORAGE_KEY);
+        return false;
+      }
+
+      return true;
     } catch (e) {
       return false;
     }
@@ -782,9 +814,15 @@
   function saveUnlockState(unlocked) {
     try {
       if (unlocked) {
-        sessionStorage.setItem(LOCK_STORAGE_KEY, 'true');
+        const expiresAt =
+          Date.now() + LOCK_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+        const payload = {
+          unlocked: true,
+          expiresAt,
+        };
+        window.localStorage.setItem(LOCK_STORAGE_KEY, JSON.stringify(payload));
       } else {
-        sessionStorage.removeItem(LOCK_STORAGE_KEY);
+        window.localStorage.removeItem(LOCK_STORAGE_KEY);
       }
     } catch (e) {
       console.warn('无法保存解锁状态:', e);

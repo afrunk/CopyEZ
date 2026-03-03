@@ -3,7 +3,7 @@ import re
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, text, distinct
 from markupsafe import Markup
 import json
 import markdown
@@ -638,7 +638,7 @@ def index():
 @app.route("/notes")
 def notes():
     """笔记列表页：扁平化列表，按创建日期分组展示，支持分类过滤和搜索"""
-    # 获取查询参数
+    # 获取查询参数（Flask 自动解码 URL 编码的中文参数）
     main_category = request.args.get("mainCategory", "").strip()
     sub_category = request.args.get("subCategory", "").strip()
     tag_filter = request.args.get("tag", "").strip()
@@ -656,9 +656,21 @@ def notes():
     if sub_category:
         query = query.filter(Note.subCategory == sub_category)
     
-    # 三级标签过滤（在 tags_json JSON 中搜索）
+    # 三级标签过滤：同时匹配 subCategory（二级分类）和 tags_json（三级标签）
+    # 支持模糊匹配，处理 JSON 格式和空格问题
     if tag_filter:
-        query = query.filter(Note.tags_json.like(f'%"{tag_filter}"%'))
+        # 清理标签参数：去除前后空格
+        tag_filter_clean = tag_filter.strip()
+        # 同时匹配 subCategory 字段和 tags_json JSON 数组
+        # tags_json 格式：["标签1", "标签2"]，使用 LIKE 匹配 JSON 字符串中的标签
+        query = query.filter(
+            db.or_(
+                Note.subCategory == tag_filter_clean,  # 精确匹配二级分类
+                Note.subCategory.like(f'%{tag_filter_clean}%'),  # 模糊匹配二级分类
+                Note.tags_json.like(f'%"{tag_filter_clean}"%'),  # 匹配 JSON 数组中的标签（带引号）
+                Note.tags_json.like(f'%{tag_filter_clean}%')  # 模糊匹配 JSON 中的标签（兼容其他格式）
+            )
+        )
     
     # 搜索：如果不在全局搜索模式，且已选择二级分类，则只在当前分类搜索
     if search_query:
@@ -681,19 +693,40 @@ def notes():
                 )
             )
     
-    notes = query.order_by(Note.created_at.desc()).all()
-    
-    # 按创建日期分组
-    grouped_notes = {}
-    for note in notes:
-        # 获取日期部分（年-月-日），忽略时间
-        date_key = note.created_at.date()
-        if date_key not in grouped_notes:
-            grouped_notes[date_key] = []
-        grouped_notes[date_key].append(note)
-    
-    # 转换为列表，按日期倒序排列
-    grouped_list = sorted(grouped_notes.items(), key=lambda x: x[0], reverse=True)
+    # 结果排序策略：
+    # - 默认：按 created_at 倒序（最新在前）
+    # - 标签合集模式（tag_filter）：按“发布日期/时间戳”升序（最早在前），用于“从第一章到最后一章”的阅读顺序
+    def _collection_sort_key(n: "Note"):
+        # 1) 优先使用 publishDate（YYYY-MM-DD）；2) 否则回退 created_at
+        if getattr(n, "publishDate", None):
+            try:
+                pd = datetime.strptime(n.publishDate, "%Y-%m-%d")
+                # 用 created_at 做二级排序，避免同日乱序
+                return (0, pd, n.created_at or datetime.min, n.id)
+            except Exception:
+                pass
+        return (1, n.created_at or datetime.min, n.id)
+
+    tag_collection_notes = []
+    grouped_list = []
+
+    if tag_filter:
+        # 合集化：升序排列
+        notes = query.all()
+        notes.sort(key=_collection_sort_key)
+        tag_collection_notes = notes
+    else:
+        # 默认列表：倒序排列并按天分组
+        notes = query.order_by(Note.created_at.desc()).all()
+
+        grouped_notes = {}
+        for note in notes:
+            date_key = note.created_at.date()
+            if date_key not in grouped_notes:
+                grouped_notes[date_key] = []
+            grouped_notes[date_key].append(note)
+
+        grouped_list = sorted(grouped_notes.items(), key=lambda x: x[0], reverse=True)
     
     # 获取所有分类数据用于侧边栏
     all_notes = Note.query.all()
@@ -722,6 +755,7 @@ def notes():
     return render_template(
         "index.html",
         grouped_notes=grouped_list,
+        tag_collection_notes=tag_collection_notes,
         main_categories=main_categories,
         sub_categories=sub_categories,
         all_tags=all_tags,
@@ -733,9 +767,64 @@ def notes():
     )
 
 
+@app.route("/api/tag_collection", methods=["GET"])
+def api_tag_collection():
+    """API：获取某个标签下的合集目录（升序），用于详情页"上一篇/下一篇"导航"""
+    tag = request.args.get("tag", "").strip()
+    if not tag:
+        response = jsonify({"tag": "", "notes": []})
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+
+    # 清理标签参数：去除前后空格
+    tag_clean = tag.strip()
+    # 查询该标签下的所有笔记：同时匹配 subCategory（二级分类）和 tags_json（三级标签）
+    # 支持模糊匹配，处理 JSON 格式和空格问题
+    query = Note.query.filter(
+        db.or_(
+            Note.subCategory == tag_clean,  # 精确匹配二级分类
+            Note.subCategory.like(f'%{tag_clean}%'),  # 模糊匹配二级分类
+            Note.tags_json.like(f'%"{tag_clean}"%'),  # 匹配 JSON 数组中的标签（带引号）
+            Note.tags_json.like(f'%{tag_clean}%')  # 模糊匹配 JSON 中的标签（兼容其他格式）
+        )
+    )
+
+    def _collection_sort_key(n: "Note"):
+        if getattr(n, "publishDate", None):
+            try:
+                pd = datetime.strptime(n.publishDate, "%Y-%m-%d")
+                return (0, pd, n.created_at or datetime.min, n.id)
+            except Exception:
+                pass
+        return (1, n.created_at or datetime.min, n.id)
+
+    notes = query.all()
+    notes.sort(key=_collection_sort_key)
+
+    payload = []
+    for n in notes:
+        payload.append({
+            "id": n.id,
+            "title": n.title,
+            "publishDate": n.publishDate or "",
+            "created_at": n.created_at.isoformat() if n.created_at else ""
+        })
+
+    response = jsonify({"tag": tag, "notes": payload})
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
 @app.route("/note/<int:note_id>")
 def view_note(note_id: int):
     """阅读页：按照公文 A4 版式展示内容"""
+    # 读取上下文参数：如果从“专题合集/标签”进入，URL 会携带 ?tag=xxx
+    current_tag = request.args.get("tag", "").strip() or None
+
     # 强制数据透传：每次都从数据库直接读取最新数据，严禁使用任何中间缓存
     # 1. 先清除session中可能存在的该对象缓存（只清除当前note对象，不影响其他查询）
     try:
@@ -755,6 +844,50 @@ def view_note(note_id: int):
     
     # 渲染内容并提取 TOC（使用最新从数据库读取的content）
     content_html, toc_html = render_content(note.content, return_toc=True)
+
+    # 上一篇 / 下一篇导航（支持专题合集上下文）
+    nav_prev = None
+    nav_next = None
+
+    def _collection_sort_key(n: "Note"):
+        # 1) 优先使用 publishDate（YYYY-MM-DD）；2) 否则回退 created_at
+        if getattr(n, "publishDate", None):
+            try:
+                pd = datetime.strptime(n.publishDate, "%Y-%m-%d")
+                return (0, pd, n.created_at or datetime.min, n.id)
+            except Exception:
+                pass
+        return (1, n.created_at or datetime.min, n.id)
+
+    try:
+        if current_tag:
+            tag_clean = current_tag.strip()
+            # 同时匹配 subCategory（二级分类）和 tags_json（三级标签）
+            query = Note.query.filter(
+                db.or_(
+                    Note.subCategory == tag_clean,
+                    Note.subCategory.like(f'%{tag_clean}%'),
+                    Note.tags_json.like(f'%"{tag_clean}"%'),
+                    Note.tags_json.like(f'%{tag_clean}%')
+                )
+            )
+            notes = query.all()
+            notes.sort(key=_collection_sort_key)
+        else:
+            # 非合集模式：沿用列表页排序（最新在前）
+            notes = Note.query.order_by(Note.created_at.desc(), Note.id.desc()).all()
+
+        if notes:
+            idx = next((i for i, n in enumerate(notes) if n.id == note_id), None)
+            if idx is not None:
+                if idx > 0:
+                    nav_prev = notes[idx - 1]
+                if idx < len(notes) - 1:
+                    nav_next = notes[idx + 1]
+    except Exception as _e:
+        # 导航计算失败不应影响阅读页正常渲染
+        nav_prev = None
+        nav_next = None
 
     # 调试输出：打印数据库内容和渲染后的HTML（前500字符），用于排查缓存问题
     try:
@@ -781,7 +914,15 @@ def view_note(note_id: int):
         # 即便调试输出失败，也不要影响正常请求
         print(f"[WARN] Failed to print toc_html for note {note_id}: {e}")
     
-    response = make_response(render_template("note.html", note=note, content_html=content_html, toc_html=toc_html))
+    response = make_response(render_template(
+        "note.html",
+        note=note,
+        content_html=content_html,
+        toc_html=toc_html,
+        nav_prev=nav_prev,
+        nav_next=nav_next,
+        current_tag=current_tag
+    ))
     # 添加缓存控制头，防止浏览器缓存页面内容
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
@@ -1239,12 +1380,56 @@ def edit_note(note_id: int):
         note.set_tags_list(tags_list)
         note.updated_at = datetime.utcnow()
 
-        db.session.commit()
+        # 提交数据库事务，确保数据写入成功
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    "success": False,
+                    "message": f"数据库写入失败: {str(e)}"
+                }), 500
+            return render_template(
+                "edit.html",
+                error=f"保存失败: {str(e)}",
+                note=note,
+                title=title,
+                mainCategory=mainCategory,
+                subCategory=subCategory,
+                tags=tags,
+                tags_json=tags_json_input,
+                publishDate=publishDate or "",
+                sourceUrl=sourceUrl or "",
+                content=content,
+            )
         
         # 确保数据已刷新：从数据库重新加载对象，避免缓存问题
         # 强制刷新对象，确保获取最新的数据库内容
         db.session.expire(note)
         db.session.refresh(note)
+        
+        # 验证数据确实已写入：重新查询数据库确认
+        verify_note = db.session.query(Note).filter_by(id=note.id).first()
+        if not verify_note or verify_note.content != content:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    "success": False,
+                    "message": "数据验证失败，请重试"
+                }), 500
+            return render_template(
+                "edit.html",
+                error="数据验证失败，请重试",
+                note=note,
+                title=title,
+                mainCategory=mainCategory,
+                subCategory=subCategory,
+                tags=tags,
+                tags_json=tags_json_input,
+                publishDate=publishDate or "",
+                sourceUrl=sourceUrl or "",
+                content=content,
+            )
 
         # 如果是异步请求（AJAX），返回JSON响应
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1288,26 +1473,82 @@ def edit_note(note_id: int):
 
 @app.route("/api/categories", methods=["GET"])
 def get_categories():
-    """获取所有二级分类（按一级分类分组）"""
+    """获取所有二级分类（按一级分类分组）
+    返回：系统预置分类 + CustomCategory 表中的分类 + notes 表中已存在的所有分类（DISTINCT）
+    强制从数据库查询最新数据，禁止缓存
+    """
     main_category = request.args.get("mainCategory", "").strip()
     
+    # 1. 从 CustomCategory 表获取分类
     if main_category:
         # 如果指定了一级分类，优先返回相关的二级分类
         categories = CustomCategory.query.filter_by(main_category=main_category).order_by(CustomCategory.name).all()
         other_categories = CustomCategory.query.filter(CustomCategory.main_category != main_category).order_by(CustomCategory.name).all()
-        result = [cat.name for cat in categories] + [cat.name for cat in other_categories]
+        category_set = {cat.name for cat in categories} | {cat.name for cat in other_categories}
     else:
         # 返回所有分类
         categories = CustomCategory.query.order_by(CustomCategory.name).all()
-        result = [cat.name for cat in categories]
+        category_set = {cat.name for cat in categories}
     
-    return jsonify({"categories": result})
+    # 2. 从 notes 表的 subCategory 字段 DISTINCT 查询所有已存在的分类
+    # 使用 SQLAlchemy 的 distinct() 方法，强制从数据库查询最新数据
+    existing_subcategories = db.session.query(distinct(Note.subCategory)).filter(
+        Note.subCategory.isnot(None),
+        Note.subCategory != ""
+    ).all()
+    
+    # 将查询结果添加到集合中（去重）
+    for (subcat,) in existing_subcategories:
+        if subcat:
+            category_set.add(subcat.strip())
+    
+    # 3. 合并预置分类（从 PRESET_CATEGORIES）
+    for main_cat, sub_cats in PRESET_CATEGORIES.items():
+        for sub_cat in sub_cats:
+            category_set.add(sub_cat)
+    
+    # 转换为排序列表
+    result = sorted(list(category_set))
+    
+    response = jsonify({"categories": result})
+    # 添加 no-cache 头部，确保每次获取最新数据
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @app.route("/api/tags", methods=["GET"])
 def get_tags():
-    """获取所有预置的三级标签"""
-    return jsonify({"tags": PRESET_TAGS})
+    """获取所有三级标签
+    返回：系统预置标签 + notes 表中已存在的所有标签（从 tags_json 字段解析，DISTINCT）
+    强制从数据库查询最新数据，禁止缓存
+    """
+    # 1. 从预置标签开始
+    tag_set = set(PRESET_TAGS)
+    
+    # 2. 从 notes 表的 tags_json 字段解析并 DISTINCT 查询所有已存在的标签
+    # 强制从数据库查询最新数据，不使用任何缓存
+    notes_with_tags = db.session.query(Note).filter(
+        Note.tags_json.isnot(None),
+        Note.tags_json != ""
+    ).all()
+    
+    for note in notes_with_tags:
+        tags_list = note.get_tags_list()
+        for tag in tags_list:
+            if tag and tag.strip():
+                tag_set.add(tag.strip())
+    
+    # 转换为排序列表
+    result = sorted(list(tag_set))
+    
+    response = jsonify({"tags": result})
+    # 添加 no-cache 头部，确保每次获取最新数据
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @app.route("/api/search", methods=["GET"])

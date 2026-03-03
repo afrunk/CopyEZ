@@ -65,24 +65,18 @@
      * 初始化功能
      */
     function init() {
-        // 检查是否正在刷新页面（检测 _nocache 参数）
-        const urlParams = new URLSearchParams(window.location.search);
-        const isRefreshing = urlParams.has('_nocache');
-        
-        // 如果正在刷新，延迟初始化，等待刷新完成
-        if (isRefreshing) {
-            // 等待页面完全加载后再初始化
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function() {
-                    setTimeout(initAnnotations, 100);
-                });
-            } else {
-                setTimeout(initAnnotations, 100);
-            }
-            return;
-        }
-        
         initAnnotations();
+        
+        // 监听内容重新加载事件，重新加载批注
+        window.addEventListener('contentReloaded', function() {
+            console.log('[annotations] 检测到内容重新加载，重新加载批注');
+            // 清空当前批注状态
+            state.annotations = [];
+            // 重新加载批注
+            setTimeout(() => {
+                loadAnnotations();
+            }, 200);
+        });
     }
     
     /**
@@ -1216,12 +1210,8 @@
             console.log('[saveAnnotation] 添加后总数:', state.annotations.length);
         }
         
-        // 保存整个文档的 HTML（包含所有标记）以便恢复
-        const docContent = document.querySelector('.doc-content');
-        if (docContent) {
-            // 保存 HTML 内容用于恢复
-            annotation.htmlContent = docContent.innerHTML;
-        }
+        // 不再保存整个文档的 HTML，只保存批注数据本身
+        // 这样可以避免正文内容被锁定，确保正文和批注使用统一的数据源
         
         // 防抖：延迟保存，避免频繁请求
         clearTimeout(saveAnnotationTimeout);
@@ -1233,6 +1223,7 @@
     
     /**
      * 保存所有批注到后端
+     * 不再保存整个 HTML 内容，只保存批注数据本身
      */
     function saveAllAnnotations() {
         console.log('[saveAllAnnotations] 开始保存所有批注，总数:', state.annotations.length);
@@ -1242,23 +1233,21 @@
             hasComment: !!(a.comment && a.comment.trim())
         })));
         
-        const docContent = document.querySelector('.doc-content');
-        if (docContent && state.annotations.length > 0) {
-            // 更新最后一个批注的 HTML 内容
-            const lastAnnotation = state.annotations[state.annotations.length - 1];
-            lastAnnotation.htmlContent = docContent.innerHTML;
-            console.log('[saveAllAnnotations] 已更新最后一个批注的 HTML 内容');
-        }
+        // 清理批注数据：移除 htmlContent 字段（不再需要）
+        const cleanedAnnotations = state.annotations.map(ann => {
+            const { htmlContent, ...rest } = ann;
+            return rest;
+        });
         
         // 异步保存到后端，返回 Promise
-        console.log('[saveAllAnnotations] 发送到后端，批注数量:', state.annotations.length);
+        console.log('[saveAllAnnotations] 发送到后端，批注数量:', cleanedAnnotations.length);
         return fetch(`/api/note/${state.noteId}/annotations`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                annotations: state.annotations
+                annotations: cleanedAnnotations
             })
         })
         .then(res => {
@@ -1266,6 +1255,10 @@
                 throw new Error('保存失败');
             }
             return res.json();
+        })
+        .then(data => {
+            console.log('[saveAllAnnotations] 保存成功');
+            return data;
         })
         .catch(err => {
             console.error('保存批注失败:', err);
@@ -1317,40 +1310,190 @@
     }
 
     /**
-     * 检查批注文本是否在当前页面中存在
-     * 返回 true 表示所有批注的文本都存在，false 表示至少有一个批注的文本不存在
+     * 根据批注文本重新应用高亮标记
+     * 不再恢复整个 HTML，而是基于当前页面内容重新应用标记
      */
-    function checkAnnotationsExist(annotations) {
-        if (!annotations || annotations.length === 0) {
-            return true;
+    function reapplyHighlights() {
+        if (!state.annotations || state.annotations.length === 0) {
+            return;
         }
         
         const docContent = document.querySelector('.doc-content');
         if (!docContent) {
-            return false;
+            console.warn('[reapplyHighlights] .doc-content 不存在');
+            return;
         }
         
-        // 获取当前页面的纯文本内容（去除 HTML 标签）
-        const currentText = docContent.textContent || docContent.innerText || '';
+        console.log('[reapplyHighlights] 开始重新应用高亮标记，批注数量:', state.annotations.length);
         
-        // 检查每个批注的文本是否存在于当前页面中
-        for (const annotation of annotations) {
-            if (!annotation.text || !annotation.text.trim()) {
-                continue; // 跳过没有文本的批注
-            }
-            
-            // 去除空白字符后进行比较（更宽松的匹配）
-            const annotationText = annotation.text.trim().replace(/\s+/g, ' ');
-            const normalizedCurrentText = currentText.replace(/\s+/g, ' ');
-            
-            // 检查批注文本是否在当前文本中存在
-            if (!normalizedCurrentText.includes(annotationText)) {
-                console.log('[checkAnnotationsExist] 批注文本不存在:', annotationText.substring(0, 30) + '...');
-                return false;
-            }
+        // 转义正则表达式特殊字符
+        function escapeRegex(str) {
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
         
-        return true;
+        // 查找文本在 DOM 中的位置（简化版本：使用更可靠的文本匹配）
+        function findTextInDOM(element, searchText) {
+            const normalizedSearchText = searchText.trim().replace(/\s+/g, ' ');
+            const fullText = element.textContent || '';
+            const normalizedFullText = fullText.replace(/\s+/g, ' ');
+            
+            // 如果文本不存在，返回 null
+            if (!normalizedFullText.includes(normalizedSearchText)) {
+                return null;
+            }
+            
+            // 使用 Range API 查找文本（如果浏览器支持）
+            // 否则使用 TreeWalker 手动查找
+            try {
+                // 尝试使用 Range.findText（非标准，但某些浏览器支持）
+                const range = document.createRange();
+                range.selectNodeContents(element);
+                
+                // 使用更简单的方法：遍历所有文本节点，累积文本，找到匹配位置
+                const walker = document.createTreeWalker(
+                    element,
+                    NodeFilter.SHOW_TEXT,
+                    null
+                );
+                
+                let textNodes = [];
+                let node;
+                while (node = walker.nextNode()) {
+                    if (node.textContent.trim()) {
+                        textNodes.push(node);
+                    }
+                }
+                
+                // 累积文本并查找匹配位置
+                let accumulatedNormalized = '';
+                let startNode = null;
+                let startOffset = 0;
+                let endNode = null;
+                let endOffset = 0;
+                
+                for (let i = 0; i < textNodes.length; i++) {
+                    const textNode = textNodes[i];
+                    const nodeText = textNode.textContent;
+                    const normalizedNodeText = nodeText.replace(/\s+/g, ' ');
+                    
+                    const beforeAccumulated = accumulatedNormalized;
+                    accumulatedNormalized += normalizedNodeText;
+                    
+                    // 检查是否包含目标文本
+                    const matchIndex = accumulatedNormalized.indexOf(normalizedSearchText);
+                    if (matchIndex !== -1) {
+                        // 找到匹配，计算在原始文本中的位置
+                        // 计算匹配开始位置在哪个节点
+                        let pos = 0;
+                        for (let j = 0; j <= i; j++) {
+                            const currentText = textNodes[j].textContent;
+                            const normalizedCurrentText = currentText.replace(/\s+/g, ' ');
+                            const normalizedBefore = pos === 0 ? '' : accumulatedNormalized.substring(0, pos).replace(/\s+/g, ' ');
+                            const normalizedAfter = normalizedBefore + normalizedCurrentText;
+                            
+                            if (matchIndex < normalizedAfter.length) {
+                                // 匹配开始在这个节点内
+                                const offsetInNormalized = matchIndex - normalizedBefore.length;
+                                // 将规范化偏移量转换为原始偏移量（简化：假设空格数量相同）
+                                startNode = textNodes[j];
+                                startOffset = Math.min(offsetInNormalized, currentText.length);
+                                break;
+                            }
+                            pos += normalizedCurrentText.length;
+                        }
+                        
+                        // 计算匹配结束位置
+                        const endMatchIndex = matchIndex + normalizedSearchText.length;
+                        pos = 0;
+                        for (let j = 0; j <= i; j++) {
+                            const currentText = textNodes[j].textContent;
+                            const normalizedCurrentText = currentText.replace(/\s+/g, ' ');
+                            const normalizedBefore = pos === 0 ? '' : accumulatedNormalized.substring(0, pos).replace(/\s+/g, ' ');
+                            const normalizedAfter = normalizedBefore + normalizedCurrentText;
+                            
+                            if (endMatchIndex <= normalizedAfter.length) {
+                                const offsetInNormalized = endMatchIndex - normalizedBefore.length;
+                                endNode = textNodes[j];
+                                endOffset = Math.min(offsetInNormalized, currentText.length);
+                                break;
+                            }
+                            pos += normalizedCurrentText.length;
+                        }
+                        
+                        if (startNode && endNode) {
+                            return { startNode, startOffset, endNode, endOffset };
+                        }
+                        break;
+                    }
+                }
+            } catch (err) {
+                console.error('[findTextInDOM] 查找文本失败:', err);
+            }
+            
+            return null;
+        }
+        
+        // 为每个批注重新应用高亮
+        state.annotations.forEach(annotation => {
+            if (!annotation.text || !annotation.text.trim() || !annotation.type) {
+                return; // 跳过无效批注
+            }
+            
+            // 检查是否已经存在该批注的高亮标记
+            const existingSpan = docContent.querySelector(`span[data-annotation-id="${annotation.id}"]`);
+            if (existingSpan) {
+                console.log(`[reapplyHighlights] 批注 ${annotation.id} 已存在，跳过`);
+                return; // 已经存在，跳过
+            }
+            
+            // 查找文本位置
+            const textPosition = findTextInDOM(docContent, annotation.text);
+            if (!textPosition) {
+                console.warn(`[reapplyHighlights] 批注 ${annotation.id} 的文本未找到:`, annotation.text.substring(0, 30));
+                return; // 文本不存在，跳过
+            }
+            
+            try {
+                // 创建 Range
+                const range = document.createRange();
+                range.setStart(textPosition.startNode, textPosition.startOffset);
+                range.setEnd(textPosition.endNode, textPosition.endOffset);
+                
+                // 检查是否已有相同类型的标注
+                const existing = checkExistingHighlight(range);
+                if (existing && existing.type === annotation.type) {
+                    // 如果已有相同类型标注，跳过
+                    return;
+                }
+                
+                // 创建高亮 span
+                const span = document.createElement('span');
+                span.setAttribute('data-annotation-id', annotation.id);
+                
+                if (annotation.type === 'bold') {
+                    span.className = 'hl-bold';
+                    span.style.fontWeight = 'bold';
+                    span.style.color = '#111827';
+                } else if (annotation.type === 'blue') {
+                    span.className = 'hl-blue';
+                    span.style.color = '#2563eb';
+                } else if (annotation.type === 'red') {
+                    span.className = 'hl-red';
+                    span.style.color = '#dc2626';
+                }
+                
+                // 提取内容并包裹
+                const contents = range.extractContents();
+                span.appendChild(contents);
+                range.insertNode(span);
+                
+                console.log(`[reapplyHighlights] 成功重新应用批注 ${annotation.id}`);
+            } catch (err) {
+                console.error(`[reapplyHighlights] 重新应用批注 ${annotation.id} 失败:`, err);
+            }
+        });
+        
+        console.log('[reapplyHighlights] 重新应用高亮标记完成');
     }
 
     /**
@@ -1362,47 +1505,17 @@
             .then(data => {
                 state.annotations = data.annotations || [];
                 
-                // 恢复页面中的高亮标记（使用最后一个批注保存的 HTML）
-                // 但只有在所有批注的文本都存在于当前页面时才恢复
+                console.log('[loadAnnotations] 加载批注完成，数量:', state.annotations.length);
+                
+                // 不再恢复整个 HTML，而是重新应用高亮标记
+                // 这样可以确保正文内容始终是最新的，不会被旧的 HTML 覆盖
                 if (state.annotations.length > 0) {
-                    const lastAnnotation = state.annotations[state.annotations.length - 1];
-                    if (lastAnnotation.htmlContent) {
-                        const docContent = document.querySelector('.doc-content');
-                        if (docContent) {
-                            // 检查所有批注的文本是否在当前页面中存在
-                            const allAnnotationsExist = checkAnnotationsExist(state.annotations);
-                            
-                            if (allAnnotationsExist) {
-                                console.log('[loadAnnotations] 所有批注文本都存在，恢复 HTML 内容');
-                                
-                                // 保存当前滚动位置
-                                const scrollY = window.scrollY;
-                                
-                                // 在渲染前清洗 HTML 内容，去除段落文本的行首空格
-                                const cleanedHtml = cleanParagraphText(lastAnnotation.htmlContent);
-                                docContent.innerHTML = cleanedHtml;
-                                
-                                // 恢复标题 ID（确保后端生成的 ID 仍然存在）
-                                // 如果标题没有 ID，则根据索引重新生成
-                                const headings = docContent.querySelectorAll('h1.heading, h2.heading, h3.heading');
-                                headings.forEach((heading, index) => {
-                                    if (!heading.id) {
-                                        heading.id = `header-${index}`;
-                                    }
-                                });
-                                
-                                // 触发自定义事件，通知大纲需要重新生成
-                                window.dispatchEvent(new CustomEvent('annotationsLoaded'));
-                                
-                                // 恢复滚动位置（延迟执行，确保 DOM 更新完成）
-                                requestAnimationFrame(() => {
-                                    window.scrollTo(0, scrollY);
-                                });
-                            } else {
-                                console.log('[loadAnnotations] 检测到批注文本已被修改，不恢复 HTML 内容，保留用户修改');
-                            }
-                        }
-                    }
+                    // 延迟执行，确保页面内容已完全加载
+                    setTimeout(() => {
+                        reapplyHighlights();
+                        // 触发自定义事件，通知大纲需要重新生成
+                        window.dispatchEvent(new CustomEvent('annotationsLoaded'));
+                    }, 100);
                 }
                 
                 // 恢复右侧批注列表

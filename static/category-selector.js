@@ -54,10 +54,17 @@ class CategorySelector {
   
   async loadCategories() {
     const mainCategory = document.getElementById(this.options.mainCategoryInputId)?.value || "";
-    const url = `${this.options.apiUrl}?mainCategory=${encodeURIComponent(mainCategory)}`;
+    const url = `${this.options.apiUrl}?mainCategory=${encodeURIComponent(mainCategory)}&_t=${Date.now()}`;
     
     try {
-      const response = await fetch(url);
+      // 强制禁用缓存，确保每次获取最新数据
+      const response = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await response.json();
       this.categories = data.categories || [];
       this.filter();
@@ -249,7 +256,16 @@ class TagSelector {
   
   async loadTags() {
     try {
-      const response = await fetch(this.options.apiUrl);
+      // 强制禁用缓存，确保每次获取最新数据
+      // 添加时间戳参数防止浏览器缓存
+      const url = `${this.options.apiUrl}?_t=${Date.now()}`;
+      const response = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await response.json();
       this.tags = data.tags || [];
       this.filter();
