@@ -732,6 +732,7 @@
   const PASSWORD_REVEAL_THRESHOLD = 0.4; // 幕布拉开40%时显示密码层
   const SVG_FADE_OUT_THRESHOLD = 0.8; // 幕布拉开80%时图片渐隐
   const TEXT_FADE_OUT_DURATION = 800; // 文字淡出持续时间（毫秒）
+  const IS_TOUCH_DEVICE = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   
   // 延迟获取元素，确保 DOM 已加载
   let lockScreen, passwordInput, lockTextLayer, passwordLayer, curtainTop, curtainBottom, lockScreenBtn, contentBlurOverlay;
@@ -766,6 +767,7 @@
   
   let scrollDelta = 0; // 累积的滚动距离
   let isUnlocking = false; // 是否正在解锁（防止重复触发）
+  let lastTouchY = null; // 记录触摸起点，用于模拟滚轮
   
   /**
    * 检查是否已解锁（从 localStorage 读取，并校验有效期）
@@ -1035,6 +1037,51 @@
   }
   
   /**
+   * 处理触摸开始（移动端模拟滚轮）
+   */
+  function handleTouchStart(e) {
+    if (lockScreen && lockScreen.parentNode && !isUnlocked()) {
+      if (e.touches && e.touches.length > 0) {
+        lastTouchY = e.touches[0].clientY;
+      }
+      // 阻止页面本身的滚动
+      e.preventDefault();
+    }
+  }
+
+  /**
+   * 处理触摸滑动（向上滑动手指，相当于向下滚轮）
+   */
+  function handleTouchMove(e) {
+    if (lockScreen && lockScreen.parentNode && !isUnlocked()) {
+      if (!e.touches || e.touches.length === 0) return;
+      const currentY = e.touches[0].clientY;
+      if (lastTouchY == null) {
+        lastTouchY = currentY;
+        return;
+      }
+      const deltaY = lastTouchY - currentY; // 手指向上滑，deltaY 为正
+      if (deltaY > 0) {
+        // 适当放大一点，让移动端滑几下就能到达阈值
+        scrollDelta += deltaY * 3;
+        updateCurtainPosition();
+      }
+      lastTouchY = currentY;
+      e.preventDefault();
+    }
+  }
+
+  /**
+   * 触摸结束时重置起点
+   */
+  function handleTouchEnd(e) {
+    if (lockScreen && lockScreen.parentNode && !isUnlocked()) {
+      lastTouchY = null;
+      e.preventDefault();
+    }
+  }
+  
+  /**
    * 防止键盘滚动
    */
   function handleKeyDown(e) {
@@ -1055,8 +1102,13 @@
       }
     });
     
-    // 监听滚轮事件（禁用原生滚动，实现滚轮拉开幕布）
+    // 监听滚轮事件（PC 端：禁用原生滚动，实现滚轮拉开幕布）
     window.addEventListener('wheel', handleWheel, { passive: false });
+
+    // 监听触摸事件（移动端：用手指上滑代替滚轮）
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd, { passive: false });
     
     // 防止键盘滚动
     window.addEventListener('keydown', handleKeyDown);
@@ -1100,6 +1152,17 @@
           }
         }
         document.body.classList.add('lock-screen-active');
+
+        // 首次进入锁定状态时，直接展示密码层，避免必须依赖滚轮/滑动才能解锁
+        if (passwordLayer) {
+          passwordLayer.classList.add('visible');
+        }
+        // 对触摸设备做一点体验优化：稍微延迟后自动聚焦输入框，方便直接输入
+        if (IS_TOUCH_DEVICE && passwordInput) {
+          setTimeout(() => {
+            passwordInput.focus();
+          }, 300);
+        }
       }
     }
     
