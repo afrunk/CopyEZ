@@ -1,18 +1,40 @@
-from datetime import datetime
+from datetime import datetime, timedelta, date
+import os
 import re
+import traceback
+import random
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, text, distinct
+from sqlalchemy import inspect, text, distinct, func
 from markupsafe import Markup
 import json
 import markdown
+import bleach
+from werkzeug.utils import secure_filename
+from uuid import uuid4
+from werkzeug.exceptions import HTTPException
+try:
+    # 可选依赖：用于“摘抄语录本”导出为 Word
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+    from docx.oxml.ns import qn
+    from docx.shared import Pt
+except ImportError:
+    Document = None
+    WD_ALIGN_PARAGRAPH = None
+    WD_LINE_SPACING = None
+    qn = None
+    Pt = None
 
 app = Flask(__name__)
 
 # 使用本地 sqlite 数据库存储素材（项目根目录）
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///copyez.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SECRET_KEY"] = os.environ.get("COPYEZ_SECRET_KEY", "copyez-secret-key")
+# 持久会话：默认 30 天免登录（用于后续极简登录体系）
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 
 # 禁用模板缓存，确保每次请求都重新渲染模板（开发环境）
 app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -31,6 +53,27 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 }
 
 db = SQLAlchemy(app)
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(e):
+    """开发环境：捕获所有未处理异常，在页面上直接输出 traceback 方便排查。"""
+    # 重要：不要把 404/400 等 HTTP 异常强行变成 500
+    # 否则像 favicon.ico、缺失静态资源都会被显示为 500，误导排查
+    if isinstance(e, HTTPException):
+        return e
+    # 构造简单的纯文本调试页面（仅在本机使用，部署前请删除/注释）
+    tb = traceback.format_exc()
+    debug_html = f"""
+    <html>
+      <head><title>Server Error</title></head>
+      <body>
+        <h1>Unhandled Exception</h1>
+        <pre>{tb}</pre>
+      </body>
+    </html>
+    """
+    return debug_html, 500
 
 
 def ensure_schema():
@@ -156,6 +199,42 @@ class Note(db.Model):
             self.tags_json = None
 
 
+class Memo(db.Model):
+    """碎片化随心记（与长文 Note 分表存储，互不影响）"""
+    __tablename__ = "memos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    # 由 #标签 自动提取后存入，多个标签用逗号分隔（展示时再拆分）
+    tags = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    def extract_tags(self):
+        """从 content 中提取 #标签 列表"""
+        if not self.content:
+            return []
+        matches = re.findall(r"#(\S+)", self.content)
+        # 去重并保持原有顺序
+        seen = set()
+        ordered = []
+        for m in matches:
+            if m not in seen:
+                seen.add(m)
+                ordered.append(m)
+        return ordered
+
+    def to_dict(self):
+        tags_list = []
+        if self.tags:
+            tags_list = [t for t in (s.strip() for s in self.tags.split(",")) if t]
+        return {
+            "id": self.id,
+            "content": self.content,
+            "tags": tags_list,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class CustomCategory(db.Model):
     """用户自定义的二级分类"""
     __tablename__ = "custom_categories"
@@ -171,6 +250,109 @@ class CustomCategory(db.Model):
             "name": self.name,
             "main_category": self.main_category
         }
+
+
+def estimate_text_length(markdown_text: str) -> int:
+    """
+    粗略估算正文字数，用于阅读页右侧“当前篇目：XXXX 字”的统计展示。
+    - 不改动渲染逻辑，只在后端做一个轻量级统计。
+    """
+    if not markdown_text:
+        return 0
+
+    text = markdown_text
+
+    # 1) 去掉 fenced code block（```...```）
+    text = re.sub(r"```[\s\S]*?```", "", text)
+
+    # 2) 去掉行内代码（`...`）
+    text = re.sub(r"`[^`]*`", "", text)
+
+    # 3) 去掉图片（![alt](url)）
+    text = re.sub(r"!\[[^\]]*]\([^)]*\)", "", text)
+
+    # 4) 处理链接（[text](url)）：保留可见文本
+    text = re.sub(r"\[([^\]]*?)\]\([^)]*\)", r"\1", text)
+
+    # 5) 去掉 HTML 标签（有些内容可能混入 HTML）
+    text = re.sub(r"<[^>]+>", "", text)
+
+    # 6) 去掉常见 Markdown 标记符号
+    text = re.sub(r"[>#*_~\-]+", " ", text)
+
+    # 7) 去掉所有空白，只统计实际字符数（适配中文场景）
+    text = re.sub(r"\s+", "", text).strip()
+    return len(text)
+
+
+def collect_quote_items():
+    """
+    遍历所有带批注的文章，提取「高亮原文 + 批注」列表，
+    并按一级分类（mainCategory）归类，供“摘抄语录本”和导出复用。
+    """
+    grouped = {}
+    notes = (
+        Note.query
+        .filter(Note.annotations.isnot(None), Note.annotations != "")
+        .order_by(Note.created_at.desc())
+        .all()
+    )
+
+    def _sanitize_quote_html(html: str) -> str:
+        """
+        语录本展示：允许极少量 HTML（主要是 <span class="hl-..."> 高亮），其余全部剥离。
+        """
+        if not html:
+            return ""
+        cleaned = bleach.clean(
+            html,
+            tags=["span", "br", "strong", "em", "b", "i", "u", "s"],
+            attributes={"span": ["class"]},
+            strip=True,
+        )
+        # 仅保留允许的高亮 class，避免注入其它 class 干扰页面
+        allowed = {"hl-red", "hl-blue", "hl-bold"}
+
+        def _filter_class_attr(match):
+            cls_raw = match.group(1) or ""
+            kept = [c for c in cls_raw.split() if c in allowed]
+            if not kept:
+                return ""
+            return f'class="{" ".join(kept)}"'
+
+        cleaned = re.sub(r'class="([^"]*)"', _filter_class_attr, cleaned)
+        cleaned = re.sub(r"\s+>", ">", cleaned)  # 清理被移除 class 后的多余空格
+        return cleaned
+
+    for note in notes:
+        category = note.mainCategory or "未分类"
+        try:
+            items = json.loads(note.annotations)
+        except Exception:
+            continue
+        if not isinstance(items, list):
+            continue
+
+        for item in items:
+            text_val = (item.get("text") or "").strip()
+            comment_val = (item.get("comment") or "").strip()
+            if not text_val:
+                continue
+            safe_text_html = _sanitize_quote_html(text_val)
+            grouped.setdefault(category, []).append(
+                {
+                    "text": safe_text_html,
+                    "comment": comment_val,
+                    "note_id": note.id,
+                    "note_title": note.title,
+                }
+            )
+
+    # 为了浏览顺序稳定，按分类名排序
+    grouped_sorted = {}
+    for key in sorted(grouped.keys()):
+        grouped_sorted[key] = grouped[key]
+    return grouped_sorted
 
 
 # 预置的公文分类知识库
@@ -237,6 +419,33 @@ PRESET_TAGS = [
     "乡村振兴",
     "经济发展"
 ]
+
+
+# HTML 安全白名单：允许图片与基础排版标签（不破坏公文版式）
+ALLOWED_HTML_TAGS = [
+    # 文本与段落
+    "p", "br", "span", "div", "strong", "em", "b", "i", "u", "s",
+    # 标题
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    # 列表
+    "ul", "ol", "li",
+    # 代码块与引用
+    "pre", "code", "blockquote",
+    # 表格
+    "table", "thead", "tbody", "tr", "th", "td",
+    # 链接与图片
+    "a", "img",
+    # 其它常见结构
+    "hr"
+]
+
+ALLOWED_HTML_ATTRIBUTES = {
+    # 全局允许的基础属性（不包含 style，避免破坏统一排版）
+    "*": ["id", "class"],
+    "a": ["href", "title", "target", "rel", "class"],
+    # 图片必须显式允许 src / alt / class / data-src，否则会被 bleach 清洗掉
+    "img": ["src", "alt", "title", "class", "data-src"],
+}
 
 
 def clean_word_formatting(text: str) -> str:
@@ -588,6 +797,8 @@ def render_content(raw_content: str, return_toc: bool = False):
         - <p>&nbsp;</p>（包含不间断空格）
         - <p>\u00A0</p>（包含不间断空格）
         - <p>\u3000</p>（包含全角空格）
+        
+        注意：包含 <img> 等自闭合媒体标签的段落**必须保留**，不能误判为空段落。
         """
         # 匹配所有 <p> 标签及其内容
         pattern = re_module.compile(r'<p([^>]*)>(.*?)</p>', re_module.DOTALL)
@@ -595,6 +806,12 @@ def render_content(raw_content: str, return_toc: bool = False):
         def _replace(match):
             attrs = match.group(1)
             inner = match.group(2)
+            
+            # ★ 关键保护：如果段落内包含 <img 标签，绝对不能删除
+            #   Markdown 渲染 ![alt](url) 后生成 <p><img ...></p>
+            #   这种段落的纯文本为空，但图片就在里面，不能误杀
+            if re_module.search(r'<img\b', inner, re_module.IGNORECASE):
+                return match.group(0)
             
             # 移除所有 HTML 标签，获取纯文本内容
             text_content = re_module.sub(r'<[^>]+>', '', inner)
@@ -616,6 +833,60 @@ def render_content(raw_content: str, return_toc: bool = False):
         return html_content
     
     html = remove_empty_paragraphs(html)
+
+    # 第六步：安全清洗 HTML，严格基于白名单放行（允许 img 与必要属性）
+    # 顺序要求：Markdown -> 段落/标题后处理 -> remove_empty_paragraphs -> bleach.clean -> 懒加载替换
+    html = bleach.clean(
+        html,
+        tags=ALLOWED_HTML_TAGS,
+        attributes=ALLOWED_HTML_ATTRIBUTES,
+        strip=True,
+    )
+    
+    # 第七步：将正文中的 <img> 转换为懒加载格式
+    # 目标格式示例（与 lazysizes 官方推荐格式保持一致）：
+    #   <img
+    #       class="lazyload"
+    #       data-src="/static/uploads/xxx.png"
+    #       src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+    #       alt="图片描述"
+    #   >
+    # 注意：必须保留一个 1x1 的透明占位图到 src 上，否则部分浏览器可能不会渲染元素或出现异常请求
+    def apply_lazyload_to_images(html_content: str) -> str:
+        img_pattern = re_module.compile(r'<img([^>]*?)src="([^"]+)"([^>]*)>', re_module.IGNORECASE)
+
+        def _img_repl(match):
+            before = match.group(1) or ""
+            src_url = match.group(2) or ""
+            after = match.group(3) or ""
+            attrs = f"{before}{after}"
+
+            # 如果已经有 data-src，则认为已经处理过
+            if "data-src" in attrs:
+                return match.group(0)
+
+            # 追加或注入 lazyload class
+            if "class=" in attrs:
+                attrs = re_module.sub(
+                    r'class="([^"]*)"',
+                    lambda m: f'class="{m.group(1)} lazyload"',
+                    attrs,
+                    count=1,
+                )
+            else:
+                attrs = f'{attrs} class="lazyload"'
+
+            # 去掉多余空白
+            attrs = re_module.sub(r"\s+", " ", attrs).strip()
+
+            # 透明 1x1 GIF 占位符，防止空 src 带来的兼容性问题
+            placeholder = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+
+            return f'<img {attrs} src="{placeholder}" data-src="{src_url}">'
+
+        return img_pattern.sub(_img_repl, html_content)
+
+    html = apply_lazyload_to_images(html)
     
     # 根据参数决定返回值
     if return_toc:
@@ -638,133 +909,462 @@ def index():
 @app.route("/notes")
 def notes():
     """笔记列表页：扁平化列表，按创建日期分组展示，支持分类过滤和搜索"""
-    # 获取查询参数（Flask 自动解码 URL 编码的中文参数）
-    main_category = request.args.get("mainCategory", "").strip()
-    sub_category = request.args.get("subCategory", "").strip()
-    tag_filter = request.args.get("tag", "").strip()
-    search_query = request.args.get("q", "").strip()
-    global_search = request.args.get("global", "false").lower() == "true"
-    
-    # 构建查询
-    query = Note.query
-    
-    # 一级分类过滤
-    if main_category:
-        query = query.filter(Note.mainCategory == main_category)
-    
-    # 二级分类过滤
-    if sub_category:
-        query = query.filter(Note.subCategory == sub_category)
-    
-    # 三级标签过滤：同时匹配 subCategory（二级分类）和 tags_json（三级标签）
-    # 支持模糊匹配，处理 JSON 格式和空格问题
-    if tag_filter:
-        # 清理标签参数：去除前后空格
-        tag_filter_clean = tag_filter.strip()
-        # 同时匹配 subCategory 字段和 tags_json JSON 数组
-        # tags_json 格式：["标签1", "标签2"]，使用 LIKE 匹配 JSON 字符串中的标签
-        query = query.filter(
-            db.or_(
-                Note.subCategory == tag_filter_clean,  # 精确匹配二级分类
-                Note.subCategory.like(f'%{tag_filter_clean}%'),  # 模糊匹配二级分类
-                Note.tags_json.like(f'%"{tag_filter_clean}"%'),  # 匹配 JSON 数组中的标签（带引号）
-                Note.tags_json.like(f'%{tag_filter_clean}%')  # 模糊匹配 JSON 中的标签（兼容其他格式）
-            )
-        )
-    
-    # 搜索：如果不在全局搜索模式，且已选择二级分类，则只在当前分类搜索
-    if search_query:
-        if not global_search and sub_category:
-            # 分类内搜索：标题和内容
-            query = query.filter(
-                db.or_(
-                    Note.title.like(f'%{search_query}%'),
-                    Note.content.like(f'%{search_query}%')
-                )
-            )
-        else:
-            # 全局搜索：标题、内容、标签
-            query = query.filter(
-                db.or_(
-                    Note.title.like(f'%{search_query}%'),
-                    Note.content.like(f'%{search_query}%'),
-                    Note.tags.like(f'%{search_query}%'),
-                    Note.tags_json.like(f'%{search_query}%')
-                )
-            )
-    
-    # 结果排序策略：
-    # - 默认：按 created_at 倒序（最新在前）
-    # - 标签合集模式（tag_filter）：按“发布日期/时间戳”升序（最早在前），用于“从第一章到最后一章”的阅读顺序
-    def _collection_sort_key(n: "Note"):
-        # 1) 优先使用 publishDate（YYYY-MM-DD）；2) 否则回退 created_at
-        if getattr(n, "publishDate", None):
+    try:
+        # 获取查询参数（Flask 自动解码 URL 编码的中文参数）
+        main_category = request.args.get("mainCategory", "").strip()
+        sub_category = request.args.get("subCategory", "").strip()
+        tag_filter = request.args.get("tag", "").strip()
+        search_query = request.args.get("q", "").strip()
+        global_search = request.args.get("global", "false").lower() == "true"
+        
+        # 构建查询
+        query = Note.query
+        # 时间过滤：支持按具体日期(day)或按年月(month)过滤
+        day_str = request.args.get("day", "").strip()
+        month_str = request.args.get("month", "").strip()
+        day_filter = None
+        month_filter_start = None
+        month_filter_end = None
+
+        if day_str:
             try:
-                pd = datetime.strptime(n.publishDate, "%Y-%m-%d")
-                # 用 created_at 做二级排序，避免同日乱序
-                return (0, pd, n.created_at or datetime.min, n.id)
+                day_filter = datetime.strptime(day_str, "%Y-%m-%d").date()
+                start_dt = datetime.combine(day_filter, datetime.min.time())
+                end_dt = datetime.combine(day_filter, datetime.max.time())
+                query = query.filter(Note.created_at >= start_dt, Note.created_at <= end_dt)
             except Exception:
-                pass
-        return (1, n.created_at or datetime.min, n.id)
+                day_filter = None
 
-    tag_collection_notes = []
-    grouped_list = []
+        if month_str and not day_filter:
+            try:
+                # 解析 YYYY-MM
+                ym = datetime.strptime(month_str, "%Y-%m")
+                month_filter_start = datetime(ym.year, ym.month, 1)
+                if ym.month == 12:
+                    month_filter_end = datetime(ym.year + 1, 1, 1)
+                else:
+                    month_filter_end = datetime(ym.year, ym.month + 1, 1)
+                query = query.filter(Note.created_at >= month_filter_start, Note.created_at < month_filter_end)
+            except Exception:
+                month_str = ""
+        
+        # 一级分类过滤
+        if main_category:
+            query = query.filter(Note.mainCategory == main_category)
+        
+        # 二级分类过滤
+        if sub_category:
+            query = query.filter(Note.subCategory == sub_category)
+        
+        # 三级标签过滤：同时匹配 subCategory（二级分类）和 tags_json（三级标签）
+        # 支持模糊匹配，处理 JSON 格式和空格问题
+        if tag_filter:
+            # 清理标签参数：去除前后空格
+            tag_filter_clean = tag_filter.strip()
+            # 同时匹配 subCategory 字段和 tags_json JSON 数组
+            # tags_json 格式：["标签1", "标签2"]，使用 LIKE 匹配 JSON 字符串中的标签
+            query = query.filter(
+                db.or_(
+                    Note.subCategory == tag_filter_clean,  # 精确匹配二级分类
+                    Note.subCategory.like(f'%{tag_filter_clean}%'),  # 模糊匹配二级分类
+                    Note.tags_json.like(f'%"{tag_filter_clean}"%'),  # 匹配 JSON 数组中的标签（带引号）
+                    Note.tags_json.like(f'%{tag_filter_clean}%')  # 模糊匹配 JSON 中的标签（兼容其他格式）
+                )
+            )
+        
+        # 搜索：如果不在全局搜索模式，且已选择二级分类，则只在当前分类搜索
+        if search_query:
+            if not global_search and sub_category:
+                # 分类内搜索：标题和内容
+                query = query.filter(
+                    db.or_(
+                        Note.title.like(f'%{search_query}%'),
+                        Note.content.like(f'%{search_query}%')
+                    )
+                )
+            else:
+                # 全局搜索：标题、内容、标签
+                query = query.filter(
+                    db.or_(
+                        Note.title.like(f'%{search_query}%'),
+                        Note.content.like(f'%{search_query}%'),
+                        Note.tags.like(f'%{search_query}%'),
+                        Note.tags_json.like(f'%{search_query}%')
+                    )
+                )
+        
+        # 结果排序策略：
+        # - 默认：按 created_at 倒序（最新在前）
+        # - 标签合集模式（tag_filter）：按“发布日期/时间戳”升序（最早在前），用于“从第一章到最后一章”的阅读顺序
+        def _collection_sort_key(n: "Note"):
+            # 1) 优先使用 publishDate（YYYY-MM-DD）；2) 否则回退 created_at
+            if getattr(n, "publishDate", None):
+                try:
+                    pd = datetime.strptime(n.publishDate, "%Y-%m-%d")
+                    # 用 created_at 做二级排序，避免同日乱序
+                    return (0, pd, n.created_at or datetime.min, n.id)
+                except Exception:
+                    pass
+            return (1, n.created_at or datetime.min, n.id)
 
-    if tag_filter:
-        # 合集化：升序排列
-        notes = query.all()
-        notes.sort(key=_collection_sort_key)
-        tag_collection_notes = notes
-    else:
-        # 默认列表：倒序排列并按天分组
-        notes = query.order_by(Note.created_at.desc()).all()
+        tag_collection_notes = []
+        grouped_list = []
 
-        grouped_notes = {}
-        for note in notes:
-            date_key = note.created_at.date()
-            if date_key not in grouped_notes:
-                grouped_notes[date_key] = []
-            grouped_notes[date_key].append(note)
+        if tag_filter:
+            # 合集化：升序排列
+            notes = query.all()
+            notes.sort(key=_collection_sort_key)
+            tag_collection_notes = notes
+        else:
+            # 默认列表：倒序排列并按天分组
+            notes = query.order_by(Note.created_at.desc()).all()
 
-        grouped_list = sorted(grouped_notes.items(), key=lambda x: x[0], reverse=True)
-    
-    # 获取所有分类数据用于侧边栏
-    all_notes = Note.query.all()
-    main_categories = set()
-    sub_categories = {}
-    all_tags = set()
-    
-    for note in all_notes:
-        if note.mainCategory:
-            main_categories.add(note.mainCategory)
-            if note.mainCategory not in sub_categories:
-                sub_categories[note.mainCategory] = set()
-        if note.subCategory:
+            grouped_notes = {}
+            for note in notes:
+                date_key = note.created_at.date()
+                if date_key not in grouped_notes:
+                    grouped_notes[date_key] = []
+                grouped_notes[date_key].append(note)
+
+            grouped_list = sorted(grouped_notes.items(), key=lambda x: x[0], reverse=True)
+        
+        # 获取所有分类数据用于侧边栏
+        all_notes = Note.query.all()
+        main_categories = set()
+        sub_categories = {}
+        all_tags = set()
+        
+        for note in all_notes:
             if note.mainCategory:
-                sub_categories[note.mainCategory].add(note.subCategory)
-        # 收集所有标签
-        tags_list = note.get_tags_list()
-        all_tags.update(tags_list)
-    
-    # 转换为排序列表
-    main_categories = sorted(main_categories)
-    for key in sub_categories:
-        sub_categories[key] = sorted(sub_categories[key])
-    all_tags = sorted(all_tags)
-    
-    return render_template(
-        "index.html",
-        grouped_notes=grouped_list,
-        tag_collection_notes=tag_collection_notes,
-        main_categories=main_categories,
-        sub_categories=sub_categories,
-        all_tags=all_tags,
-        current_main_category=main_category,
-        current_sub_category=sub_category,
-        current_tag=tag_filter,
-        search_query=search_query,
-        global_search=global_search
+                main_categories.add(note.mainCategory)
+                if note.mainCategory not in sub_categories:
+                    sub_categories[note.mainCategory] = set()
+            if note.subCategory:
+                if note.mainCategory:
+                    sub_categories[note.mainCategory].add(note.subCategory)
+            # 收集所有标签
+            tags_list = note.get_tags_list()
+            all_tags.update(tags_list)
+        
+        # 转换为排序列表
+        main_categories = sorted(main_categories)
+        for key in sub_categories:
+            sub_categories[key] = sorted(sub_categories[key])
+        all_tags = sorted(all_tags)
+
+        # 每日金句：从有批注的文章中随机抽取一条高亮文本（仅展示纯文本，避免首页渲染 HTML）
+        daily_quote = None
+        try:
+            annotated_notes = (
+                Note.query
+                .filter(Note.annotations.isnot(None), Note.annotations != "")
+                .order_by(func.random())
+                .limit(100)
+                .all()
+            )
+            snippets = []
+            for n in annotated_notes:
+                try:
+                    items = json.loads(n.annotations)
+                    if isinstance(items, list):
+                        for item in items:
+                            text_val = (item.get("text") or "").strip()
+                            if text_val:
+                                snippets.append(text_val)
+                except Exception:
+                    continue
+            if snippets:
+                daily_quote = random.choice(snippets)
+                # 去掉可能存在的 HTML 标签
+                daily_quote = re.sub(r"<[^>]+>", "", daily_quote).strip()
+                # 太长则截断，首页保持“金句”观感
+                if len(daily_quote) > 100:
+                    daily_quote = daily_quote[:100] + "..."
+        except Exception:
+            daily_quote = None
+
+        # 贡献热力图数据：统计最近一年内每天创建的 Note 数量
+        today = date.today()
+        start_date = today - timedelta(days=364)
+        start_dt = datetime.combine(start_date, datetime.min.time())
+        end_dt = datetime.combine(today, datetime.max.time())
+
+        contrib_rows = (
+            db.session.query(
+                func.date(Note.created_at).label("day"),
+                func.count(Note.id)
+            )
+            .filter(Note.created_at >= start_dt, Note.created_at <= end_dt)
+            .group_by(func.date(Note.created_at))
+            .all()
+        )
+        contribution_heatmap_data = {}
+        for day_val, count_val in contrib_rows:
+            # SQLite 的 func.date 返回 str 或 date，兼容处理
+            if isinstance(day_val, datetime):
+                day_obj = day_val.date()
+            elif isinstance(day_val, date):
+                day_obj = day_val
+            else:
+                try:
+                    day_obj = datetime.strptime(str(day_val), "%Y-%m-%d").date()
+                except Exception:
+                    continue
+            contribution_heatmap_data[day_obj.strftime("%Y-%m-%d")] = int(count_val or 0)
+
+        # 历史时间轴：按年月聚合文章数量
+        month_rows = (
+            db.session.query(
+                func.strftime("%Y-%m", Note.created_at).label("ym"),
+                func.count(Note.id)
+            )
+            .group_by("ym")
+            .order_by(text("ym DESC"))
+            .all()
+        )
+        timeline_archives = []
+        for ym_val, cnt in month_rows:
+            if not ym_val:
+                continue
+            try:
+                year_int, month_int = ym_val.split("-")
+                year_int = int(year_int)
+                month_int = int(month_int)
+            except Exception:
+                continue
+            timeline_archives.append(
+                {
+                    "ym": ym_val,
+                    "year": year_int,
+                    "month": month_int,
+                    "count": int(cnt or 0),
+                }
+            )
+
+        return render_template(
+            "index.html",
+            grouped_notes=grouped_list,
+            tag_collection_notes=tag_collection_notes,
+            main_categories=main_categories,
+            sub_categories=sub_categories,
+            all_tags=all_tags,
+            current_main_category=main_category,
+            current_sub_category=sub_category,
+            current_tag=tag_filter,
+            search_query=search_query,
+            global_search=global_search,
+            daily_quote=daily_quote,
+            contribution_heatmap_data=contribution_heatmap_data,
+            contribution_start_date=start_date.strftime("%Y-%m-%d"),
+            contribution_end_date=today.strftime("%Y-%m-%d"),
+            timeline_archives=timeline_archives,
+            current_month_filter=month_str,
+            current_day_filter=day_str,
+        )
+    except Exception as e:
+        # 将 /notes 的异常单独记录到 notes_error.log，便于快速定位
+        try:
+            log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "notes_error.log")
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write("\n===== /notes Exception at {} =====\n".format(datetime.utcnow().isoformat()))
+                f.write(f"Type: {type(e)}\n")
+                f.write(f"Detail: {repr(e)}\n")
+                f.write(traceback.format_exc())
+                f.write("\n")
+        except Exception:
+            pass
+        # 继续让全局 errorhandler / 默认机制处理该异常
+        raise
+
+
+@app.route("/memos")
+def memos_page():
+    """随心记页面：极简短信流式记忆，不干扰长文体系"""
+    return render_template("memos.html")
+
+
+@app.route("/my_quotes")
+def my_quotes_page():
+    """
+    摘抄语录本：集中展示所有带批注的高亮句子，按一级分类归类。
+    """
+    quotes_by_category = collect_quote_items()
+    return render_template("my_quotes.html", quotes_by_category=quotes_by_category)
+
+
+@app.route("/my_quotes/export")
+def export_my_quotes():
+    """
+    将所有摘抄导出为 Word 文档（公文友好格式）。
+    """
+    quotes_by_category = collect_quote_items()
+
+    if not Document:
+        # 未安装 python-docx 时给出友好提示
+        return (
+            "当前环境未安装 python-docx，请先在服务器上执行 pip install python-docx 后重试导出。",
+            500,
+        )
+
+    doc = Document()
+
+    def _set_run_font(run, east_asia_name: str, latin_name: str = None, size_pt: int = None, bold: bool = None):
+        if bold is not None:
+            run.bold = bool(bold)
+        if size_pt and Pt:
+            run.font.size = Pt(size_pt)
+        if latin_name:
+            run.font.name = latin_name
+        # 设置东亚字体（中文）
+        if qn:
+            r = run._element
+            rPr = r.get_or_add_rPr()
+            rFonts = rPr.get_or_add_rFonts()
+            rFonts.set(qn("w:eastAsia"), east_asia_name)
+
+    def _set_paragraph_format(p, line_spacing_pt: int = 28):
+        if not p:
+            return
+        try:
+            if WD_LINE_SPACING:
+                p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.EXACTLY
+            if Pt:
+                p.paragraph_format.line_spacing = Pt(line_spacing_pt)
+        except Exception:
+            pass
+
+    # 全局正文：仿宋
+    try:
+        normal = doc.styles["Normal"]
+        if Pt:
+            normal.font.size = Pt(12)
+        normal.font.name = "FangSong"
+        if qn:
+            normal._element.rPr.rFonts.set(qn("w:eastAsia"), "仿宋")
+    except Exception:
+        pass
+
+    # 标题
+    title_p = doc.add_paragraph()
+    run = title_p.add_run("摘抄语录本")
+    _set_run_font(run, east_asia_name="黑体", latin_name="SimHei", size_pt=16, bold=True)
+    if WD_ALIGN_PARAGRAPH:
+        title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _set_paragraph_format(title_p, 28)
+
+    for category, items in quotes_by_category.items():
+        # 一级分类标题
+        heading_p = doc.add_paragraph()
+        heading_run = heading_p.add_run(str(category or "未分类"))
+        _set_run_font(heading_run, east_asia_name="黑体", latin_name="SimHei", size_pt=14, bold=True)
+        _set_paragraph_format(heading_p, 28)
+
+        for idx, q in enumerate(items, start=1):
+            p = doc.add_paragraph()
+            # 原文
+            run_text_label = p.add_run(f"{idx}. 原文：")
+            _set_run_font(run_text_label, east_asia_name="黑体", latin_name="SimHei", bold=True)
+            # 去掉 HTML 标签，Word 里只保留纯文本
+            quote_plain = re.sub(r"<[^>]+>", "", q.get("text") or "")
+            run_text = p.add_run(quote_plain)
+            _set_run_font(run_text, east_asia_name="仿宋", latin_name="FangSong")
+            p.add_run("\n")
+            # 批注
+            if q.get("comment"):
+                run_c_label = p.add_run("   批注：")
+                _set_run_font(run_c_label, east_asia_name="黑体", latin_name="SimHei", bold=True)
+                run_c = p.add_run(q["comment"])
+                _set_run_font(run_c, east_asia_name="仿宋", latin_name="FangSong")
+                p.add_run("\n")
+            # 来源
+            run_src_label = p.add_run("   来源：")
+            _set_run_font(run_src_label, east_asia_name="黑体", latin_name="SimHei", bold=True)
+            run_src = p.add_run(f"《{q['note_title']}》")
+            _set_run_font(run_src, east_asia_name="仿宋", latin_name="FangSong")
+            _set_paragraph_format(p, 28)
+
+    # 输出为响应
+    output_path = os.path.join(os.getcwd(), "my_quotes_export.docx")
+    doc.save(output_path)
+
+    with open(output_path, "rb") as f:
+        data = f.read()
+
+    response = make_response(data)
+    response.headers[
+        "Content-Type"
+    ] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    response.headers["Content-Disposition"] = "attachment; filename=my_quotes_export.docx"
+    return response
+
+
+@app.route("/api/activity_stats", methods=["GET"])
+def api_activity_stats():
+    """
+    API：贡献热力图统计
+
+    以「当前系统时间」为基准，统计最近一年内（含今天）每天创建的 Note 数量。
+
+    返回结构：完整的 365 天时间序列（没有文章的日期返回 0），例如：
+        {
+            "2025-03-10": 3,
+            "2025-03-11": 0,
+            ...
+        }
+
+    说明：
+    - 使用 Note.created_at 字段作为时间基准
+    - 仅按天聚合，不区分具体时间
+    - 始终覆盖从 (now - 364 天) 到 today 共 365 天，避免因为数据缺失导致前端“截断”
+    """
+    # 使用 datetime.now() 作为时间基准，确保以当前系统时间为参照
+    now = datetime.now()
+    today = now.date()
+    start_date = today - timedelta(days=364)
+
+    # 构造起止时间（天粒度）：含当天 00:00:00 ~ 23:59:59
+    start_dt = datetime.combine(start_date, datetime.min.time())
+    end_dt = datetime.combine(today, datetime.max.time())
+
+    # 查询最近一年的每天文章数量（只返回有数据的日期）
+    rows = (
+        db.session.query(
+            func.date(Note.created_at).label("day"),
+            func.count(Note.id),
+        )
+        .filter(Note.created_at >= start_dt, Note.created_at <= end_dt)
+        .group_by(func.date(Note.created_at))
+        .all()
     )
+
+    # 先将真实有数据的日期映射出来
+    raw_stats = {}
+    for day_val, count_val in rows:
+        if isinstance(day_val, datetime):
+            day_obj = day_val.date()
+        elif isinstance(day_val, date):
+            day_obj = day_val
+        else:
+            try:
+                day_obj = datetime.strptime(str(day_val), "%Y-%m-%d").date()
+            except Exception:
+                continue
+        raw_stats[day_obj.strftime("%Y-%m-%d")] = int(count_val or 0)
+
+    # 再根据「完整的 365 天序列」补齐没有文章的日期（填 0）
+    full_stats = {}
+    cursor = start_date
+    while cursor <= today:
+        key = cursor.strftime("%Y-%m-%d")
+        full_stats[key] = raw_stats.get(key, 0)
+        cursor += timedelta(days=1)
+
+    response = jsonify(full_stats)
+    # 禁止缓存，确保前端每次获取到最新统计
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @app.route("/api/tag_collection", methods=["GET"])
@@ -844,6 +1444,8 @@ def view_note(note_id: int):
     
     # 渲染内容并提取 TOC（使用最新从数据库读取的content）
     content_html, toc_html = render_content(note.content, return_toc=True)
+    # 计算当前篇目的字数（不影响渲染，只用于右侧展示）
+    word_count = estimate_text_length(note.content or "")
 
     # 上一篇 / 下一篇导航（支持专题合集上下文）
     nav_prev = None
@@ -914,15 +1516,18 @@ def view_note(note_id: int):
         # 即便调试输出失败，也不要影响正常请求
         print(f"[WARN] Failed to print toc_html for note {note_id}: {e}")
     
-    response = make_response(render_template(
-        "note.html",
-        note=note,
-        content_html=content_html,
-        toc_html=toc_html,
-        nav_prev=nav_prev,
-        nav_next=nav_next,
-        current_tag=current_tag
-    ))
+    response = make_response(
+        render_template(
+            "note.html",
+            note=note,
+            content_html=content_html,
+            toc_html=toc_html,
+            nav_prev=nav_prev,
+            nav_next=nav_next,
+            current_tag=current_tag,
+            word_count=word_count,
+        )
+    )
     # 添加缓存控制头，防止浏览器缓存页面内容
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
@@ -1244,7 +1849,7 @@ def new_note():
         mainCategory = request.form.get("mainCategory", "").strip() or None
         subCategory = request.form.get("subCategory", "").strip() or None
         tags_input = request.form.get("tags", "").strip()  # 旧字段兼容
-        tags_json_input = request.form.get("tags_json", "").strip()  # 新字段：逗号分隔的标签
+        tags_json_input = request.form.get("tags_json", "").strip()  # 新字段：JSON 数组或逗号分隔
         publishDate = request.form.get("publishDate", "").strip() or None
         sourceUrl = request.form.get("sourceUrl", "").strip() or None
         raw_content = request.form.get("content", "")
@@ -1254,7 +1859,12 @@ def new_note():
 
         # 校验时再使用 strip 判断是否为空，避免误删有效换行
         if not title or not content.strip():
-            # 很简单的校验，后面可以做更友好的提示
+            # 支持 AJAX 请求的 JSON 错误返回
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify(
+                    {"success": False, "message": "标题和内容不能为空"}
+                ), 400
+
             return render_template(
                 "new.html",
                 error="标题和内容不能为空",
@@ -1274,7 +1884,7 @@ def new_note():
             try:
                 # 尝试解析 JSON 数组
                 tags_list = json.loads(tags_json_input)
-            except:
+            except Exception:
                 # 兼容旧格式：逗号分隔字符串
                 tags_list = [tag.strip() for tag in tags_json_input.split(",") if tag.strip()]
 
@@ -1292,12 +1902,23 @@ def new_note():
             mainCategory=mainCategory,
             subCategory=subCategory,
             publishDate=publishDate,
-            sourceUrl=sourceUrl
+            sourceUrl=sourceUrl,
         )
         note.set_tags_list(tags_list)
         
         db.session.add(note)
         db.session.commit()
+
+        # 支持异步创建时返回 JSON，前端可获得详情页跳转地址
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "创建成功",
+                    "note_id": note.id,
+                    "redirect_url": url_for("view_note", note_id=note.id),
+                }
+            ), 200
 
         return redirect(url_for("view_note", note_id=note.id))
 
@@ -1310,10 +1931,16 @@ def new_note():
             categories_by_main[main] = []
         categories_by_main[main].append(cat.name)
     
-    return render_template("new.html", 
-                         preset_categories=PRESET_CATEGORIES,
-                         categories_by_main=categories_by_main,
-                         preset_tags=PRESET_TAGS)
+    # 默认发布日期：当天日期
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+
+    return render_template(
+        "new.html",
+        preset_categories=PRESET_CATEGORIES,
+        categories_by_main=categories_by_main,
+        preset_tags=PRESET_TAGS,
+        current_date=today_str,
+    )
 
 
 @app.route("/edit/<int:note_id>", methods=["GET", "POST"])
@@ -1553,14 +2180,21 @@ def get_tags():
 
 @app.route("/api/search", methods=["GET"])
 def search_notes():
-    """搜索API：返回包含关键词片段和上下文的搜索结果"""
+    """搜索API：长文 Note + 随心记 Memo 双轨制搜索
+
+    返回结构：
+    {
+        "articles": [...],  # 长文结果
+        "memos": [...],     # 随心记结果
+    }
+    """
     search_query = request.args.get("q", "").strip()
     
     if not search_query:
-        return jsonify({"results": []})
+        return jsonify({"articles": [], "memos": []})
     
-    # 构建搜索查询：标题、内容、标签
-    query = Note.query.filter(
+    # 1）长文搜索：标题、内容、标签
+    article_query = Note.query.filter(
         db.or_(
             Note.title.like(f'%{search_query}%'),
             Note.content.like(f'%{search_query}%'),
@@ -1569,8 +2203,8 @@ def search_notes():
         )
     ).order_by(Note.created_at.desc())
     
-    notes = query.all()
-    results = []
+    notes = article_query.all()
+    article_results = []
     
     for note in notes:
         # 提取匹配的片段
@@ -1629,7 +2263,7 @@ def search_notes():
         else:
             snippet = snippets[0]["text"] if snippets else note.title
         
-        results.append({
+        article_results.append({
             "note_id": note.id,
             "title": note.title,
             "snippet": snippet,
@@ -1637,14 +2271,187 @@ def search_notes():
             "subCategory": note.subCategory,
             "date": note.created_at.strftime("%Y年%m月%d日")
         })
-    
-    return jsonify({"results": results})
+
+    # 2）随心记搜索：正文与标签
+    memo_query = Memo.query.filter(
+        db.or_(
+            Memo.content.like(f"%{search_query}%"),
+            Memo.tags.like(f"%{search_query}%"),
+        )
+    ).order_by(Memo.created_at.desc())
+
+    memos = memo_query.all()
+    memo_results = []
+    for memo in memos:
+        content = memo.content or ""
+        content_lower = content.lower()
+        query_lower = search_query.lower()
+
+        snippet = content[:120] + ("..." if len(content) > 120 else "")
+        pos = content_lower.find(query_lower)
+        if pos != -1:
+            start = max(0, pos - 40)
+            end = min(len(content), pos + len(search_query) + 40)
+            snippet = content[start:end]
+            if start > 0:
+                snippet = "..." + snippet
+            if end < len(content):
+                snippet = snippet + "..."
+
+        # 标签拆分
+        tags_list = []
+        if memo.tags:
+            tags_list = [t for t in (s.strip() for s in memo.tags.split(",")) if t]
+
+        memo_results.append(
+            {
+                "id": memo.id,
+                "content": memo.content,
+                "snippet": snippet,
+                "tags": tags_list,
+                "date": memo.created_at.strftime("%Y年%m月%d日")
+                if memo.created_at
+                else "",
+            }
+        )
+
+    return jsonify({"articles": article_results, "memos": memo_results})
+
+
+@app.route("/api/memos", methods=["GET", "POST"])
+def api_memos():
+    """随心记 API：
+    - POST /api/memos  新建一条随心记
+    - GET  /api/memos  获取按时间倒序排列的列表
+    """
+    if request.method == "POST":
+        # 支持 JSON 与表单两种提交方式
+        data = request.get_json(silent=True) or {}
+        content = (data.get("content") or request.form.get("content") or "").strip()
+        if not content:
+            return jsonify({"success": False, "message": "内容不能为空"}), 400
+
+        memo = Memo(content=content)
+        tags = memo.extract_tags()
+        if tags:
+            memo.tags = ",".join(tags)
+
+        db.session.add(memo)
+        db.session.commit()
+
+        return jsonify({"success": True, "memo": memo.to_dict()}), 201
+
+    # GET：列表，按创建时间倒序
+    memos = (
+        Memo.query.order_by(Memo.created_at.desc(), Memo.id.desc())
+        .limit(200)
+        .all()
+    )
+    return jsonify({"memos": [m.to_dict() for m in memos]})
+
+
+@app.route("/api/memos/<int:memo_id>", methods=["PUT", "DELETE"])
+def api_memo_detail(memo_id: int):
+    """随心记单条记录 API：
+    - PUT    /api/memos/<id>  修改内容并重新提取标签
+    - DELETE /api/memos/<id>  删除该随心记
+    """
+    memo = Memo.query.get_or_404(memo_id)
+
+    if request.method == "PUT":
+        data = request.get_json(silent=True) or {}
+        content = (data.get("content") or "").strip()
+        if not content:
+            return jsonify({"success": False, "message": "内容不能为空"}), 400
+
+        memo.content = content
+        tags = memo.extract_tags()
+        memo.tags = ",".join(tags) if tags else None
+        db.session.commit()
+
+        return jsonify({"success": True, "memo": memo.to_dict()}), 200
+
+    # DELETE
+    db.session.delete(memo)
+    db.session.commit()
+    return jsonify({"success": True, "message": "随心记已删除"}), 200
 
 
 @app.route("/guide")
 def guide():
     """功能指南页面：展示所有功能点的交互式演示"""
     return render_template("guide.html")
+
+
+@app.route("/search")
+def search_page():
+    """全量搜索结果页：长文 + 随心记 双 Tab 展示"""
+    q = request.args.get("q", "").strip()
+    return render_template("search.html", q=q)
+
+
+@app.route("/favicon.ico")
+def favicon():
+    """
+    兼容浏览器默认请求 /favicon.ico：
+    - 不再因为缺失 favicon 造成 404/日志噪音（更不会被误判成 500）
+    """
+    resp = make_response("", 204)
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+# 简单的图片上传配置与工具函数
+ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
+
+
+def allowed_image(filename: str) -> bool:
+    if not filename or "." not in filename:
+        return False
+    ext = filename.rsplit(".", 1)[1].lower()
+    return ext in ALLOWED_IMAGE_EXTENSIONS
+
+
+@app.route("/api/upload_image", methods=["POST"])
+def upload_image():
+    """
+    编辑器图片“即粘即传”接口：
+    - 接收前端粘贴的图片文件（field 名称为 image）
+    - 保存到 /static/uploads/ 目录下
+    - 返回可直接用于 Markdown 的访问 URL
+    """
+    if "image" not in request.files:
+        return jsonify({"success": False, "message": "未收到图片文件"}), 400
+
+    file = request.files["image"]
+
+    if not file or file.filename == "":
+        return jsonify({"success": False, "message": "文件名为空"}), 400
+
+    if not allowed_image(file.filename):
+        return jsonify({"success": False, "message": "不支持的图片格式"}), 400
+
+    # 生成安全文件名 + 随机前缀，避免覆盖
+    original_name = secure_filename(file.filename)
+    ext = original_name.rsplit(".", 1)[1].lower()
+    random_name = f"{uuid4().hex}.{ext}"
+
+    upload_dir = os.path.join(app.root_path, "static", "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    save_path = os.path.join(upload_dir, random_name)
+    file.save(save_path)
+
+    # 生成可访问的 URL（供 Markdown 使用）
+    file_url = url_for("static", filename=f"uploads/{random_name}")
+
+    return jsonify(
+        {
+            "success": True,
+            "url": file_url,
+            "filename": random_name,
+        }
+    )
 
 
 if __name__ == "__main__":
@@ -1654,10 +2461,11 @@ if __name__ == "__main__":
     # 生产环境配置：关闭 debug 模式，限制线程和进程数以节省资源
     # 针对 2核2G 服务器，使用单线程模式避免资源竞争
     app.run(
-        debug=False,  # 生产环境关闭 debug
+        debug=False,  # 生产环境关闭 debug，配合全局 errorhandler 写入 error.log
         host="0.0.0.0",
-        port=5000,
+        port=5500,
         threaded=True,  # 启用多线程（Flask 默认）
         processes=1  # 单进程模式，避免多进程占用过多内存
     )
+
 

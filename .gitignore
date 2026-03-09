@@ -1,5 +1,21 @@
-*.db
-copyez.db*.db
+# 忽略 Python 运行缓存
 __pycache__/
+*.pyc
+
+# 忽略虚拟环境
+venv/
 .venv/
+
+# 💡 核心：忽略用户上传的图片文件夹（假设你的路径是 static/uploads）
+static/uploads/*
+# 如果你有专门存放上传文件的文件夹，也一并加上
+uploads/
+
+# 忽略配置文件（包含数据库密码或密钥）
+.env
+instance/
+*.db
+
+# 忽略系统文件
 .DS_Store
+Thumbs.db

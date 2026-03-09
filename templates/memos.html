@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}随心记 - CopyEZ{% endblock %}
+
+{% block header_search %}{% endblock %}
+
+{% block content %}
+<div class="memo-app-container">
+  <header class="memo-header">
+    <h1 class="memo-title">⚡ 随心记 Memo</h1>
+  </header>
+
+  <section class="memo-editor-section">
+    <textarea
+      id="memo-input"
+      class="memo-input"
+      placeholder="今天想到什么，就在这里随手记下。支持 #标签 自动高亮与检索，例如：明天跟进 #专项行动 #调研"
+      rows="4"
+    ></textarea>
+    <div class="memo-editor-actions">
+      <span class="memo-hint">按 Ctrl + Enter 快速记录</span>
+      <button id="memo-submit-btn" class="memo-submit-btn">记录</button>
+    </div>
+  </section>
+
+  <section class="memo-feed-section">
+    <div class="memo-feed-header">
+      <h2 class="memo-feed-title">最近的随心记</h2>
+      <span class="memo-feed-count" id="memo-count-label"></span>
+    </div>
+    <div id="memo-feed" class="memo-feed"></div>
+    <div id="memo-empty" class="memo-empty-state" style="display: none;">
+      <p>还没有随心记。写下第一条，试试用 <code>#标签</code> 标记重点。</p>
+    </div>
+  </section>
+</div>
+
+<script>
+  (function () {
+    'use strict';
+
+    const input = document.getElementById('memo-input');
+    const submitBtn = document.getElementById('memo-submit-btn');
+    const feed = document.getElementById('memo-feed');
+    const empty = document.getElementById('memo-empty');
+    const countLabel = document.getElementById('memo-count-label');
+
+    function escapeHTML(text) {
+      if (!text) return '';
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function highlightTags(text) {
+      // 先做安全转义，再用正则替换形如「#标签」或「# 标签名」的片段
+      const escaped = escapeHTML(text || '');
+      return escaped.replace(
+        /(#\s*[^\s#]+)/g,
+        '<span class="memo-tag">$1</span>'
+      );
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        const y = d.getFullYear();
+        const m = (d.getMonth() + 1).toString().padStart(2, '0');
+        const day = d.getDate().toString().padStart(2, '0');
+        const hh = d.getHours().toString().padStart(2, '0');
+        const mm = d.getMinutes().toString().padStart(2, '0');
+        return y + '-' + m + '-' + day + ' ' + hh + ':' + mm;
+      } catch (_) {
+        return iso;
+      }
+    }
+
+    // 全局缓存当前列表，供事件代理中的编辑逻辑使用
+    let memoCache = {};
+
+    function renderMemos(memos) {
+      if (!memos || memos.length === 0) {
+        feed.innerHTML = '';
+        empty.style.display = 'block';
+        if (countLabel) countLabel.textContent = '';
+        return;
+      }
+      empty.style.display = 'none';
+      if (countLabel) countLabel.textContent = memos.length + ' 条';
+
+      // 刷新缓存
+      memoCache = {};
+      (memos || []).forEach(function (m) {
+        if (m && typeof m.id !== 'undefined') {
+          memoCache[m.id] = m;
+        }
+      });
+
+      const html = memos
+        .map(function (m) {
+          const body = highlightTags(m.content || '');
+          const tags =
+            (m.tags || [])
+              .map(function (t) {
+                return '<span class="memo-tag-pill">#' + t + '</span>';
+              })
+              .join(' ') || '';
+          return (
+            '<article class="memo-card" data-memo-id="' +
+            m.id +
+            '">' +
+            '<div class="memo-card-body">' +
+            '<p class="memo-card-content">' +
+            body.replace(/\n/g, '<br>') +
+            '</p>' +
+            '</div>' +
+            '<footer class="memo-card-footer">' +
+            '<time class="memo-card-time">' +
+            formatDate(m.created_at) +
+            '</time>' +
+            (tags
+              ? '<div class="memo-card-tags">' + tags + '</div>'
+              : '') +
+            '</footer>' +
+            '<div class="memo-card-actions">' +
+            '<button class="memo-action-btn memo-edit-btn">编辑</button>' +
+            '<button class="memo-action-btn memo-delete-btn delete-memo-btn" data-id="' +
+            m.id +
+            '">删除</button>' +
+            '</div>' +
+            '</article>'
+          );
+        })
+        .join('');
+      feed.innerHTML = html;
+    }
+
+    function saveMemoEdit(id, content, editBtn) {
+      if (!content) {
+        if (window.showToast) {
+          window.showToast('内容不能为空', 'error');
+        }
+        return;
+      }
+
+      if (editBtn) {
+        editBtn.disabled = true;
+        editBtn.textContent = '保存中...';
+      }
+
+      fetch('/api/memos/' + id, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: content }),
+      })
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data.success) {
+            throw new Error(data.message || '更新失败');
+          }
+          if (window.showToast) {
+            window.showToast('已更新随心记', 'success');
+          }
+          loadMemos();
+        })
+        .catch(function (err) {
+          console.error('更新随心记失败:', err);
+          if (window.showToast) {
+            window.showToast('更新随心记失败，请稍后重试。', 'error');
+          }
+        })
+        .finally(function () {
+          if (editBtn) {
+            editBtn.disabled = false;
+            editBtn.textContent = '编辑';
+          }
+        });
+    }
+
+    function deleteMemo(id, card) {
+      fetch('/api/memos/' + id, {
+        method: 'DELETE',
+      })
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data.success) {
+            throw new Error(data.message || '删除失败');
+          }
+          if (window.showToast) {
+            window.showToast('已删除随心记', 'success');
+          }
+
+          if (card) {
+            card.style.transition =
+              'opacity 0.2s ease, transform 0.2s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(-4px)';
+            setTimeout(function () {
+              if (card.parentNode) {
+                card.parentNode.removeChild(card);
+              }
+              if (!feed.querySelector('.memo-card')) {
+                loadMemos();
+              }
+            }, 200);
+          } else {
+            loadMemos();
+          }
+        })
+        .catch(function (err) {
+          console.error('删除随心记失败:', err);
+          if (window.showToast) {
+            window.showToast('删除随心记失败，请稍后重试。', 'error');
+          }
+        });
+    }
+
+    function loadMemos() {
+      fetch('/api/memos')
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (data) {
+          renderMemos(data.memos || []);
+        })
+        .catch(function (err) {
+          console.error('加载随心记失败:', err);
+        });
+    }
+
+    function submitMemo() {
+      const value = (input.value || '').trim();
+      if (!value) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = '提交中...';
+
+      fetch('/api/memos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: value }),
+      })
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data.success) {
+            throw new Error(data.message || '提交失败');
+          }
+          input.value = '';
+          loadMemos();
+        })
+        .catch(function (err) {
+          console.error('提交随心记失败:', err);
+          if (window.showToast) {
+            window.showToast('保存随心记失败，请稍后重试。', 'error');
+          }
+        })
+        .finally(function () {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '记录';
+        });
+    }
+
+    if (submitBtn) {
+      submitBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        submitMemo();
+      });
+    }
+
+    if (input) {
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          submitMemo();
+        }
+      });
+    }
+
+    // 统一事件代理：处理编辑与删除按钮点击（解决动态渲染导致的事件丢失）
+    if (feed) {
+      feed.addEventListener('click', function (e) {
+        const card = e.target.closest('.memo-card');
+        if (!card) return;
+
+        const idAttr = card.getAttribute('data-memo-id');
+        const id = idAttr ? parseInt(idAttr, 10) : NaN;
+        if (!id || !memoCache[id]) return;
+        const memo = memoCache[id];
+
+        // 删除按钮
+        const deleteBtn = e.target.closest('.delete-memo-btn');
+        if (deleteBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const contentPreview =
+            (memo.content || '').split('\n')[0].slice(0, 30) || '这条随心记';
+
+          // 复用全站统一的确认删除对话框
+          if (window.showConfirmDialog) {
+            window
+              .showConfirmDialog(
+                `确定要删除「${contentPreview}」吗？此操作不可恢复。`,
+                '确认删除',
+                {
+                  confirmText: '确定',
+                  cancelText: '取消',
+                  confirmColor: 'danger',
+                }
+              )
+              .then(function (confirmed) {
+                if (confirmed) {
+                  deleteMemo(id, card);
+                }
+              });
+          } else {
+            // 兜底：使用原生 confirm
+            if (window.confirm('确定要删除这条随心记吗？此操作不可恢复。')) {
+              deleteMemo(id, card);
+            }
+          }
+          return;
+        }
+
+        // 编辑 / 保存 按钮
+        const editBtn = e.target.closest('.memo-edit-btn');
+        if (editBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const isEditing = card.classList.contains('memo-editing');
+          const bodyEl = card.querySelector('.memo-card-body');
+          if (!bodyEl) return;
+
+          if (!isEditing) {
+            card.classList.add('memo-editing');
+            const textarea = document.createElement('textarea');
+            textarea.className = 'memo-edit-textarea';
+            textarea.value = memo.content || '';
+            bodyEl.innerHTML = '';
+            bodyEl.appendChild(textarea);
+            textarea.focus();
+            editBtn.textContent = '保存';
+
+            textarea.addEventListener('keydown', function (ev) {
+              if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
+                ev.preventDefault();
+                saveMemoEdit(id, textarea.value.trim(), editBtn);
+              }
+            });
+          } else {
+            const textarea = card.querySelector('.memo-edit-textarea');
+            if (!textarea) return;
+            saveMemoEdit(id, textarea.value.trim(), editBtn);
+          }
+        }
+      });
+    }
+
+    loadMemos();
+  })();
+</script>
+
+{% endblock %}
+

@@ -26,8 +26,11 @@
         </div>
         {% block header_search %}{% endblock %}
         <nav class="app-nav">
-          <a href="{{ url_for('guide') }}" class="btn-flat-primary" title="功能指南">
-            功能指南
+          <a href="{{ url_for('memos_page') }}" class="nav-btn memo-nav-btn">
+            ⚡ 随心记
+          </a>
+          <a href="{{ url_for('my_quotes_page') }}" class="nav-btn memo-nav-btn">
+            📂 语录本
           </a>
           <a href="{{ url_for('new_note') }}" class="btn-icon-primary" title="新建素材">
             <span class="icon-plus"></span>
@@ -43,7 +46,7 @@
         {% block content %}{% endblock %}
       </main>
     </div>
-    
+
     <!-- Toast 通知容器 -->
     <div id="toast-container" class="toast-container"></div>
     

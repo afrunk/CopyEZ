@@ -215,6 +215,13 @@
             {% if not note.mainCategory and not note.subCategory and not tags_list and not note.publishDate and not note.sourceUrl %}
               <p class="sidebar-tip">暂无属性信息</p>
             {% endif %}
+            <div class="attribute-item">
+              <div class="attribute-indicator"></div>
+              <div class="attribute-content">
+                <div class="attribute-label">字数统计</div>
+                <div class="attribute-value">本文共计：{{ word_count }} 字</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -334,6 +341,10 @@
 {% endblock %}
 
 {% block scripts %}
+  <!-- 懒加载图片：仅读取 data-src，当进入视口时再真正加载 -->
+  <script src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js" async></script>
+  <!-- Medium Zoom：点击图片丝滑放大预览（类似 Medium / Notion） -->
+  <script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js"></script>
   <script src="{{ url_for('static', filename='annotations.js') }}"></script>
   <script src="{{ url_for('static', filename='main.js') }}"></script>
   <script>
@@ -1088,6 +1099,83 @@
       }, 100);
       
       console.log('[侧边栏拉环] 初始化完成，当前状态:', isCollapsed ? '收起' : '展开');
+    })();
+
+    // ========================================
+    // 沉浸式阅读体验增强（Medium Zoom + 图注）
+    // ========================================
+    (function() {
+      'use strict';
+
+      // ---------- 1. Medium Zoom 丝滑放大 ----------
+      let zoomInstance = null;
+
+      function initMediumZoom() {
+        // 销毁旧实例（防止重复绑定）
+        if (zoomInstance) {
+          zoomInstance.detach();
+        }
+        // 绑定正文区域所有图片
+        zoomInstance = mediumZoom('.doc-content img', {
+          margin: 24,
+          background: 'rgba(255, 255, 255, 0.95)',
+          scrollOffset: 40
+        });
+        console.log('[Medium Zoom] 已绑定', document.querySelectorAll('.doc-content img').length, '张图片');
+      }
+
+      // ---------- 2. 图注自动生成 ----------
+      function generateCaptions() {
+        // 移除旧图注（防止重复生成）
+        document.querySelectorAll('.doc-content .image-caption').forEach(function(el) {
+          el.remove();
+        });
+
+        var images = document.querySelectorAll('.doc-content img');
+        images.forEach(function(img) {
+          var altText = img.getAttribute('alt');
+          // 仅当 alt 存在、非空且不是默认占位文本时才生成图注
+          if (altText && altText.trim() !== '' && altText.trim() !== '图片' && altText.trim() !== 'image') {
+            // 检查是否已经有图注
+            var nextSibling = img.nextElementSibling;
+            if (nextSibling && nextSibling.classList.contains('image-caption')) {
+              return;
+            }
+            var caption = document.createElement('span');
+            caption.className = 'image-caption';
+            caption.textContent = altText.trim();
+            // 将图注插入到图片之后
+            img.parentNode.insertBefore(caption, img.nextSibling);
+          }
+        });
+        console.log('[图注] 已处理', images.length, '张图片');
+      }
+
+      // ---------- 初始化 ----------
+      // 等待 DOM 和 lazysizes 完成后再初始化
+      function initEnhancements() {
+        initMediumZoom();
+        generateCaptions();
+      }
+
+      // 首次加载
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          // 延迟一帧确保 lazysizes 已处理完
+          requestAnimationFrame(initEnhancements);
+        });
+      } else {
+        requestAnimationFrame(initEnhancements);
+      }
+
+      // 监听内容动态刷新（编辑后跳转时会触发 contentReloaded 事件）
+      window.addEventListener('contentReloaded', function() {
+        console.log('[沉浸增强] 检测到内容刷新，重新初始化');
+        // 延迟执行，确保新 DOM 已就绪
+        setTimeout(initEnhancements, 300);
+      });
+
+      console.log('[沉浸增强] Medium Zoom + 图注 + Fade-in 初始化完成');
     })();
   </script>
 {% endblock %}

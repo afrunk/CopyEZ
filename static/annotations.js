@@ -418,16 +418,6 @@
             return;
         }
         
-        // 检查选中区域是否已有标注
-        const existing = checkExistingHighlight(range);
-        if (existing) {
-            // 如果点击的是已标注区域，移除标注（开关功能）
-            removeHighlight(existing.element);
-            selection.removeAllRanges();
-            hidePopup();
-            return;
-        }
-        
         // 保存当前选择到 state 和全局快照
         try {
             const selectionData = {
@@ -638,22 +628,7 @@
                 showCommentDialog();
                 break;
             case 'remove':
-                // 取消标注：移除高亮标记
-                if (selectionToUse.clickedElement) {
-                    removeHighlight(selectionToUse.clickedElement);
-                } else {
-                    // 如果没有保存的点击元素，尝试从选区中查找
-                    try {
-                        const range = selectionToUse.range;
-                        const existing = checkExistingHighlight(range);
-                        if (existing) {
-                            removeHighlight(existing.element);
-                        }
-                    } catch (err) {
-                        console.error('[handlePopupAction] 移除标注失败:', err);
-                    }
-                }
-                // 清除选择
+                // 文本点击删除批注功能已禁用：仅清除选择，不再通过正文删除批注
                 try {
                     window.getSelection().removeAllRanges();
                 } catch (err) {

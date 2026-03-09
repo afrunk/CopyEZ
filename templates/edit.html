@@ -11,85 +11,133 @@
     {% endif %}
 
     <form method="post" class="note-form" id="edit-form">
-      <div class="form-row form-row-title">
-        <label for="title">标题</label>
-        <div class="title-input-wrapper">
-        <input
-          type="text"
-          id="title"
-          name="title"
-          required
-          value="{{ title or '' }}"
-        />
+      <div class="edit-layout">
+        <aside class="edit-sidebar">
+          <div class="edit-sidebar-section">
+            <div class="edit-sidebar-section-title">素材信息</div>
+            <div class="form-row">
+              <label for="mainCategory">一级分类</label>
+              <select id="mainCategory" name="mainCategory">
+                <option value="">请选择（可选）</option>
+                <option value="全文" {% if mainCategory == '全文' %}selected{% endif %}>全文</option>
+                <option value="框架" {% if mainCategory == '框架' %}selected{% endif %}>框架</option>
+                <option value="短文摘要" {% if mainCategory == '短文摘要' %}selected{% endif %}>短文摘要</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label for="subCategory">二级分类</label>
+              <input
+                type="text"
+                id="subCategory"
+                name="subCategory"
+                placeholder="从下拉列表选择，或输入新分类（保存时自动添加）"
+                value="{{ subCategory or '' }}"
+              />
+            </div>
+
+            <div class="form-row">
+              <label for="tags_json">三级标签（可选）</label>
+              <div id="tag-selector-container"></div>
+              <input
+                type="hidden"
+                id="tags_json"
+                name="tags_json"
+                value="{{ tags_json or '[]' }}"
+              />
+            </div>
+
+            <div class="form-row form-row-inline form-row-inline-compact">
+              <div class="form-col">
+                <label for="publishDate">发布日期（可选）</label>
+                <input
+                  type="date"
+                  id="publishDate"
+                  name="publishDate"
+                  value="{{ publishDate or '' }}"
+                />
+              </div>
+              <div class="form-col">
+                <label for="sourceUrl">原文链接（可选）</label>
+                <input
+                  type="url"
+                  id="sourceUrl"
+                  name="sourceUrl"
+                  value="{{ sourceUrl or '' }}"
+                  placeholder="https://example.com/article"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="edit-sidebar-section">
+            <div class="edit-sidebar-section-title">大纲导航</div>
+            <div class="editor-outline" id="editor-outline">
+              <!-- JS 动态填充大纲 -->
+            </div>
+          </div>
+        </aside>
+
+        <div class="edit-main">
+          <div class="form-row form-row-title">
+            <label for="title">标题</label>
+            <div class="title-input-wrapper">
+              <input
+                type="text"
+                id="title"
+                name="title"
+                required
+                value="{{ title or '' }}"
+              />
+            </div>
+          </div>
+
+          <div class="form-row editor-row">
+            <label for="content">内容</label>
+            <div class="editor-field">
+              <!-- EasyMDE 容器：保持原 textarea，交给 EasyMDE 接管 -->
+              <textarea
+                id="content"
+                name="content"
+                required
+              >{% if content %}{{ content|e }}{% endif %}</textarea>
+            </div>
+            <p class="field-help">
+              已启用 EasyMDE Markdown 编辑器：<code>#</code>、<code>##</code>、<code>###</code> 为标题，<code>**加粗**</code> 为重点。
+              编辑区字体优先使用仿宋 / 等宽字体，一级标题自动加粗并使用深蓝色，方便快速扫视大纲。
+            </p>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-primary" id="save-btn">保存</button>
+            <span id="save-status" class="save-status" style="display: none; margin-left: 12px; color: #666; font-size: 14px;"></span>
+            <a href="{{ url_for('view_note', note_id=note.id) }}" class="btn-secondary">取消</a>
+          </div>
         </div>
-      </div>
-
-      <div class="form-row">
-        <label for="mainCategory">一级分类</label>
-        <select id="mainCategory" name="mainCategory">
-          <option value="">请选择（可选）</option>
-          <option value="全文" {% if mainCategory == '全文' %}selected{% endif %}>全文</option>
-          <option value="框架" {% if mainCategory == '框架' %}selected{% endif %}>框架</option>
-          <option value="短文摘要" {% if mainCategory == '短文摘要' %}selected{% endif %}>短文摘要</option>
-        </select>
-      </div>
-
-      <div class="form-row">
-        <label for="subCategory">二级分类</label>
-        <input
-          type="text"
-          id="subCategory"
-          name="subCategory"
-          placeholder="从下拉列表选择，或输入新分类（保存时自动添加）"
-          value="{{ subCategory or '' }}"
-        />
-      </div>
-
-      <div class="form-row">
-        <label for="tags_json">三级标签（可选）</label>
-        <div id="tag-selector-container"></div>
-        <input
-          type="hidden"
-          id="tags_json"
-          name="tags_json"
-          value="{{ tags_json or '[]' }}"
-        />
-      </div>
-
-      <div class="form-row form-row-inline">
-        <div class="form-col">
-          <label for="publishDate">发布日期（可选）</label>
-          <input
-            type="date"
-            id="publishDate"
-            name="publishDate"
-            value="{{ publishDate or '' }}"
-          />
-        </div>
-        <div class="form-col">
-          <label for="sourceUrl">原文链接（可选）</label>
-          <input
-            type="url"
-            id="sourceUrl"
-            name="sourceUrl"
-            value="{{ sourceUrl or '' }}"
-            placeholder="https://example.com/article"
-          />
-        </div>
-      </div>
-
-      <div class="form-row">
-        <label for="content">内容</label>
-        <textarea id="content" name="content" rows="20" required placeholder="保留你输入的 #、##、### 标记，以及所有手动换行，用于公文层级渲染">{% if content %}{{ content|e }}{% endif %}</textarea>
-      </div>
-
-      <div class="form-actions">
-        <button type="submit" class="btn-primary" id="save-btn">保存</button>
-        <span id="save-status" class="save-status" style="display: none; margin-left: 12px; color: #666; font-size: 14px;"></span>
-        <a href="{{ url_for('view_note', note_id=note.id) }}" class="btn-secondary">取消</a>
       </div>
     </form>
   </section>
+
+  <!-- EasyMDE 依赖的 FontAwesome 图标库（用于工具栏图标） -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css"
+  />
+  <!-- EasyMDE 核心样式与脚本 -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css"
+  />
+  <!-- CodeMirror 官方折叠 gutter 样式 -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.css"
+  />
+  <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+  <!-- CodeMirror 官方折叠插件：基础折叠、gutter 与 Markdown 折叠支持 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/markdown-fold.min.js"></script>
 
   <script src="{{ url_for('static', filename='category-selector.js') }}"></script>
   <script>
@@ -107,11 +155,269 @@
           placeholder: "点击输入框选择预置标签，或输入新标签后按 Enter 添加"
         });
       }
-      
+
       var form = document.getElementById("edit-form");
       var saveBtn = document.getElementById("save-btn");
       var saveStatus = document.getElementById("save-status");
       var isSaving = false;
+      var easyMDE = null;
+
+      // 初始化 EasyMDE（使用尽量轻量的配置，避免 2G 服务器输入卡顿）
+      (function initEasyMDE() {
+        var textarea = document.getElementById("content");
+        if (!textarea || !window.EasyMDE) {
+          return;
+        }
+
+        easyMDE = new EasyMDE({
+          element: textarea,
+          autofocus: true,
+          spellChecker: false,
+          autoDownloadFontAwesome: false, // 我们通过 CDN 手动引入，避免 EasyMDE 自动拉取
+          status: false,
+          renderingConfig: {
+            singleLineBreaks: false
+          },
+          // 启用 CodeMirror 官方折叠 gutter（配合 markdown-fold 插件）
+          foldGutter: true,
+          lineNumbers: true,
+          gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+          toolbar: [
+            "bold",
+            "italic",
+            "heading-1",
+            "heading-2",
+            "heading-3",
+            "|",
+            "unordered-list",
+            "ordered-list",
+            "|",
+            "quote",
+            "code",
+            "|",
+            "link",
+            "image",
+            "|",
+            "preview",
+            "side-by-side",
+            "fullscreen"
+          ],
+          minHeight: "400px",
+          lineWrapping: true
+        });
+
+        // 统一编辑区字体和标题样式
+        try {
+          var cm = easyMDE.codemirror;
+          cm.getWrapperElement().classList.add("copyez-easymde");
+
+          // 粘贴 / 拖拽图片即上传
+          initImagePasteAndDrop(cm);
+
+          // 启用编辑页大纲导航：根据 # / ## 标题实时生成
+          initEditorOutline(cm);
+        } catch (e) {
+          console.error("EasyMDE init style error", e);
+        }
+      })();
+
+      // 编辑页大纲导航：监听内容变更，基于 # / ## 标题实时生成侧栏大纲
+      function initEditorOutline(cm) {
+        var outlineContainer = document.getElementById("editor-outline");
+        if (!outlineContainer) {
+          return;
+        }
+
+        function extractHeadings() {
+          var doc = cm.getDoc();
+          var lineCount = doc.lineCount();
+          var headings = [];
+
+          for (var i = 0; i < lineCount; i++) {
+            var lineText = doc.getLine(i) || "";
+            var match = /^(#{1,3})\s+(.+)$/.exec(lineText);
+            if (!match) continue;
+
+            var level = match[1].length;
+            // 只取 # 和 ## 为主（最多到 ###）
+            if (level < 1 || level > 3) continue;
+
+            var text = match[2].trim();
+            if (!text) continue;
+
+            headings.push({
+              line: i,
+              level: level,
+              text: text
+            });
+          }
+
+          return headings;
+        }
+
+        function renderOutline() {
+          var headings = extractHeadings();
+
+          if (!headings.length) {
+            outlineContainer.innerHTML =
+              '<div class="editor-outline-empty">暂无大纲（使用 # 或 ## 添加章节标题）</div>';
+            return;
+          }
+
+          var html = ['<ul class="editor-outline-list">'];
+          headings.forEach(function (h, index) {
+            var levelClass = "outline-level-" + h.level;
+            var safeText = h.text
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;");
+
+            html.push(
+              '<li class="editor-outline-item ' + levelClass + '">' +
+                '<button type="button" class="editor-outline-link" data-line="' + h.line + '">' +
+                  safeText +
+                "</button>" +
+              "</li>"
+            );
+          });
+          html.push("</ul>");
+
+          outlineContainer.innerHTML = html.join("");
+
+          // 绑定点击事件：滚动到对应标题行
+          var links = outlineContainer.querySelectorAll(".editor-outline-link");
+          for (var i = 0; i < links.length; i++) {
+            (function (btn) {
+              btn.addEventListener("click", function () {
+                var line = parseInt(btn.getAttribute("data-line"), 10);
+                if (isNaN(line)) return;
+                cm.scrollIntoView({ line: line, ch: 0 }, 100);
+                cm.setCursor({ line: line, ch: 0 });
+                cm.focus();
+              });
+            })(links[i]);
+          }
+        }
+
+        // 初始化与变更监听（轻微防抖）
+        var renderPending = null;
+        function scheduleRender() {
+          if (renderPending) {
+            clearTimeout(renderPending);
+          }
+          renderPending = setTimeout(function () {
+            renderOutline();
+            renderPending = null;
+          }, 200);
+        }
+
+        cm.on("changes", scheduleRender);
+
+        // 初次渲染一次
+        scheduleRender();
+      }
+
+      // 图片上传工具：复用后端 /api/upload_image
+      function uploadImageFile(file) {
+        var formData = new FormData();
+        formData.append("image", file);
+
+        return fetch("{{ url_for('upload_image') }}", {
+          method: "POST",
+          body: formData
+        }).then(function (resp) {
+          if (!resp.ok) {
+            throw new Error("上传失败：" + resp.status);
+          }
+          return resp.json();
+        });
+      }
+
+      function insertImageMarkdown(cm, url) {
+        if (!cm || !url) return;
+        var doc = cm.getDoc();
+        var pos = doc.getCursor();
+        var markdown = "![" + "图片描述" + "](" + url + ")";
+        doc.replaceRange(markdown, pos);
+      }
+
+      function initImagePasteAndDrop(cm) {
+        if (!cm || !window.FormData || !window.fetch) {
+          return;
+        }
+
+        function handleImageFiles(files) {
+          if (!files || !files.length) return;
+          var imageFiles = [];
+          for (var i = 0; i < files.length; i++) {
+            var f = files[i];
+            if (f && f.type && f.type.indexOf("image") === 0) {
+              imageFiles.push(f);
+            }
+          }
+          if (!imageFiles.length) return;
+
+          imageFiles.forEach(function (file) {
+            uploadImageFile(file)
+              .then(function (data) {
+                if (!data || !data.success || !data.url) {
+                  return;
+                }
+                insertImageMarkdown(cm, data.url);
+              })
+              .catch(function (err) {
+                console.error("图片上传失败", err);
+              });
+          });
+        }
+
+        cm.on("paste", function (cmInstance, e) {
+          var clipboardData = e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData);
+          if (!clipboardData || !clipboardData.items) {
+            return;
+          }
+
+          var items = clipboardData.items;
+          var imageFiles = [];
+
+          for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            if (item.kind === "file" && item.type && item.type.indexOf("image") === 0) {
+              var file = item.getAsFile && item.getAsFile();
+              if (file) {
+                imageFiles.push(file);
+              }
+            }
+          }
+
+          if (!imageFiles.length) {
+            return;
+          }
+
+          e.preventDefault();
+          handleImageFiles(imageFiles);
+        });
+
+        cm.on("drop", function (cmInstance, e) {
+          var dt = e.dataTransfer;
+          if (!dt || !dt.files || !dt.files.length) {
+            return;
+          }
+          var files = dt.files;
+          var imageFiles = [];
+          for (var i = 0; i < files.length; i++) {
+            var f = files[i];
+            if (f && f.type && f.type.indexOf("image") === 0) {
+              imageFiles.push(f);
+            }
+          }
+          if (!imageFiles.length) {
+            return;
+          }
+          e.preventDefault();
+          handleImageFiles(imageFiles);
+        });
+      }
 
       // 异步保存函数
       function saveNote() {
@@ -121,6 +427,12 @@
 
         // 验证必填字段
         var title = document.getElementById("title").value.trim();
+
+        // 同步 EasyMDE 内容到 textarea
+        if (easyMDE) {
+          easyMDE.codemirror.save();
+        }
+
         var content = document.getElementById("content").value.trim();
         if (!title || !content) {
           alert("标题和内容不能为空");
@@ -203,6 +515,7 @@
           }
         }
       });
+
     })();
   </script>
 {% endblock %}

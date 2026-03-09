@@ -1,0 +1,26 @@
+/* Optional module stylesheet.
+   Some pages/content may reference /static/css/modules/code.css.
+   Keep this file tiny and non-invasive. */
+
+/* Code blocks */
+pre,
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+pre {
+  background: #0b1021;
+  color: #e5e7eb;
+  padding: 12px 14px;
+  border-radius: 10px;
+  overflow: auto;
+  line-height: 1.6;
+}
+
+code {
+  background: rgba(17, 24, 39, 0.06);
+  padding: 0 4px;
+  border-radius: 6px;
+}
+

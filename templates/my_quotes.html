@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}摘抄语录本 - CopyEZ{% endblock %}
+
+{% block content %}
+  <div class="dashboard-quotes-page quotes-page">
+    <div class="dashboard-quotes-inner">
+      <header class="dashboard-quotes-header quotes-header">
+        <div class="dashboard-quotes-heading-main">
+          <h1 class="dashboard-quotes-title quotes-title">摘抄语录本</h1>
+          {% if quotes_by_category %}
+            {# 计算总条数：所有分类下 items 长度求和 #}
+            {% set total = 0 %}
+            {% for _category, _items in quotes_by_category.items() %}
+              {% set total = total + (_items|length) %}
+            {% endfor %}
+            <p class="dashboard-quotes-subtitle">已辑录 {{ total }} 段语录</p>
+          {% else %}
+            <p class="dashboard-quotes-subtitle">还没有摘抄，慢慢装满这本语录手札。</p>
+          {% endif %}
+        </div>
+        <a
+          href="{{ url_for('export_my_quotes') }}"
+          class="btn-flat-primary dashboard-quotes-export-btn quotes-export-btn"
+          title="导出为 Word 文档"
+        >
+          导出为 Word
+        </a>
+      </header>
+
+      {% if quotes_by_category %}
+        <div class="dashboard-quotes-list">
+          {% for category, items in quotes_by_category.items() %}
+            <section class="dashboard-quotes-category">
+              <div class="dashboard-quotes-category-header">
+                <h2 class="dashboard-quotes-category-title">
+                  {{ category or "未分类" }}
+                </h2>
+                <span class="dashboard-quotes-category-count">{{ items|length }} 条</span>
+              </div>
+
+              <div class="dashboard-quotes-category-body">
+                {% for q in items %}
+                  <article class="dashboard-quote-card quote-card">
+                    <div class="dashboard-quote-card-body">
+                      <p class="dashboard-quote-main-text">
+                        {{ q.text | safe }}
+                      </p>
+
+                      {% if q.comment %}
+                        <div class="dashboard-quote-annotation">
+                          <div class="dashboard-quote-annotation-label">[ 心得 ]</div>
+                          <div class="dashboard-quote-annotation-text">
+                            {{ q.comment }}
+                          </div>
+                        </div>
+                      {% endif %}
+                    </div>
+                    <footer class="dashboard-quote-meta">
+                      <span class="dashboard-quote-source">
+                        —— 摘自
+                        <a
+                          href="{{ url_for('view_note', note_id=q.note_id) }}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          《{{ q.note_title }}》
+                        </a>
+                      </span>
+                    </footer>
+                  </article>
+                {% endfor %}
+              </div>
+            </section>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="dashboard-quotes-empty quotes-empty">
+          暂无批注摘抄，可以在阅读页选中文字添加批注后，再回到这里集中复盘。
+        </p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+

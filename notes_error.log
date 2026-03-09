@@ -1,0 +1,169 @@
+
+===== /notes Exception at 2026-03-09T16:24:17.371077 =====
+Type: <class 'TypeError'>
+Detail: TypeError('Object of type Undefined is not JSON serializable')
+Traceback (most recent call last):
+  File "D:\Code\IDEAS\CopyEZ\app.py", line 907, in notes
+    grouped_notes[date_key] = []
+  File "D:\programe\Anaconda\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "D:\Code\IDEAS\CopyEZ\templates\index.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "D:\Code\IDEAS\CopyEZ\templates\base.html", line 43, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Code\IDEAS\CopyEZ\templates\index.html", line 505, in block 'content'
+    const dataPoints = {{ contribution_heatmap_data|tojson }};
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+  File "D:\programe\Anaconda\Lib\site-packages\flask\json\provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\flask\json\provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+
+
+===== /notes Exception at 2026-03-09T16:32:28.537193 =====
+Type: <class 'TypeError'>
+Detail: TypeError('Object of type Undefined is not JSON serializable')
+Traceback (most recent call last):
+  File "D:\Code\IDEAS\CopyEZ\app.py", line 907, in notes
+    grouped_notes[date_key] = []
+  File "D:\programe\Anaconda\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "D:\Code\IDEAS\CopyEZ\templates\index.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "D:\Code\IDEAS\CopyEZ\templates\base.html", line 43, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Code\IDEAS\CopyEZ\templates\index.html", line 505, in block 'content'
+    const dataPoints = {{ contribution_heatmap_data|tojson }};
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+  File "D:\programe\Anaconda\Lib\site-packages\flask\json\provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\flask\json\provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+
+
+===== /notes Exception at 2026-03-09T16:33:40.523174 =====
+Type: <class 'TypeError'>
+Detail: TypeError('Object of type Undefined is not JSON serializable')
+Traceback (most recent call last):
+  File "D:\Code\IDEAS\CopyEZ\app.py", line 907, in notes
+    grouped_notes[date_key] = []
+  File "D:\programe\Anaconda\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "D:\Code\IDEAS\CopyEZ\templates\index.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "D:\Code\IDEAS\CopyEZ\templates\base.html", line 43, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Code\IDEAS\CopyEZ\templates\index.html", line 505, in block 'content'
+    const dataPoints = {{ contribution_heatmap_data|tojson }};
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+  File "D:\programe\Anaconda\Lib\site-packages\flask\json\provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\flask\json\provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+
+
+===== /notes Exception at 2026-03-09T18:44:02.795435 =====
+Type: <class 'werkzeug.routing.exceptions.BuildError'>
+Detail: BuildError('my_quotes_page', {}, None)
+Traceback (most recent call last):
+  File "D:\Code\IDEAS\CopyEZ\app.py", line 1033, in notes
+  File "D:\programe\Anaconda\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "D:\programe\Anaconda\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "D:\Code\IDEAS\CopyEZ\templates\index.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "D:\Code\IDEAS\CopyEZ\templates\base.html", line 32, in top-level template code
+    <a href="{{ url_for('my_quotes_page') }}" class="nav-btn memo-nav-btn">
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\flask\app.py", line 1084, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\flask\app.py", line 1073, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\programe\Anaconda\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'my_quotes_page'. Did you mean 'memos_page' instead?
+

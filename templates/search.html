@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}搜索结果 - CopyEZ{% endblock %}
+
+{% block header_search %}
+  <div class="header-search-container">
+    <form class="header-search-form" method="GET" action="{{ url_for('search_page') }}" id="search-page-form">
+      <input
+        type="text"
+        name="q"
+        class="header-search-input"
+        placeholder="Search title, content, tags..."
+        value="{{ q or '' }}"
+        autocomplete="off"
+      />
+    </form>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="search-page-container">
+  <header class="search-page-header">
+    <h1 class="search-page-title">搜索结果</h1>
+    {% if q %}
+      <p class="search-page-subtitle">关键字：<strong>{{ q }}</strong></p>
+    {% else %}
+      <p class="search-page-subtitle">请输入关键字开始搜索。</p>
+    {% endif %}
+  </header>
+
+  <section class="search-tabs">
+    <button class="search-tab-btn search-tab-active" data-tab="articles">
+      正式文章 <span class="search-tab-count" id="search-articles-count">0</span>
+    </button>
+    <button class="search-tab-btn" data-tab="memos">
+      随心记 <span class="search-tab-count" id="search-memos-count">0</span>
+    </button>
+  </section>
+
+  <section class="search-page-results">
+    <div id="search-articles-panel" class="search-page-panel search-page-panel-active">
+      <div id="search-articles-list" class="search-results-list"></div>
+      <div id="search-articles-empty" class="search-empty-state" style="display:none;">
+        <p class="empty-state-text">未在正式文章中找到结果。</p>
+      </div>
+    </div>
+
+    <div id="search-memos-panel" class="search-page-panel">
+      <div id="search-memos-list" class="search-results-list"></div>
+      <div id="search-memos-empty" class="search-empty-state" style="display:none;">
+        <p class="empty-state-text">未在随心记中找到结果。</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  (function () {
+    'use strict';
+
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q') || '';
+
+    const tabButtons = document.querySelectorAll('.search-tab-btn');
+    const articlesCountEl = document.getElementById('search-articles-count');
+    const memosCountEl = document.getElementById('search-memos-count');
+
+    function switchTab(tab) {
+      tabButtons.forEach(function (btn) {
+        const t = btn.getAttribute('data-tab');
+        if (t === tab) {
+          btn.classList.add('search-tab-active');
+        } else {
+          btn.classList.remove('search-tab-active');
+        }
+      });
+      document
+        .querySelectorAll('.search-page-panel')
+        .forEach(function (panel) {
+          const id = panel.id || '';
+          if (
+            (tab === 'articles' && id === 'search-articles-panel') ||
+            (tab === 'memos' && id === 'search-memos-panel')
+          ) {
+            panel.classList.add('search-page-panel-active');
+          } else {
+            panel.classList.remove('search-page-panel-active');
+          }
+        });
+    }
+
+    tabButtons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const tab = btn.getAttribute('data-tab');
+        switchTab(tab);
+      });
+    });
+
+    function highlight(text, keyword) {
+      if (!text || !keyword) return escapeHtml(text || '');
+      const escaped = escapeHtml(text);
+      const re = new RegExp('(' + escapeRegex(keyword) + ')', 'gi');
+      return escaped.replace(
+        re,
+        '<mark class="search-highlight">$1</mark>'
+      );
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function escapeRegex(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function renderArticles(articles) {
+      const list = document.getElementById('search-articles-list');
+      const empty = document.getElementById('search-articles-empty');
+      if (!articles || articles.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        if (articlesCountEl) articlesCountEl.textContent = '0';
+        return;
+      }
+      empty.style.display = 'none';
+      if (articlesCountEl) articlesCountEl.textContent = articles.length;
+
+      list.innerHTML = articles
+        .map(function (r) {
+          return (
+            '<div class="search-result-card" data-note-id="' +
+            r.note_id +
+            '">' +
+            '<div class="search-result-header">' +
+            '<h3 class="search-result-title">' +
+            escapeHtml(r.title || '') +
+            '</h3>' +
+            '<span class="search-result-meta">' +
+            escapeHtml(r.date || '') +
+            '</span>' +
+            '</div>' +
+            '<div class="search-result-snippet">' +
+            highlight(r.snippet || '', q) +
+            '</div>' +
+            '<div class="search-result-footer">' +
+            (r.mainCategory
+              ? '<span class="search-result-category tag-level-1">' +
+                escapeHtml(r.mainCategory) +
+                '</span>'
+              : '') +
+            (r.subCategory
+              ? '<span class="search-result-category tag-level-2">' +
+                escapeHtml(r.subCategory) +
+                '</span>'
+              : '') +
+            '</div>' +
+            '</div>'
+          );
+        })
+        .join('');
+
+      list
+        .querySelectorAll('.search-result-card')
+        .forEach(function (card) {
+          card.addEventListener('click', function () {
+            const id = card.getAttribute('data-note-id');
+            if (!id) return;
+            const url =
+              '/note/' +
+              id +
+              (q ? '?highlight=' + encodeURIComponent(q) : '');
+            window.open(url, '_blank', 'noopener,noreferrer');
+          });
+        });
+    }
+
+    function renderMemos(memos) {
+      const list = document.getElementById('search-memos-list');
+      const empty = document.getElementById('search-memos-empty');
+      if (!memos || memos.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        if (memosCountEl) memosCountEl.textContent = '0';
+        return;
+      }
+      empty.style.display = 'none';
+      if (memosCountEl) memosCountEl.textContent = memos.length;
+
+      list.innerHTML = memos
+        .map(function (m) {
+          const tags =
+            (m.tags || [])
+              .map(function (t) {
+                return '<span class="memo-tag-pill">#' + escapeHtml(t) + '</span>';
+              })
+              .join(' ') || '';
+          return (
+            '<div class="search-result-card search-result-memo">' +
+            '<div class="search-result-header">' +
+            '<h3 class="search-result-title">随心记</h3>' +
+            '<span class="search-result-meta">' +
+            escapeHtml(m.date || '') +
+            '</span>' +
+            '</div>' +
+            '<div class="search-result-snippet">' +
+            highlight(m.snippet || m.content || '', q) +
+            '</div>' +
+            (tags
+              ? '<div class="search-result-footer">' + tags + '</div>'
+              : '') +
+            '</div>'
+          );
+        })
+        .join('');
+    }
+
+    function loadSearch() {
+      if (!q) return;
+      fetch('/api/search?q=' + encodeURIComponent(q))
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (data) {
+          renderArticles(data.articles || []);
+          renderMemos(data.memos || []);
+        })
+        .catch(function (err) {
+          console.error('搜索失败:', err);
+        });
+    }
+
+    loadSearch();
+  })();
+</script>
+
+{% endblock %}
+

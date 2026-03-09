@@ -28,9 +28,26 @@
 {% endblock %}
 
 {% block content %}
-  <div class="index-layout">
-    <!-- 主内容区：列表 -->
-    <main class="index-main-content{% if current_tag %} tag-collection-mode{% endif %}">
+  <div class="dashboard-container">
+    <div class="top-dashboard">
+      <div class="top-dashboard-left">
+        <div class="widget-card quote-card">
+          {% if daily_quote %}
+            <p class="daily-quote-text"><span class="quote-icon">“</span>{{ daily_quote }}<span class="quote-icon">”</span></p>
+          {% else %}
+            <p class="placeholder-text">暂无金句，请在阅读文章时划线批注。</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="top-dashboard-right">
+        <div class="widget-card heatmap-card">
+          <div id="contrib-heatmap"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <main class="dashboard-main index-main-content{% if current_tag %} tag-collection-mode{% endif %}">
       <!-- 分类/标签过滤模式提示 -->
       {% if current_main_category or current_sub_category or current_tag %}
         <div class="tag-filter-banner{% if current_tag %} tag-collection-banner{% endif %}">
@@ -48,7 +65,25 @@
       {% endif %}
 
       <!-- 搜索结果容器 -->
-      <div id="search-results-container" class="search-results-container" style="display: none;"></div>
+      <div id="search-results-container" class="search-results-container" style="display: none;">
+        <div class="search-preview-tabs">
+          <button class="search-preview-tab search-preview-tab-active" data-tab="articles">
+            正式文章 <span class="search-preview-count" id="search-preview-articles-count">0</span>
+          </button>
+          <button class="search-preview-tab" data-tab="memos">
+            随心记 <span class="search-preview-count" id="search-preview-memos-count">0</span>
+          </button>
+        </div>
+        <div class="search-preview-panels">
+          <div id="search-preview-articles" class="search-preview-panel search-preview-panel-active"></div>
+          <div id="search-preview-memos" class="search-preview-panel"></div>
+        </div>
+        <div class="search-preview-footer">
+          <a id="search-view-all-link" class="search-view-all-link" href="javascript:void(0);">
+            查看全部结果
+          </a>
+        </div>
+      </div>
 
       <!-- 文章列表 -->
       <div class="notes-list-container">
@@ -127,39 +162,7 @@
                       >
                         {{ note.title }}
                       </a>
-                      <!-- 分类标签组：一级分类、二级分类、三级标签 -->
-                      <div class="note-categories-group">
-                        {% if note.mainCategory %}
-                          <span 
-                            class="note-category tag-level-1"
-                            onclick='filterByMainCategory({{ note.mainCategory|tojson }}); event.stopPropagation();'
-                            title="点击过滤一级分类"
-                          >
-                            {{ note.mainCategory }}
-                          </span>
-                        {% endif %}
-                        {% if note.subCategory %}
-                          <span 
-                            class="note-category tag-level-2"
-                            onclick='filterBySubCategory({{ (note.mainCategory or "")|tojson }}, {{ note.subCategory|tojson }}); event.stopPropagation();'
-                            title="点击过滤二级分类"
-                          >
-                            {{ note.subCategory }}
-                          </span>
-                        {% endif %}
-                        {% set tags_list = note.get_tags_list() %}
-                        {% if tags_list %}
-                          {% for tag in tags_list %}
-                            <span 
-                              class="note-category tag-level-3"
-                              onclick='filterByTag({{ tag|tojson }}); event.stopPropagation();'
-                              title="点击过滤此标签"
-                            >
-                              {{ tag }}
-                            </span>
-                          {% endfor %}
-                        {% endif %}
-                      </div>
+                      <!-- 中间列表精简版：只保留标题 + 发布时间 -->
                       <time class="note-time">
                         {{ note.created_at.strftime("%H:%M") }}
                       </time>
@@ -191,7 +194,39 @@
           {% endif %}
         {% endif %}
       </div>
+
+      <!-- 手机端专属功能指南入口 -->
+      <div class="mobile-guide-link">
+        <a href="{{ url_for('guide') }}">📖 功能指南</a>
+      </div>
     </main>
+
+    <aside class="dashboard-right">
+      <div class="widget-card">
+        <h3>历史时间轴</h3>
+        {% if timeline_archives %}
+          <div class="timeline">
+            {% for item in timeline_archives %}
+              <button
+                type="button"
+                class="timeline-item{% if item.ym == current_month_filter %} timeline-item-active{% endif %}"
+                data-month="{{ item.ym }}"
+              >
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">{{ item.year }}年{{ "%02d"|format(item.month) }}月</div>
+                  <div class="timeline-count">{{ item.count }} 篇</div>
+                </div>
+              </button>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="placeholder-text">暂无历史数据</p>
+        {% endif %}
+      </div>
+      <a href="{{ url_for('guide') }}" class="footer-link desktop-guide-link">📖 功能指南</a>
+    </aside>
+    </div>
   </div>
 
   <script>
@@ -243,12 +278,13 @@
     // 防抖搜索函数
     function performSearch(query) {
       const trimmedQuery = query ? query.trim() : '';
+      const articlesPanel = document.getElementById('search-preview-articles');
+      const memosPanel = document.getElementById('search-preview-memos');
       
       if (!trimmedQuery || trimmedQuery.length === 0) {
         // 清除搜索，显示列表
         if (searchResultsContainer) {
           searchResultsContainer.style.display = 'none';
-          searchResultsContainer.innerHTML = '';
         }
         if (notesListContainer) {
           notesListContainer.style.display = 'block';
@@ -258,19 +294,25 @@
 
       // 显示加载状态
       if (searchResultsContainer) {
-        searchResultsContainer.innerHTML = '<div class="search-loading">搜索中...</div>';
         searchResultsContainer.style.display = 'block';
+      }
+      // 在保留 Tab 结构的前提下，为正文结果面板显示加载文案
+      if (articlesPanel) {
+        articlesPanel.innerHTML = '<div class="search-loading">搜索中...</div>';
+      }
+      if (memosPanel) {
+        memosPanel.innerHTML = '';
       }
       if (notesListContainer) {
         notesListContainer.style.display = 'none';
       }
 
-      // 发送搜索请求（API 路径保持不变，因为它是独立的 API 端点）
+      // 发送搜索请求
       fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}`)
         .then(response => response.json())
         .then(data => {
           if (searchResultsContainer) {
-            renderSearchResults(data.results || [], trimmedQuery);
+            renderSearchResults(data, trimmedQuery);
           }
         })
         .catch(error => {
@@ -282,18 +324,32 @@
     }
 
     // 渲染搜索结果
-    function renderSearchResults(results, query) {
-      if (results.length === 0) {
-        searchResultsContainer.innerHTML = `
+    function renderSearchResults(data, query) {
+      const articles = data.articles || [];
+      const memos = data.memos || [];
+
+      const articlesPanel = document.getElementById('search-preview-articles');
+      const memosPanel = document.getElementById('search-preview-memos');
+      const articlesCountEl = document.getElementById('search-preview-articles-count');
+      const memosCountEl = document.getElementById('search-preview-memos-count');
+
+      if (!articlesPanel || !memosPanel) return;
+
+      if (articlesCountEl) articlesCountEl.textContent = articles.length;
+      if (memosCountEl) memosCountEl.textContent = memos.length;
+
+      if (articles.length === 0 && memos.length === 0) {
+        articlesPanel.innerHTML = `
           <div class="search-empty-state">
             <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
             <p class="empty-state-text">未找到相关素材，请尝试其他关键词</p>
           </div>
         `;
+        memosPanel.innerHTML = '';
         return;
       }
 
-      const resultsHTML = results.map(result => {
+      const articleHTML = articles.slice(0, 5).map(result => {
         const highlightedSnippet = highlightKeywords(result.snippet, query);
         return `
           <div class="search-result-card" data-note-id="${result.note_id}" data-keyword="${encodeURIComponent(query)}">
@@ -310,18 +366,62 @@
         `;
       }).join('');
 
-      searchResultsContainer.innerHTML = `<div class="search-results-list">${resultsHTML}</div>`;
+      const memoHTML = memos.slice(0, 5).map(memo => {
+        const highlightedSnippet = highlightKeywords(memo.snippet || memo.content || '', query);
+        const tags = (memo.tags || []).map(t => `<span class="memo-tag-pill">#${escapeHtml(t)}</span>`).join(' ');
+        return `
+          <div class="search-result-card search-result-memo">
+            <div class="search-result-header">
+              <h3 class="search-result-title">随心记</h3>
+              <span class="search-result-meta">${memo.date || ''}</span>
+            </div>
+            <div class="search-result-snippet">${highlightedSnippet}</div>
+            ${tags ? `<div class="search-result-footer">${tags}</div>` : ''}
+          </div>
+        `;
+      }).join('');
 
-      // 绑定点击事件
-      searchResultsContainer.querySelectorAll('.search-result-card').forEach(card => {
+      articlesPanel.innerHTML = `<div class="search-results-list">${articleHTML}</div>`;
+      memosPanel.innerHTML = `<div class="search-results-list">${memoHTML}</div>`;
+
+      // 文章点击跳转
+      articlesPanel.querySelectorAll('.search-result-card').forEach(card => {
         card.addEventListener('click', function() {
           const noteId = this.dataset.noteId;
           const keyword = decodeURIComponent(this.dataset.keyword);
-          // 笔记详情页路径保持不变
           const url = `/note/${noteId}?highlight=${encodeURIComponent(keyword)}`;
           window.open(url, '_blank', 'noopener,noreferrer');
         });
       });
+
+      // Tab 切换
+      const tabButtons = searchResultsContainer.querySelectorAll('.search-preview-tab');
+      tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tab = btn.getAttribute('data-tab');
+          tabButtons.forEach(b => b.classList.toggle('search-preview-tab-active', b === btn));
+          searchResultsContainer.querySelectorAll('.search-preview-panel').forEach(panel => {
+            if (tab === 'articles' && panel.id === 'search-preview-articles') {
+              panel.classList.add('search-preview-panel-active');
+            } else if (tab === 'memos' && panel.id === 'search-preview-memos') {
+              panel.classList.add('search-preview-panel-active');
+            } else {
+              panel.classList.remove('search-preview-panel-active');
+            }
+          });
+        });
+      });
+
+      // 查看全部
+      const viewAllLink = document.getElementById('search-view-all-link');
+      if (viewAllLink) {
+        viewAllLink.onclick = function(e) {
+          e.preventDefault();
+          const url = new URL('{{ url_for("search_page") }}', window.location.origin);
+          url.searchParams.set('q', query);
+          window.location.href = url.toString();
+        };
+      }
     }
 
     // 高亮关键词
@@ -377,5 +477,156 @@
     if (searchInput && searchInput.value) {
       performSearch(searchInput.value);
     }
+
+    // 时间轴月份过滤
+    document.querySelectorAll('.timeline-item').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const ym = this.getAttribute('data-month');
+        if (!ym) return;
+        const url = new URL('{{ url_for("notes") }}', window.location.origin);
+        url.searchParams.set('month', ym);
+        url.searchParams.delete('day');
+        window.location.href = url.toString();
+      });
+    });
+  </script>
+  <script>
+    (function() {
+      const heatmapEl = document.querySelector('#contrib-heatmap');
+      if (!heatmapEl) return;
+
+      // 计算前端视角的一年时间范围（含今天）
+      function getDateRange() {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(end.getDate() - 364);
+        return { start, end };
+      }
+
+      // 工具函数：格式化日期为 YYYY-MM-DD
+      function formatDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      // 计算贡献等级（0-4），用于映射 GitHub 风格绿色梯度
+      function getLevel(count, maxCount) {
+        if (!count || count <= 0) return 0;
+        if (maxCount <= 1) return 4;
+        const ratio = count / maxCount;
+        if (ratio > 0.75) return 4;
+        if (ratio > 0.5) return 3;
+        if (ratio > 0.25) return 2;
+        return 1;
+      }
+
+      // 渲染简易 GitHub 风格热力图（7 行 x N 列）
+      function renderHeatmap(container, dataPoints, start, end) {
+        container.innerHTML = '';
+        container.classList.add('contrib-heatmap-grid');
+
+        const dayMillis = 24 * 60 * 60 * 1000;
+        const dates = [];
+        let cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+        const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+        while (cursor <= endDate) {
+          dates.push(new Date(cursor));
+          cursor = new Date(cursor.getTime() + dayMillis);
+        }
+
+        // 找出最大提交数，用于计算颜色等级
+        let maxCount = 0;
+        dates.forEach(function(d) {
+          const key = formatDate(d);
+          const v = dataPoints[key] || 0;
+          if (v > maxCount) maxCount = v;
+        });
+
+        // 按周分组（每列一周，每行一个星期几）
+        const weeks = [];
+        let week = [];
+        dates.forEach(function(d, idx) {
+          if (idx === 0) {
+            // 填充前导空白，使第一列从周日开始对齐
+            const weekday = d.getDay(); // 0-6, 0=Sun
+            for (let i = 0; i < weekday; i++) {
+              week.push(null);
+            }
+          }
+          week.push(d);
+          if (week.length === 7) {
+            weeks.push(week);
+            week = [];
+          }
+        });
+        if (week.length > 0) {
+          while (week.length < 7) {
+            week.push(null);
+          }
+          weeks.push(week);
+        }
+
+        weeks.forEach(function(weekDays) {
+          const col = document.createElement('div');
+          col.className = 'contrib-week';
+          weekDays.forEach(function(d) {
+            const cell = document.createElement('div');
+            cell.className = 'contrib-day';
+            if (d) {
+              const key = formatDate(d);
+              const count = dataPoints[key] || 0;
+              const level = getLevel(count, maxCount);
+              cell.dataset.date = key;
+              cell.dataset.count = String(count);
+              cell.classList.add('contrib-level-' + level);
+              cell.title = `${key}：${count} 条素材`;
+            } else {
+              cell.classList.add('contrib-empty');
+            }
+            col.appendChild(cell);
+          });
+          container.appendChild(col);
+        });
+      }
+
+      // 从后端获取贡献数据并渲染
+      fetch('/api/activity_stats', { cache: 'no-store' })
+        .then(function(res) { return res.json(); })
+        .then(function(dataPoints) {
+          const range = getDateRange();
+
+        try {
+          renderHeatmap(heatmapEl, dataPoints || {}, range.start, range.end);
+
+          // 数据渲染后强制刷新布局 / 滚动到最右侧显示最新日期
+          setTimeout(() => {
+            if (window.heatmapChart) {
+              window.heatmapChart.draw(); // 或者是 chart.resize()
+            }
+            heatmapEl.scrollLeft = heatmapEl.scrollWidth;
+          }, 100);
+
+          // 点击某一天，跳转到按日期过滤的列表
+            heatmapEl.addEventListener('click', function(e) {
+              const target = e.target;
+              if (!target || !target.getAttribute) return;
+              const dateStr = target.getAttribute('data-date');
+              if (!dateStr) return;
+              const url = new URL('{{ url_for("notes") }}', window.location.origin);
+              url.searchParams.set('day', dateStr);
+              url.searchParams.delete('month');
+              window.location.href = url.toString();
+            });
+          } catch (err) {
+            console.error('Failed to init contribution heatmap:', err);
+          }
+        })
+        .catch(function(err) {
+          console.error('Failed to load activity stats:', err);
+        });
+    })();
   </script>
 {% endblock %}
