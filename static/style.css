@@ -1122,8 +1122,9 @@ a:hover {
 /* 详情页：上一篇 / 下一篇导航（UI 字体，不影响正文排版） */
 .reader-prev-next {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 12px;
+  /* 让每个单元高度由自身内容决定，中间“返回列表”不会被撑得太高 */
   align-items: center;
   margin: 10px 0 18px;
   padding: 10px 12px;
@@ -1144,8 +1145,8 @@ a:hover {
 }
 
 .reader-nav-link {
-  display: inline-flex;
-  align-items: center;
+  display: flex;
+  align-items: flex-start;
   gap: 6px;
   min-width: 0;
   padding: 6px 10px;
@@ -1154,6 +1155,16 @@ a:hover {
   color: inherit;
   border: 1px solid transparent;
   transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  /* 允许长标题自动换行，避免与中间按钮堆叠 */
+  flex-wrap: wrap;
+}
+
+/* 上一篇/下一篇标题本身允许断行，控制在单元格内部换行不溢出 */
+.reader-nav-title {
+  display: inline-block;
+  min-width: 0;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .reader-nav-link:hover {
@@ -1168,9 +1179,11 @@ a:hover {
 .reader-nav-title {
   font-weight: 600;
   color: #111827;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* 允许标题在自身单元格内自动换行，避免与中间按钮挤在一行 */
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .reader-nav-prev {
