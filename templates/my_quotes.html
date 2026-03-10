@@ -4,82 +4,272 @@
 
 {% block content %}
   <div class="dashboard-quotes-page quotes-page">
-    <div class="dashboard-quotes-inner">
-      <header class="dashboard-quotes-header quotes-header">
-        <div class="dashboard-quotes-heading-main">
-          <h1 class="dashboard-quotes-title quotes-title">摘抄语录本</h1>
-          {% if quotes_by_category %}
-            {# 计算总条数：所有分类下 items 长度求和 #}
-            {% set total = 0 %}
-            {% for _category, _items in quotes_by_category.items() %}
-              {% set total = total + (_items|length) %}
-            {% endfor %}
-            <p class="dashboard-quotes-subtitle">已辑录 {{ total }} 段语录</p>
-          {% else %}
-            <p class="dashboard-quotes-subtitle">还没有摘抄，慢慢装满这本语录手札。</p>
-          {% endif %}
-        </div>
-        <a
-          href="{{ url_for('export_my_quotes') }}"
-          class="btn-flat-primary dashboard-quotes-export-btn quotes-export-btn"
-          title="导出为 Word 文档"
-        >
-          导出为 Word
-        </a>
-      </header>
+    <div class="dashboard-quotes-inner quotes-layout">
+      <div class="quotes-main-column">
+        <header class="dashboard-quotes-header quotes-header">
+          <div class="dashboard-quotes-heading-main">
+            <h1 class="dashboard-quotes-title quotes-title">摘抄语录本</h1>
+            {% if article_groups %}
+              {# 计算总条数：所有文章下 items 长度求和 #}
+              {% set total = 0 %}
+              {% for _g in article_groups %}
+                {% set total = total + (_g["items"]|length) %}
+              {% endfor %}
+              <p class="dashboard-quotes-subtitle">已从 {{ article_groups|length }} 篇文章中辑录 {{ total }} 段语录</p>
+            {% else %}
+              <p class="dashboard-quotes-subtitle">还没有摘抄，慢慢装满这本语录手札。</p>
+            {% endif %}
+          </div>
+          <a
+            href="{{ url_for('export_my_quotes') }}"
+            class="btn-flat-primary dashboard-quotes-export-btn quotes-export-btn"
+            title="导出为 Word 文档"
+          >
+            导出为 Word
+          </a>
+        </header>
 
-      {% if quotes_by_category %}
-        <div class="dashboard-quotes-list">
-          {% for category, items in quotes_by_category.items() %}
-            <section class="dashboard-quotes-category">
-              <div class="dashboard-quotes-category-header">
-                <h2 class="dashboard-quotes-category-title">
-                  {{ category or "未分类" }}
-                </h2>
-                <span class="dashboard-quotes-category-count">{{ items|length }} 条</span>
-              </div>
+        {% if article_groups %}
+          <div class="quotes-article-group-list">
+            {% for group in article_groups %}
+              {% set quote_count = group["items"]|length %}
+              <section
+                class="quote-article-group"
+                id="quote-article-{{ group.note_id }}"
+                data-quote-count="{{ quote_count }}"
+              >
+                <button
+                  type="button"
+                  class="quote-article-header article-group-header"
+                  id="header-{{ loop.index }}"
+                  data-target="content-{{ loop.index }}"
+                  aria-expanded="false"
+                  aria-controls="content-{{ loop.index }}"
+                >
+                  <div class="quote-article-header-main">
+                    <h2 class="quote-article-title">
+                      《{{ group.note_title }}》
+                    </h2>
+                    <span class="quote-article-count-badge">
+                      共 {{ quote_count }} 条摘抄
+                    </span>
+                  </div>
+                  <span class="quote-article-toggle-icon dropdown-arrow" aria-hidden="true">▾</span>
+                </button>
 
-              <div class="dashboard-quotes-category-body">
-                {% for q in items %}
-                  <article class="dashboard-quote-card quote-card">
-                    <div class="dashboard-quote-card-body">
-                      <p class="dashboard-quote-main-text">
-                        {{ q.text | safe }}
-                      </p>
-
-                      {% if q.comment %}
-                        <div class="dashboard-quote-annotation">
-                          <div class="dashboard-quote-annotation-label">[ 心得 ]</div>
-                          <div class="dashboard-quote-annotation-text">
-                            {{ q.comment }}
-                          </div>
-                        </div>
-                      {% endif %}
-                    </div>
-                    <footer class="dashboard-quote-meta">
-                      <span class="dashboard-quote-source">
-                        —— 摘自
-                        <a
-                          href="{{ url_for('view_note', note_id=q.note_id) }}"
-                          target="_blank"
-                          rel="noopener noreferrer"
+                <div
+                  class="quote-article-body is-collapsed"
+                  id="content-{{ loop.index }}"
+                >
+                  <div class="quote-article-items">
+                    {% for q in group["items"] %}
+                      {% set quote_preview = q.text|striptags|trim|slice(0, 10) %}
+                      <a
+                        href="{{ url_for('view_note', note_id=group.note_id) }}?highlight={{ quote_preview|urlquote }}"
+                        target="_blank"
+                        class="quote-card-link"
+                      >
+                        <article
+                          class="dashboard-quote-card quote-card{% if loop.index > 5 %} quote-item-extra{% endif %}"
                         >
-                          《{{ q.note_title }}》
-                        </a>
-                      </span>
-                    </footer>
-                  </article>
-                {% endfor %}
-              </div>
-            </section>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="dashboard-quotes-empty quotes-empty">
-          暂无批注摘抄，可以在阅读页选中文字添加批注后，再回到这里集中复盘。
-        </p>
+                          <div class="dashboard-quote-card-body">
+                            <p class="dashboard-quote-main-text">
+                              {{ q.text | safe }}
+                            </p>
+
+                            {% if q.comment %}
+                              <div class="dashboard-quote-annotation">
+                                <div class="dashboard-quote-annotation-label">[ 心得 ]</div>
+                                <div class="dashboard-quote-annotation-text">
+                                  {{ q.comment }}
+                                </div>
+                              </div>
+                            {% endif %}
+                          </div>
+                        </article>
+                      </a>
+                    {% endfor %}
+                  </div>
+
+                  {% if quote_count > 5 %}
+                    <button
+                      type="button"
+                      class="quote-article-more-btn"
+                      data-role="toggle-extra"
+                    >
+                      展开全部 {{ quote_count }} 条
+                    </button>
+                  {% endif %}
+                </div>
+              </section>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="dashboard-quotes-empty quotes-empty">
+            暂无批注摘抄，可以在阅读页选中文字添加批注后，再回到这里集中复盘。
+          </p>
+        {% endif %}
+      </div>
+
+      {% if article_groups %}
+        <aside class="quotes-outline-column">
+          <div class="quotes-outline-card">
+            <div class="quotes-outline-header">
+              <div class="quotes-outline-title">文章索引</div>
+              <div class="quotes-outline-subtitle">按文章快速定位摘抄</div>
+            </div>
+            <nav class="quotes-outline-nav">
+              {% for group in article_groups %}
+                <a
+                  href="#content-{{ loop.index }}"
+                  class="quotes-outline-link index-link"
+                  data-target="content-{{ loop.index }}"
+                >
+                  <span class="quotes-outline-link-title">《{{ group.note_title }}》</span>
+                  <span class="quotes-outline-link-count">{{ group["items"]|length }} 条</span>
+                </a>
+              {% endfor %}
+            </nav>
+          </div>
+        </aside>
       {% endif %}
     </div>
   </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      'use strict';
+      // ========== 1. 标题栏点击折叠 / 展开（物理绑定版本） ==========
+      document.querySelectorAll('.article-group-header').forEach(function(header) {
+        // 设置手型光标
+        header.style.cursor = 'pointer';
+
+        header.addEventListener('click', function(e) {
+          const targetId = this.getAttribute('data-target');
+          const content = document.getElementById(targetId);
+          const arrow = this.querySelector('.dropdown-arrow');
+          const group = this.closest('.quote-article-group');
+
+          if (content) {
+            // 切换展开/收起类名或直接切换显示
+            const isHidden = content.style.display === 'none' || 
+                            getComputedStyle(content).display === 'none' ||
+                            content.classList.contains('is-collapsed');
+
+            if (isHidden) {
+              content.style.display = 'block';
+              content.classList.remove('is-collapsed');
+              if (group) group.classList.add('is-open');
+              this.setAttribute('aria-expanded', 'true');
+              if (arrow) arrow.style.transform = 'rotate(180deg)';
+            } else {
+              content.style.display = 'none';
+              content.classList.add('is-collapsed');
+              if (group) group.classList.remove('is-open');
+              this.setAttribute('aria-expanded', 'false');
+              if (arrow) arrow.style.transform = 'rotate(0deg)';
+            }
+          }
+        });
+      });
+
+      // ========== 2. 展开 / 收起超出 5 条的语录（保持原有逻辑，避免影响导出） ==========
+      document
+        .querySelectorAll(".quote-article-more-btn[data-role='toggle-extra']")
+        .forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const group = btn.closest(".quote-article-group");
+            if (!group) return;
+            const extras = group.querySelectorAll(".quote-item-extra");
+            if (!extras.length) return;
+
+            const isHidden = extras[0].classList.contains("is-hidden");
+            extras.forEach(function (el) {
+              el.classList.toggle("is-hidden");
+            });
+
+            if (isHidden) {
+              btn.textContent = "收起多余摘抄";
+            } else {
+              const count = parseInt(
+                group.getAttribute("data-quote-count") || extras.length,
+                10
+              );
+              btn.textContent = "展开全部 " + count + " 条";
+            }
+          });
+        });
+
+      // ========== 3. 初始化：默认隐藏每组超出 5 条的语录 ==========
+      document.querySelectorAll(".quote-article-group").forEach(function (group) {
+        const items = group.querySelectorAll(".quote-item-extra");
+        items.forEach(function (el) {
+          el.classList.add("is-hidden");
+        });
+      });
+
+      // ========== 4. 右侧「文章索引」联动：点击时自动展开 + 平滑滚动 ==========
+      function expandAndScrollTo(targetContentId) {
+        const content = document.getElementById(targetContentId);
+        const header = document.querySelector(`[data-target="${targetContentId}"]`);
+
+        // 自动展开
+        if (content) {
+          content.style.display = 'block';
+          content.classList.remove('is-collapsed');
+          const group = content.closest('.quote-article-group');
+          if (group) group.classList.add('is-open');
+          
+          if (header) {
+            const arrow = header.querySelector('.dropdown-arrow');
+            if (arrow) arrow.style.transform = 'rotate(180deg)';
+            header.setAttribute('aria-expanded', 'true');
+            // 平滑滚动到该位置
+            setTimeout(function() {
+              header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+          }
+        }
+      }
+
+      document.querySelectorAll('.index-link').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          const targetContentId = this.getAttribute('href').replace('#', '');
+          expandAndScrollTo(targetContentId);
+        });
+      });
+
+      // ========== 5. 页面加载时处理 URL hash（支持直接访问带 hash 的链接） ==========
+      function handleInitialHash() {
+        const hash = window.location.hash;
+        if (hash && hash.startsWith('#content-')) {
+          const targetContentId = hash.replace('#', '');
+          // 延迟执行，确保 DOM 完全渲染
+          setTimeout(function() {
+            expandAndScrollTo(targetContentId);
+          }, 200);
+        }
+      }
+
+      // 多种方式确保 hash 被处理
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', handleInitialHash);
+      } else {
+        // DOM 已经加载完成，立即处理
+        handleInitialHash();
+      }
+
+      // 页面完全加载后再次检查（处理异步加载的情况）
+      window.addEventListener('load', function() {
+        setTimeout(handleInitialHash, 100);
+      });
+
+      // 监听 hashchange 事件（用户点击浏览器前进/后退按钮时）
+      window.addEventListener('hashchange', handleInitialHash);
+    })();
+  </script>
 {% endblock %}
 

@@ -1488,8 +1488,8 @@
                     // 延迟执行，确保页面内容已完全加载
                     setTimeout(() => {
                         reapplyHighlights();
-                        // 触发自定义事件，通知大纲需要重新生成
-                        window.dispatchEvent(new CustomEvent('annotationsLoaded'));
+                            // 触发自定义事件，通知大纲需要重新生成
+                            window.dispatchEvent(new CustomEvent('annotationsLoaded'));
                     }, 100);
                 }
                 

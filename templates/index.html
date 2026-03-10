@@ -202,6 +202,16 @@
     </main>
 
     <aside class="dashboard-right">
+      <a href="{{ url_for('guide') }}" class="desktop-guide-link">
+        <div class="guide-helper-card">
+          <div class="guide-helper-icon">📖</div>
+          <div class="guide-helper-text">
+            <div class="guide-helper-title">使用手册</div>
+            <div class="guide-helper-subtitle">点击查看完整使用说明</div>
+          </div>
+        </div>
+      </a>
+
       <div class="widget-card">
         <h3>历史时间轴</h3>
         {% if timeline_archives %}
@@ -211,11 +221,14 @@
                 type="button"
                 class="timeline-item{% if item.ym == current_month_filter %} timeline-item-active{% endif %}"
                 data-month="{{ item.ym }}"
+                title="点击查看该月全部材料"
               >
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
                   <div class="timeline-title">{{ item.year }}年{{ "%02d"|format(item.month) }}月</div>
-                  <div class="timeline-count">{{ item.count }} 篇</div>
+                  <div class="timeline-count-badge">
+                    <span class="timeline-count-text">{{ item.count }} 篇</span>
+                  </div>
                 </div>
               </button>
             {% endfor %}
@@ -224,7 +237,6 @@
           <p class="placeholder-text">暂无历史数据</p>
         {% endif %}
       </div>
-      <a href="{{ url_for('guide') }}" class="footer-link desktop-guide-link">📖 功能指南</a>
     </aside>
     </div>
   </div>

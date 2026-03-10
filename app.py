@@ -14,6 +14,7 @@ import bleach
 from werkzeug.utils import secure_filename
 from uuid import uuid4
 from werkzeug.exceptions import HTTPException
+from urllib.parse import quote
 try:
     # 可选依赖：用于“摘抄语录本”导出为 Word
     from docx import Document
@@ -53,6 +54,14 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 }
 
 db = SQLAlchemy(app)
+
+
+@app.template_filter('urlquote')
+def urlquote_filter(s):
+    """URL编码字符串的过滤器，用于模板中编码URL参数"""
+    if s is None:
+        return ''
+    return quote(str(s), safe='')
 
 
 @app.errorhandler(Exception)
@@ -288,9 +297,22 @@ def estimate_text_length(markdown_text: str) -> int:
 def collect_quote_items():
     """
     遍历所有带批注的文章，提取「高亮原文 + 批注」列表，
-    并按一级分类（mainCategory）归类，供“摘抄语录本”和导出复用。
+    并按“文章”维度聚合，供“摘抄语录本”和导出复用。
+
+    返回结构（按文章创建时间倒序排列）：
+    [
+        {
+            "note_id": 1,
+            "note_title": "XXX",
+            "items": [
+                {"text": "<span class='hl-red'>...</span>", "comment": "..."},
+                ...
+            ]
+        },
+        ...
+    ]
     """
-    grouped = {}
+    grouped_by_note = {}
     notes = (
         Note.query
         .filter(Note.annotations.isnot(None), Note.annotations != "")
@@ -325,7 +347,6 @@ def collect_quote_items():
         return cleaned
 
     for note in notes:
-        category = note.mainCategory or "未分类"
         try:
             items = json.loads(note.annotations)
         except Exception:
@@ -339,7 +360,15 @@ def collect_quote_items():
             if not text_val:
                 continue
             safe_text_html = _sanitize_quote_html(text_val)
-            grouped.setdefault(category, []).append(
+            note_group = grouped_by_note.setdefault(
+                note.id,
+                {
+                    "note_id": note.id,
+                    "note_title": note.title,
+                    "items": [],
+                },
+            )
+            note_group["items"].append(
                 {
                     "text": safe_text_html,
                     "comment": comment_val,
@@ -348,11 +377,17 @@ def collect_quote_items():
                 }
             )
 
-    # 为了浏览顺序稳定，按分类名排序
-    grouped_sorted = {}
-    for key in sorted(grouped.keys()):
-        grouped_sorted[key] = grouped[key]
-    return grouped_sorted
+    # 转换为列表，并按文章创建时间倒序排列，方便浏览最新素材
+    note_id_to_created_at = {n.id: n.created_at for n in notes}
+    groups = list(grouped_by_note.values())
+    groups.sort(
+        key=lambda g: (
+            note_id_to_created_at.get(g["note_id"]) or datetime.min,
+            g["note_id"],
+        ),
+        reverse=True,
+    )
+    return groups
 
 
 # 预置的公文分类知识库
@@ -1186,18 +1221,18 @@ def memos_page():
 @app.route("/my_quotes")
 def my_quotes_page():
     """
-    摘抄语录本：集中展示所有带批注的高亮句子，按一级分类归类。
+    摘抄语录本：集中展示所有带批注的高亮句子，按“文章”分组。
     """
-    quotes_by_category = collect_quote_items()
-    return render_template("my_quotes.html", quotes_by_category=quotes_by_category)
+    article_groups = collect_quote_items()
+    return render_template("my_quotes.html", article_groups=article_groups)
 
 
 @app.route("/my_quotes/export")
 def export_my_quotes():
     """
-    将所有摘抄导出为 Word 文档（公文友好格式）。
+    将所有摘抄导出为 Word 文档（公文友好格式），按“文章”分组。
     """
-    quotes_by_category = collect_quote_items()
+    article_groups = collect_quote_items()
 
     if not Document:
         # 未安装 python-docx 时给出友好提示
@@ -1252,13 +1287,14 @@ def export_my_quotes():
         title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     _set_paragraph_format(title_p, 28)
 
-    for category, items in quotes_by_category.items():
-        # 一级分类标题
+    for group in article_groups:
+        # 文章标题作为一级标题
         heading_p = doc.add_paragraph()
-        heading_run = heading_p.add_run(str(category or "未分类"))
+        heading_run = heading_p.add_run(str(group.get("note_title") or "未命名文章"))
         _set_run_font(heading_run, east_asia_name="黑体", latin_name="SimHei", size_pt=14, bold=True)
         _set_paragraph_format(heading_p, 28)
 
+        items = group.get("items") or []
         for idx, q in enumerate(items, start=1):
             p = doc.add_paragraph()
             # 原文
@@ -2463,7 +2499,7 @@ if __name__ == "__main__":
     app.run(
         debug=False,  # 生产环境关闭 debug，配合全局 errorhandler 写入 error.log
         host="0.0.0.0",
-        port=5500,
+        port=5000,
         threaded=True,  # 启用多线程（Flask 默认）
         processes=1  # 单进程模式，避免多进程占用过多内存
     )

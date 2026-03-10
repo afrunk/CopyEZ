@@ -15,56 +15,56 @@
         <aside class="edit-sidebar">
           <div class="edit-sidebar-section">
             <div class="edit-sidebar-section-title">素材信息</div>
-            <div class="form-row">
-              <label for="mainCategory">一级分类</label>
-              <select id="mainCategory" name="mainCategory">
-                <option value="">请选择（可选）</option>
-                <option value="全文" {% if mainCategory == '全文' %}selected{% endif %}>全文</option>
-                <option value="框架" {% if mainCategory == '框架' %}selected{% endif %}>框架</option>
-                <option value="短文摘要" {% if mainCategory == '短文摘要' %}selected{% endif %}>短文摘要</option>
-              </select>
-            </div>
+      <div class="form-row">
+        <label for="mainCategory">一级分类</label>
+        <select id="mainCategory" name="mainCategory">
+          <option value="">请选择（可选）</option>
+          <option value="全文" {% if mainCategory == '全文' %}selected{% endif %}>全文</option>
+          <option value="框架" {% if mainCategory == '框架' %}selected{% endif %}>框架</option>
+          <option value="短文摘要" {% if mainCategory == '短文摘要' %}selected{% endif %}>短文摘要</option>
+        </select>
+      </div>
 
-            <div class="form-row">
-              <label for="subCategory">二级分类</label>
-              <input
-                type="text"
-                id="subCategory"
-                name="subCategory"
-                placeholder="从下拉列表选择，或输入新分类（保存时自动添加）"
-                value="{{ subCategory or '' }}"
-              />
-            </div>
+      <div class="form-row">
+        <label for="subCategory">二级分类</label>
+        <input
+          type="text"
+          id="subCategory"
+          name="subCategory"
+          placeholder="从下拉列表选择，或输入新分类（保存时自动添加）"
+          value="{{ subCategory or '' }}"
+        />
+      </div>
 
-            <div class="form-row">
-              <label for="tags_json">三级标签（可选）</label>
-              <div id="tag-selector-container"></div>
-              <input
-                type="hidden"
-                id="tags_json"
-                name="tags_json"
+      <div class="form-row">
+        <label for="tags_json">三级标签（可选）</label>
+        <div id="tag-selector-container"></div>
+        <input
+          type="hidden"
+          id="tags_json"
+          name="tags_json"
                 value="{{ tags_json or '[]' }}"
-              />
-            </div>
+        />
+      </div>
 
             <div class="form-row form-row-inline form-row-inline-compact">
-              <div class="form-col">
-                <label for="publishDate">发布日期（可选）</label>
-                <input
-                  type="date"
-                  id="publishDate"
-                  name="publishDate"
+        <div class="form-col">
+          <label for="publishDate">发布日期（可选）</label>
+          <input
+            type="date"
+            id="publishDate"
+            name="publishDate"
                   value="{{ publishDate or current_date or '' }}"
-                />
-              </div>
-              <div class="form-col">
-                <label for="sourceUrl">原文链接（可选）</label>
-                <input
-                  type="url"
-                  id="sourceUrl"
-                  name="sourceUrl"
+          />
+        </div>
+        <div class="form-col">
+          <label for="sourceUrl">原文链接（可选）</label>
+          <input
+            type="url"
+            id="sourceUrl"
+            name="sourceUrl"
                   value="{{ sourceUrl or '' }}"
-                  placeholder="https://example.com/article"
+            placeholder="https://example.com/article"
                 />
               </div>
             </div>
@@ -88,30 +88,30 @@
                 name="title"
                 required
                 value="{{ title or '' }}"
-              />
-            </div>
-          </div>
+          />
+        </div>
+      </div>
 
           <div class="form-row editor-row">
-            <label for="content">内容</label>
+        <label for="content">内容</label>
             <div class="editor-field">
               <!-- EasyMDE 容器：保持原 textarea，交给 EasyMDE 接管 -->
-              <textarea
-                id="content"
-                name="content"
-                required
+        <textarea
+          id="content"
+          name="content"
+          required
               >{% if content %}{{ content|e }}{% endif %}</textarea>
-            </div>
+        </div>
             <p class="field-help">
               已启用 EasyMDE Markdown 编辑器：<code>#</code>、<code>##</code>、<code>###</code> 为标题，<code>**加粗**</code> 为重点。
               编辑区字体优先使用仿宋 / 等宽字体，一级标题自动加粗并使用深蓝色，方便快速扫视大纲。
             </p>
-          </div>
+      </div>
 
-          <div class="form-actions">
+      <div class="form-actions">
             <button type="submit" class="btn-primary" id="save-btn">保存</button>
             <span id="save-status" class="save-status" style="display: none; margin-left: 12px; color: #666; font-size: 14px;"></span>
-            <a href="{{ url_for('notes') }}" class="btn-secondary">取消</a>
+        <a href="{{ url_for('notes') }}" class="btn-secondary">取消</a>
           </div>
         </div>
       </div>
@@ -155,7 +155,7 @@
           placeholder: "点击输入框选择预置标签，或输入新标签后按 Enter 添加"
         });
       }
-
+      
       var form = document.getElementById("edit-form");
       var saveBtn = document.getElementById("save-btn");
       var saveStatus = document.getElementById("save-status");
@@ -164,7 +164,7 @@
 
       // 初始化 EasyMDE（使用尽量轻量的配置，避免 2G 服务器输入卡顿）
       (function initEasyMDE() {
-        var textarea = document.getElementById("content");
+      var textarea = document.getElementById("content");
         if (!textarea || !window.EasyMDE) {
           return;
         }
@@ -250,10 +250,10 @@
               level: level,
               text: text
             });
-          }
+        }
 
           return headings;
-        }
+      }
 
         function renderOutline() {
           var headings = extractHeadings();
@@ -294,7 +294,7 @@
                 cm.scrollIntoView({ line: line, ch: 0 }, 100);
                 cm.setCursor({ line: line, ch: 0 });
                 cm.focus();
-              });
+        });
             })(links[i]);
           }
         }
@@ -394,7 +394,7 @@
             return;
           }
 
-          e.preventDefault();
+        e.preventDefault();
           handleImageFiles(imageFiles);
         });
 

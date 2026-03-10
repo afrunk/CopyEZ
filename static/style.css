@@ -4745,31 +4745,65 @@ body.lock-screen-active {
   min-width: 0 !important;
   position: sticky;
   top: 20px;
-  /* 让右侧栏固定在视口内：内容可滚动，但底部“功能指南”不消失 */
   height: calc(100vh - 40px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-left: 16px;
+  margin-left: 8px;
+  border-left: 1px solid #e5e7eb; /* 极浅描边，将右侧与中间列表轻微分隔 */
+  background-color: #f9fafb;      /* 极弱灰底，形成“右侧工作台”感 */
 }
 
 /* 桌面端右侧底部的功能指南样式 */
 .desktop-guide-link {
   display: block;
-  margin-top: 30px;
-  padding-top: 15px;
-  border-top: 1px dashed #eee;
-  text-align: center;
-  color: #888;
+  margin-bottom: 16px;
   text-decoration: none;
+}
+
+.guide-helper-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f9fafb, #ffffff);
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.guide-helper-icon {
+  font-size: 18px;
+}
+
+.guide-helper-text {
+  text-align: left;
+}
+
+.guide-helper-title {
   font-size: 13px;
-  /* 吸附在侧栏底部 */
-  position: sticky;
-  bottom: 0;
-  background: #fff;
+  font-weight: 600;
+  color: #111827;
+}
+
+.guide-helper-subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.guide-helper-card:hover {
+  background: linear-gradient(135deg, #f3f4f6, #ffffff);
+  box-shadow: 0 -3px 10px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
 }
 
 .desktop-guide-link:hover {
-  color: #1a73e8;
+  color: inherit;
 }
 
 /* 每日金句卡片样式 */
@@ -4806,8 +4840,11 @@ body.lock-screen-active {
 }
 
 .dashboard-quotes-inner {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr);
+  gap: 32px;
 }
 
 .dashboard-quotes-header {
@@ -4866,6 +4903,189 @@ body.lock-screen-active {
   gap: 18px;
 }
 
+.quotes-layout {
+  align-items: flex-start;
+}
+
+.quotes-main-column {
+  min-width: 0;
+}
+
+.quotes-outline-column {
+  position: sticky;
+  top: 20px;
+  align-self: flex-start;
+}
+
+.quotes-outline-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 16px 16px 14px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+.quotes-outline-header {
+  margin-bottom: 8px;
+}
+
+.quotes-outline-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.quotes-outline-subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.quotes-outline-nav {
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  padding-top: 4px;
+}
+
+.quotes-outline-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: #374151;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.quotes-outline-link:hover {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.quotes-outline-link-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.quotes-outline-link-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.quotes-article-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.quote-article-group {
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+.quote-article-header {
+  width: 100%;
+  padding: 10px 14px 10px 16px;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fcfcfc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.quote-article-header-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quote-article-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.quote-article-count-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: #e5e7eb;
+  color: #4b5563;
+}
+
+.quote-article-toggle-icon {
+  font-size: 12px;
+  color: #9ca3af;
+  transform: translateY(1px);
+  transition: transform 0.15s ease;
+}
+
+.quote-article-group.is-open .quote-article-toggle-icon {
+  transform: translateY(1px) rotate(180deg);
+}
+
+.quote-article-body {
+  padding: 16px 24px 20px;
+  border-top: none;
+}
+
+.quote-article-body.is-collapsed {
+  display: none;
+}
+
+.quote-article-items {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.quote-item-extra.is-hidden {
+  display: none;
+}
+
+.quote-article-more-btn {
+  margin-top: 15px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: none;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.quote-article-more-btn:hover {
+  background-color: #dbeafe;
+  transform: translateY(-0.5px);
+}
+
+@media (max-width: 992px) {
+  .dashboard-quotes-inner {
+    display: block;
+  }
+
+  .quotes-outline-column {
+    display: none;
+  }
+}
+
 .dashboard-quotes-category {
   margin-top: 6px;
 }
@@ -4897,44 +5117,68 @@ body.lock-screen-active {
   gap: 24px;
 }
 
+/* 摘抄卡片链接容器 */
+.quote-card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: 15px;
+  position: relative;
+}
+
+/* 最后一个摘抄卡片不需要底部间距，由展开按钮的margin-top控制 */
+.quote-article-items .quote-card-link:last-child {
+  margin-bottom: 0;
+}
+
+.quote-card-link:hover {
+  text-decoration: none;
+  color: inherit;
+}
+
+.quote-card-link:hover .dashboard-quote-card {
+  background-color: #f8f9fa;
+}
+
+.quote-card-link:hover .dashboard-quote-card::after {
+  content: "🔍 查看原文";
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
 .dashboard-quote-card {
   position: relative;
   background: #ffffff;
   border-radius: 4px;
-  padding: 26px 30px 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
-  border: 1px solid rgba(15, 23, 42, 0.03);
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  padding: 20px;
+  margin-bottom: 0;
+  border: none;
+  border-left: 3px solid #1e3a8a;
+  box-shadow: none;
+  transition: background-color 0.2s ease;
 }
 
 .dashboard-quote-card::before {
-  content: "❝";
-  position: absolute;
-  left: 20px;
-  top: 14px;
-  font-size: 30px;
-  color: rgba(148, 163, 184, 0.35);
-  font-family: Georgia, "Times New Roman", serif;
+  display: none;
 }
 
 .dashboard-quote-card-body {
   position: relative;
 }
 
-.dashboard-quote-card:hover {
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
-  transform: translateY(-2px);
-  border-color: rgba(15, 23, 42, 0.08);
-}
-
 .dashboard-quote-main-text {
   margin: 0;
-  padding-left: 20px;
-  font-family: "FangSongGB", "方正仿宋简体", "仿宋_GB2312", "FangSong", "STFangsong",
-    "KaiGB", "楷体_GB2312", "KaiTi", "KaiTi_GB2312", serif;
-  font-size: 18px;
-  line-height: 1.8;
-  color: #111827;
+  padding-left: 0;
+  font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #2c3e50;
 }
 
 .dashboard-quote-annotation {
@@ -5056,17 +5300,17 @@ body.lock-screen-active {
 .timeline {
   position: relative;
   margin-top: 8px;
-  padding-left: 4px;
+  padding-left: 20px; /* 为左侧主轴和节点预留空间 */
 }
 
 .timeline::before {
   content: "";
   position: absolute;
-  left: 10px;
+  left: 9px; /* 在月份左侧的淡灰色实心垂直细线 */
   top: 0;
   bottom: 0;
-  width: 1px;
-  background-color: #e0e0e0;
+  width: 2px;
+  background-color: #e5e7eb;
 }
 
 .timeline-item {
@@ -5074,12 +5318,14 @@ body.lock-screen-active {
   display: flex;
   align-items: flex-start;
   width: 100%;
-  margin: 2px 0;
-  padding: 6px 8px 6px 24px;
+  margin: 0 0 25px; /* 垂直间距增加，增强“呼吸感” */
+  padding: 8px 10px 8px 26px;
   border: none;
-  background: transparent;
+  background-color: transparent;
   cursor: pointer;
   text-align: left;
+  border-radius: 8px;
+  transition: background-color 0.15s ease, transform 0.15s ease;
 }
 
 .timeline-item:focus {
@@ -5088,35 +5334,79 @@ body.lock-screen-active {
 
 .timeline-marker {
   position: absolute;
-  left: 6px;
-  top: 13px;
-  width: 7px;
-  height: 7px;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background-color: #999;
+  background-color: #0f172a; /* 极简深色，政法风格 */
+  box-shadow: 0 0 0 0 rgba(15, 23, 42, 0.18);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
 }
 
 .timeline-item-active .timeline-marker {
-  background-color: #216e39;
+  background-color: #1e40af; /* 当前月份使用沉稳深蓝 */
+  box-shadow: 0 0 0 6px rgba(30, 64, 175, 0.12); /* 微弱半透明光晕 */
+  animation: timeline-pulse 1.8s ease-out infinite;
 }
 
 .timeline-content {
-  margin-left: 4px;
+  margin-left: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
 }
 
 .timeline-title {
   font-size: 13px;
-  color: #333;
+  color: #111827;
+  white-space: nowrap;
 }
 
-.timeline-count {
-  margin-top: 2px;
-  font-size: 12px;
-  color: #999;
+.timeline-count-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: #eef2ff; /* 极淡浅蓝胶囊 */
+  border: 1px solid #e5e7eb;
+}
+
+.timeline-count-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
 }
 
 .timeline-item:hover .timeline-title {
-  color: #216e39;
+  color: #111827;
+}
+
+.timeline-item:hover {
+  background-color: #f3f4f6; /* 轻微变灰 */
+}
+
+.timeline-item:hover .timeline-marker {
+  transform: translateY(-50%) scale(1.12); /* 轻微放大 */
+  box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.10);
+}
+
+@keyframes timeline-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(30, 64, 175, 0.18);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(30, 64, 175, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(30, 64, 175, 0);
+  }
 }
 
 .widget-card {
