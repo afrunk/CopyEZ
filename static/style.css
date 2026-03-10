@@ -118,17 +118,36 @@ a:hover {
   position: sticky;
   top: 0;
   z-index: 10;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 24px;
+  display: flex;
   align-items: center;
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.95);
+  justify-content: space-between;
+  column-gap: 20px;
+  row-gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s ease;
+  transition: background 0.25s ease, box-shadow 0.25s ease, padding 0.25s ease;
+}
+
+/* 移动端顶栏压缩高度（保持粘顶，但不使用 absolute，避免遮挡正文） */
+@media (max-width: 768px) {
+  .app-header {
+    position: sticky;
+    top: 0;
+    height: auto;
+    padding: 6px 12px;
+    box-shadow: none;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+  }
+
+  .app-title a {
+    font-size: 16px;
+    padding: 2px 4px;
+  }
 }
 
 .app-header::before {
@@ -1314,10 +1333,12 @@ a:hover {
   .reader-layout {
     flex-direction: column;
     gap: 16px;
+    max-width: 100%;
   }
 
   .content-container {
     width: 100%;
+    margin: 0;
   }
 
   .reader-sidebar {
@@ -1343,19 +1364,121 @@ a:hover {
 }
 
 @media (max-width: 768px) {
+  /* ======== 详情页：公众号式全屏阅读（Mobile Reset）======== */
+  body {
+    background: #ffffff;
+  }
+
+  .app-main {
+    padding: 0;
+    background: #ffffff;
+  }
+
+  .reader-layout {
+    padding: 0 12px 16px;
+    max-width: 100%;
+    box-sizing: border-box;
+    background: #ffffff;
+  }
+
+  /* 移动端：给正文留出舒适的左右留白（约 12px），阅读更舒服 */
+  .content-container {
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 0;
+  }
+
   .a4-paper {
     width: 100%;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: none;
+    box-shadow: none;
+    background: transparent;
   }
 
   .reader-inner {
-    padding: 20px 16px 28px;
+    padding: 20px 4px 32px;
+    background: #ffffff;
+  }
+
+  /* 彻底清除移动端卡片感：详情页内不再出现额外阴影 / 圆角容器 */
+  .reader-page,
+  .doc-content {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: #ffffff;
+  }
+
+  /* 移动端隐藏三块功能区 + 侧边切换按钮，确保纯正文 */
+  .reader-sidebar .sidebar-section:nth-of-type(3),
+  .reader-sidebar .sidebar-section:nth-of-type(4),
+  .reader-sidebar .sidebar-section:nth-of-type(5),
+  #sidebar-toggle-btn {
+    display: none !important;
+  }
+
+  .reader-sidebar {
+    padding: 0;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
   }
 }
 
-.reader-inner {
-  /* 根据你给的页边距：上 3.7 / 右 2.8 / 下 3.5 / 左 2.6（单位用 cm 更接近） */
-  padding: 3.7cm 2.8cm 3.5cm 2.6cm;
+/* =============================
+   公众号式正文排版（Mobile）
+   ============================= */
+@media (max-width: 768px) {
+  .reader-layout {
+    flex-direction: column;
+  }
+
+  /* 正文：对标公众号字号与行距 */
+  .doc-content {
+    font-size: 17px !important;
+    line-height: 1.85 !important;
+    color: #333333;
+  }
+
+  /* 段落：0 首行缩进 + 明显段间距 */
+  .doc-content p {
+    text-indent: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 1.6em !important;
+    line-height: 1.85 !important;
+  }
+
+  /* 列表在移动端也采用无首行缩进的自然段风格 */
+  .doc-content li {
+    text-indent: 0 !important;
+    line-height: 1.85 !important;
+    margin-bottom: 0.8em !important;
+  }
+
+  /* 标题：文章大标题居中 + 呼吸感 */
+  .doc-title {
+    text-align: center;
+    font-size: 26px;
+    margin-top: 30px;
+    margin-bottom: 30px;
+  }
+
+  /* 覆盖公文模式下的全局缩进逻辑，仅在详情正文中例外处理 */
+  .doc-content p,
+  .doc-content p.paragraph,
+  .doc-content article p,
+  .doc-content div p,
+  .doc-content section p {
+    text-indent: 0 !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .reader-inner {
+    /* 根据你给的页边距：上 3.7 / 右 2.8 / 下 3.5 / 左 2.6（单位用 cm 更接近） */
+    padding: 3.7cm 2.8cm 3.5cm 2.6cm;
+  }
 }
 
 /* 打印时尽量还原 A4 效果 */
@@ -1489,6 +1612,7 @@ a:hover {
 }
 
 .doc-content {
+  /* 默认：A4 公文阅读尺寸（桌面端） */
   /* 正文：16pt ≈ 21px，行间距固定值（GB/T 9704-2012 标准） */
   font-size: 21px;
   /* 行间距：28.95mm ≈ 109.4px（96 DPI），使用倍数 1.56 更灵活 */
@@ -1499,6 +1623,29 @@ a:hover {
   letter-spacing: -0.2px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 移动端阅读优化：对标微信公众号，适合长文纯净阅读 */
+@media (max-width: 768px) {
+  .doc-content {
+    /* 公众号常用字号区间 17–18px，这里取中值 17px */
+    font-size: 17px;
+    /* 更疏朗的行距，适配长句、公文类文本 */
+    line-height: 1.8 !important;
+  }
+
+  /* 段落之间增加可见间距，避免“整页大砖块”压迫感 */
+  .doc-content p {
+    margin-bottom: 1.5em !important;
+  }
+
+  /* 移动端标题适当缩小为 24px 左右，更接近资讯/公众号文章视觉 */
+  .doc-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-top: 8px;
+    margin-bottom: 0.8em !important;
+  }
 }
 
 /* 正文中的图片样式（公文版式下的安全约束） */
@@ -1656,19 +1803,26 @@ a:hover {
   border-color: transparent;
 }
 
+/* 移动端：仅保留正文底部一组上一篇/下一篇导航 */
 @media (max-width: 768px) {
-  .reader-prev-next {
+  /* 顶部那一组导航不再出现，避免挡住首屏正文 */
+  .reader-prev-next:not(.reader-prev-next-bottom) {
+    display: none !important;
+  }
+
+  .reader-prev-next.reader-prev-next-bottom {
     grid-template-columns: 1fr;
     gap: 10px;
+    margin-top: 24px;
+    margin-bottom: 0;
   }
-  .reader-nav-prev,
-  .reader-nav-next,
-  .reader-nav-back {
+
+  .reader-prev-next.reader-prev-next-bottom .reader-nav-prev,
+  .reader-prev-next.reader-prev-next-bottom .reader-nav-next,
+  .reader-prev-next.reader-prev-next-bottom .reader-nav-back {
     justify-self: stretch;
-  }
-  .reader-nav-next {
-    justify-content: flex-start;
     text-align: left;
+    justify-content: flex-start;
   }
 }
 
@@ -1680,10 +1834,8 @@ a:hover {
   text-indent: 2em !important;
 }
 
-/* 正文段落统一逻辑：GB/T 9704-2012 标准排版 */
-/* 强制使用 CSS text-indent，严禁手动空格缩进 */
-/* 行间距由 line-height 控制，段落间距为 0（仅靠 line-height 撑开） */
-/* 使用多种选择器确保覆盖所有段落 */
+/* 正文段落统一逻辑：GB/T 9704-2012 标准排版（桌面端优先） */
+/* 移动端公众号阅读在后续 media query 中做单独覆盖 */
 .article-content p,
 .doc-content p,
 .doc-content p.paragraph,
@@ -1702,6 +1854,21 @@ p.paragraph {
   /* 移除段首所有手动空格，确保只使用 CSS 缩进 */
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/* 移动端：对 .doc-content 下的段落做公众号式排版覆盖 */
+@media (max-width: 768px) {
+  .doc-content p,
+  .doc-content p.paragraph,
+  .doc-content article p,
+  .doc-content div p,
+  .doc-content section p {
+    /* 详情页在移动端仍保留「段首缩进两字」的阅读习惯 */
+    text-indent: 2em !important;
+    margin-top: 0 !important;
+    margin-bottom: 1.6em !important;
+    line-height: 1.85 !important;
+  }
 }
 
 /* 清除空段落标签的干扰 */
@@ -1801,7 +1968,9 @@ p.paragraph:last-child {
   flex: 1;
   min-width: 300px;
   max-width: 800px;
-  padding: 16px;
+  /* 与正文 A4 版式顶部边距对齐：上边距采用与 .reader-inner 相同的 3.7cm，
+     这样“DOCUMENT INFO”区域的起始高度与正文标题/正文块在视觉上保持同一水平线 */
+  padding: 3.7cm 16px 16px 16px;
   border-radius: 8px;
   background: #fcfcfc;
   border-left: 1px solid rgba(15, 23, 42, 0.08);
@@ -1900,7 +2069,7 @@ p.paragraph:last-child {
 
 .sidebar-content {
   display: block;
-  min-height: 50px; /* 方便调试时观察是否有内容 */
+  min-height: 0; /* 收起/展开时高度完全由内容决定，避免保留多余空白 */
 }
 
 /* 素材属性面板样式 - 排版主义风格 */
@@ -3526,7 +3695,7 @@ p.paragraph:last-child {
   display: block;
 }
 
-/* 第一层：图片文字层（z-index: 100，最顶层，完全静止不动） */
+/* 第一层：图片文字层（z-index: 100，完全静止不动） */
 #lock-text-layer {
   position: fixed;
   top: 50%;
@@ -3536,7 +3705,7 @@ p.paragraph:last-child {
   align-items: center;
   justify-content: center;
   z-index: 100;
-  pointer-events: none;
+  pointer-events: none; /* 不拦截任何点击，始终让后面的层可以响应 */
   cursor: default;
   opacity: 1;
   visibility: visible;
@@ -3572,7 +3741,7 @@ p.paragraph:last-child {
   background: #ffffff;
   z-index: 60;
   will-change: transform;
-  pointer-events: auto;
+  pointer-events: none; /* 让点击事件穿透到后面的密码层/输入框 */
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -3588,14 +3757,14 @@ p.paragraph:last-child {
   transform: translateY(0);
 }
 
-/* 第三层：密码层 Hidden Lake（z-index: 50，初始opacity: 0） */
+/* 第三层：密码层 Hidden Lake（z-index: 200，初始opacity: 0，确保全站最高） */
 #lock-password-layer {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  /* 提升到最顶层，确保不会被图片和幕布遮挡 */
-  z-index: 120;
+  /* 提升到最顶层，确保不会被任何图片和幕布遮挡 */
+  z-index: 200;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.5s ease, visibility 0.5s ease;
@@ -3616,11 +3785,11 @@ p.paragraph:last-child {
   width: 400px;
   height: 120px;
   background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
+  /* iOS 上大面积 backdrop-filter 容易影响可点击性，这里只保留半透明背景和阴影 */
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   z-index: -1;
+  pointer-events: none;
 }
 
 /* 密码输入框样式（精致、圆角） */
@@ -3636,7 +3805,8 @@ p.paragraph:last-child {
   outline: none;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
   text-align: center;
-  z-index: 1;
+  /* 提升到密码层内最高，配合 !important 防止被其他规则覆盖 */
+  z-index: 201 !important;
 }
 
 #lock-password-input:focus {
@@ -3653,6 +3823,14 @@ p.paragraph:last-child {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
+}
+
+/* iOS 触摸优化：强化密码输入框的「可点击」语义和层级 */
+input[type="password"] {
+  cursor: pointer;
+  -webkit-user-select: text !important; /* 确保不会被 none 限制 */
+  pointer-events: auto !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0); /* 去掉点击阴影高亮 */
 }
 
 /* 锁定状态下禁用页面滚动 */
@@ -3679,18 +3857,60 @@ body.lock-screen-active {
 
 /* 响应式：移动端调整 */
 @media (max-width: 768px) {
-  .lock-text {
-    font-size: 14vw; /* 移动端稍大一些，保持在12-15vw范围内 */
+  /* 强制白屏：锁定背景纯白，完全遮挡下方内容 */
+  #lock-screen {
+    background: #ffffff !important;
+    overflow: visible !important; /* 不用 overflow: hidden，避免点击命中被父级限制 */
   }
-  
-  #lock-password-layer::before {
-    width: 90%;
-    max-width: 400px;
+
+  /* 移除干扰：隐藏图片文字层和幕布层 */
+  #lock-text-layer,
+  .curtain-top,
+  .curtain-bottom {
+    display: none !important;
   }
-  
+
+  /* 移动端极简密码层：垂直居中，完全置顶 */
+  #lock-password-layer {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  /* 移动端输入标题文案 */
+  #lock-password-title {
+    font-size: 16px;
+    color: #000000;
+    margin-bottom: 4px;
+  }
+
+  /* 移动端输入框：宽 80%，字号 16px，边框更明显 */
   #lock-password-input {
-    width: 85%;
+    width: 80%;
     max-width: 320px;
+    font-size: 16px; /* 防止 iOS 点击时自动缩放页面 */
+    border-width: 2px;
+    border-color: #111827;
+    background: #ffffff;
+  }
+
+  /* 移动端不需要毛玻璃遮罩，防止点击被遮挡 */
+  #content-blur-overlay {
+    display: none !important;
+  }
+
+  /* 移动端下避免全局 overflow hidden 影响交互 */
+  body.lock-screen-active {
+    overflow: auto !important;
+    position: static !important;
   }
 }
 
@@ -3707,6 +3927,8 @@ body.lock-screen-active {
   width: 100%;
   margin: 0 auto;
   position: relative;
+  flex: 1 1 360px;
+  min-width: 260px;
 }
 
 .header-search-form {
@@ -3788,7 +4010,8 @@ body.lock-screen-active {
 /* 导航栏响应式设计 */
 @media (max-width: 1024px) {
   .app-header {
-    gap: 16px;
+    column-gap: 16px;
+    row-gap: 6px;
     padding: 10px 20px;
   }
   
@@ -3803,29 +4026,26 @@ body.lock-screen-active {
 
 @media (max-width: 768px) {
   .app-header {
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
-    gap: 12px;
-    padding: 12px 16px;
+    padding: 10px 16px;
+    align-items: flex-start;
   }
-  
+
   .app-title {
-    grid-column: 1;
-    grid-row: 1;
+    order: 1;
   }
-  
+
+  .app-nav {
+    order: 3;
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
   .header-search-container {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    order: 2;
     max-width: 100%;
     margin: 0;
-  }
-  
-  .app-nav {
-    grid-column: 2;
-    grid-row: 1;
-    justify-content: flex-end;
-    gap: 8px;
   }
   
   .app-title a {
@@ -3858,7 +4078,7 @@ body.lock-screen-active {
 
 @media (max-width: 480px) {
   .app-header {
-    padding: 10px 12px;
+    padding: 8px 12px;
   }
   
   .app-title a {
@@ -4404,9 +4624,16 @@ body.lock-screen-active {
 .memo-app-container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 16px 0 32px;
+  padding: 16px 12px 32px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
     "Microsoft YaHei", sans-serif;
+}
+
+@media (max-width: 768px) {
+  /* 移动端：随心记整体下移一点，让出导航栏呼吸感 */
+  .memo-app-container {
+    margin-top: 12px;
+  }
 }
 
 .memo-header {
@@ -4494,7 +4721,7 @@ body.lock-screen-active {
 }
 
 .memo-feed-section {
-  margin-top: 8px;
+  margin-top: 16px;
 }
 
 .memo-feed-header {
@@ -4810,24 +5037,12 @@ body.lock-screen-active {
 }
 
 .top-dashboard {
-  display: flex;
-  gap: 24px;
+  /* 顶栏仅保留热力图卡片，宽度与下方内容对齐 */
   width: 100%;
-}
-
-.top-dashboard-left {
-  flex: 0 0 40%;
-  min-width: 0;
-}
-
-.top-dashboard-right {
-  flex: 0 0 calc(60% - 24px);
-  min-width: 0;
+  padding: 20px 0 12px;
 }
 
 .main-content {
-  display: flex;
-  gap: 24px;
   width: 100%;
 }
 
@@ -4836,19 +5051,46 @@ body.lock-screen-active {
   min-width: 0 !important;
 }
 
-.dashboard-right {
-  flex: 0 0 260px;
-  min-width: 0 !important;
+/* 文章列表 + 右侧吸附工作台布局 */
+.notes-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr); /* 约 75% : 25% */
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.notes-list-container {
+  min-width: 0;
+}
+
+.main-sidebar {
   position: sticky;
   top: 20px;
-  height: calc(100vh - 40px);
+  align-self: flex-start;
+}
+
+.main-sidebar-inner {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  padding-left: 16px;
-  margin-left: 8px;
-  border-left: 1px solid #e5e7eb; /* 极浅描边，将右侧与中间列表轻微分隔 */
-  background-color: #f9fafb;      /* 极弱灰底，形成“右侧工作台”感 */
+  gap: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 14px 14px 16px;
+}
+
+.main-sidebar-inner .widget-card.timeline-card {
+  margin: 0;
+  box-shadow: none;
+  border: none;
+  background: transparent;
+}
+
+.main-sidebar-inner .timeline {
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 /* 桌面端右侧底部的功能指南样式 */
@@ -5137,7 +5379,8 @@ body.lock-screen-active {
 }
 
 .quote-article-body {
-  padding: 16px 24px 20px;
+  /* 下内边距略收紧，让“展开全部”按钮更靠近最后一条语录 */
+  padding: 16px 24px 14px;
   border-top: none;
 }
 
@@ -5156,7 +5399,8 @@ body.lock-screen-active {
 }
 
 .quote-article-more-btn {
-  margin-top: 15px;
+  /* 按钮与列表之间留白稍减，避免底部空白过大 */
+  margin-top: 10px;
   padding: 4px 10px;
   font-size: 12px;
   border-radius: 999px;
@@ -5272,7 +5516,8 @@ body.lock-screen-active {
   padding-left: 0;
   font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
   font-weight: 500;
-  font-size: 16px;
+  /* 摘抄语录本：稍微收紧字号，提升信息密度 */
+  font-size: 15px;
   line-height: 1.7;
   color: #2c3e50;
 }
@@ -5325,8 +5570,11 @@ body.lock-screen-active {
 .heatmap-card {
   /* 让卡片高度由日历内容自然撑开，避免只占视觉上的“一半高度” */
   box-sizing: border-box;
-  padding: 15px 20px !important;
+  padding: 16px 18px !important; /* 顶部并排后减少留白 */
   display: block;
+  width: 100%;
+  max-width: none; /* 交给 top-dashboard 的 72% 控制宽度 */
+  margin: 0;
 }
 
 /* 贡献热力图：去标题、去边框，自适应宽度 */
@@ -5538,17 +5786,54 @@ body.lock-screen-active {
     gap: 15px;
   }
 
-  .top-dashboard,
-  .dashboard-right {
-    display: none !important;
+  /* 移动端：顶栏热力图在上，列表和侧栏改为纵向堆叠 */
+  .top-dashboard {
+    padding: 12px 0 4px;
+  }
+
+  .notes-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .main-sidebar {
+    position: static;
   }
 }
 
-/* 隐藏手机端专属链接（PC端不显示） */
-@media (min-width: 993px) {
-  .mobile-guide-link {
-    display: none !important;
+/* 移动端布局与热力图卡片横向滚动支持 */
+@media (max-width: 768px) {
+  /* 移动端下主区域改为单列布局 */
+  .notes-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
+
+  /* 移动端：隐藏顶部日历热力图区域 */
+  .top-dashboard {
+    display: none;
+  }
+
+  /* 移动端隐藏右侧使用手册 + 历史时间轴侧栏 */
+  .main-sidebar {
+    display: none;
+  }
+
+  .heatmap-card {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .heatmap-card #contrib-heatmap {
+    width: max-content;
+    min-width: 600px;          /* 避免被挤得过窄 */
+    overflow: visible;         /* 交给外层 card 控制滚动 */
+  }
+}
+
+/* 隐藏手机端专属链接（所有端都不显示） */
+.mobile-guide-link {
+  display: none !important;
 }
 
 /* ============================================

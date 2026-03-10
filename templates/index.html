@@ -30,19 +30,8 @@
 {% block content %}
   <div class="dashboard-container">
     <div class="top-dashboard">
-      <div class="top-dashboard-left">
-        <div class="widget-card quote-card">
-          {% if daily_quote %}
-            <p class="daily-quote-text"><span class="quote-icon">“</span>{{ daily_quote }}<span class="quote-icon">”</span></p>
-          {% else %}
-            <p class="placeholder-text">暂无金句，请在阅读文章时划线批注。</p>
-          {% endif %}
-        </div>
-      </div>
-      <div class="top-dashboard-right">
-        <div class="widget-card heatmap-card">
-          <div id="contrib-heatmap"></div>
-        </div>
+      <div class="widget-card heatmap-card">
+        <div id="contrib-heatmap"></div>
       </div>
     </div>
 
@@ -85,114 +74,157 @@
         </div>
       </div>
 
-      <!-- 文章列表 -->
-      <div class="notes-list-container">
-        {% if current_tag %}
-          {% if tag_collection_notes %}
-            <ul class="collection-toc" id="collection-toc">
-              {% for note in tag_collection_notes %}
-                <li class="collection-toc-item" data-note-id="{{ note.id }}">
-                  <a
-                    class="collection-toc-link"
-                    href="{{ url_for('view_note', note_id=note.id, tag=current_tag) }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="{{ note.title }}"
-                  >
-                    <span class="collection-toc-index">{{ "%02d"|format(loop.index) }}</span>
-                    <span class="collection-toc-title">{{ note.title }}</span>
-                    <time class="collection-toc-date">
-                      {% if note.publishDate %}
-                        {{ note.publishDate }}
-                      {% else %}
-                        {{ note.created_at.strftime("%Y-%m-%d") }}
-                      {% endif %}
-                    </time>
-                  </a>
+      <!-- 文章列表 + 右侧工作台 -->
+      <div class="notes-layout">
+        <div class="notes-list-container">
+          {% if current_tag %}
+            {% if tag_collection_notes %}
+              <ul class="collection-toc" id="collection-toc">
+                {% for note in tag_collection_notes %}
+                  <li class="collection-toc-item" data-note-id="{{ note.id }}">
+                    <a
+                      class="collection-toc-link"
+                      href="{{ url_for('view_note', note_id=note.id, tag=current_tag) }}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="{{ note.title }}"
+                    >
+                      <span class="collection-toc-index">{{ "%02d"|format(loop.index) }}</span>
+                      <span class="collection-toc-title">{{ note.title }}</span>
+                      <time class="collection-toc-date">
+                        {% if note.publishDate %}
+                          {{ note.publishDate }}
+                        {% else %}
+                          {{ note.created_at.strftime("%Y-%m-%d") }}
+                        {% endif %}
+                      </time>
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+
+              <script>
+                // 将当前标签合集序列写入 sessionStorage，供详情页“上一篇/下一篇”使用
+                (function() {
+                  try {
+                    const tag = {{ current_tag|tojson }};
+                    const items = Array.from(document.querySelectorAll('#collection-toc [data-note-id]')).map(li => {
+                      const id = parseInt(li.getAttribute('data-note-id'), 10);
+                      const link = li.querySelector('a.collection-toc-link');
+                      const title = link ? (link.querySelector('.collection-toc-title')?.textContent || '') : '';
+                      const date = link ? (link.querySelector('.collection-toc-date')?.textContent || '') : '';
+                      return { id, title, date };
+                    });
+                    sessionStorage.setItem('tagCollection:' + tag, JSON.stringify(items));
+                  } catch (e) {
+                    // ignore
+                  }
+                })();
+              </script>
+            {% else %}
+              <div class="empty-state">
+                <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
+                <p class="empty-state-text">当前筛选条件下没有找到素材</p>
+              </div>
+            {% endif %}
+          {% else %}
+          {% if grouped_notes %}
+            <ul class="note-list">
+              {% for date_key, notes_in_date in grouped_notes %}
+                <!-- 日期分割栏 -->
+                <li class="date-divider">
+                  <div class="date-divider-content">
+                    <span class="date-divider-line"></span>
+                    <span class="date-divider-text">{{ date_key.strftime("%Y年%m月%d日") }}</span>
+                    <span class="date-divider-line"></span>
+                  </div>
                 </li>
+                
+                <!-- 该日期下的所有素材卡片 -->
+                {% for note in notes_in_date %}
+                  <li class="note-list-item" data-note-id="{{ note.id }}">
+                    <div class="note-row">
+                      <a
+                        href="{{ url_for('view_note', note_id=note.id) }}"
+                        class="note-title"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                      >
+                        {{ note.title }}
+                      </a>
+                        <!-- 中间列表精简版：只保留标题 + 发布时间 -->
+                      <time class="note-time">
+                        {{ note.created_at.strftime("%H:%M") }}
+                      </time>
+                    </div>
+                    <button 
+                      class="note-delete-btn" 
+                      data-note-id="{{ note.id }}"
+                      aria-label="删除文章"
+                      title="删除文章"
+                    >
+                      🗑️
+                    </button>
+                  </li>
+                {% endfor %}
               {% endfor %}
             </ul>
-
-            <script>
-              // 将当前标签合集序列写入 sessionStorage，供详情页“上一篇/下一篇”使用
-              (function() {
-                try {
-                  const tag = {{ current_tag|tojson }};
-                  const items = Array.from(document.querySelectorAll('#collection-toc [data-note-id]')).map(li => {
-                    const id = parseInt(li.getAttribute('data-note-id'), 10);
-                    const link = li.querySelector('a.collection-toc-link');
-                    const title = link ? (link.querySelector('.collection-toc-title')?.textContent || '') : '';
-                    const date = link ? (link.querySelector('.collection-toc-date')?.textContent || '') : '';
-                    return { id, title, date };
-                  });
-                  sessionStorage.setItem('tagCollection:' + tag, JSON.stringify(items));
-                } catch (e) {
-                  // ignore
-                }
-              })();
-            </script>
           {% else %}
+            <!-- 空状态：求真务实书法背景 -->
             <div class="empty-state">
               <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
-              <p class="empty-state-text">当前筛选条件下没有找到素材</p>
+              <p class="empty-state-text">
+                {% if current_main_category or current_sub_category or current_tag or search_query %}
+                  当前筛选条件下没有找到素材
+                {% else %}
+                  还没有任何素材，点击右上角"新建素材"开始录入。
+                {% endif %}
+              </p>
             </div>
           {% endif %}
-        {% else %}
-        {% if grouped_notes %}
-          <ul class="note-list">
-            {% for date_key, notes_in_date in grouped_notes %}
-              <!-- 日期分割栏 -->
-              <li class="date-divider">
-                <div class="date-divider-content">
-                  <span class="date-divider-line"></span>
-                  <span class="date-divider-text">{{ date_key.strftime("%Y年%m月%d日") }}</span>
-                  <span class="date-divider-line"></span>
+          {% endif %}
+        </div>
+
+        <!-- 右侧吸附工作台：使用手册 + 历史时间轴 -->
+        <aside class="main-sidebar">
+          <div class="main-sidebar-inner">
+            <a href="{{ url_for('guide') }}" class="desktop-guide-link">
+              <div class="guide-helper-card">
+                <div class="guide-helper-icon">📖</div>
+                <div class="guide-helper-text">
+                  <div class="guide-helper-title">使用手册</div>
+                  <div class="guide-helper-subtitle">点击查看完整使用说明</div>
                 </div>
-              </li>
-              
-              <!-- 该日期下的所有素材卡片 -->
-              {% for note in notes_in_date %}
-                <li class="note-list-item" data-note-id="{{ note.id }}">
-                  <div class="note-row">
-                    <a
-                      href="{{ url_for('view_note', note_id=note.id) }}"
-                      class="note-title"
-                        target="_blank"
-                        rel="noopener noreferrer"
+              </div>
+            </a>
+
+            <div class="widget-card timeline-card">
+              <h3>历史时间轴</h3>
+              {% if timeline_archives %}
+                <div class="timeline">
+                  {% for item in timeline_archives %}
+                    <button
+                      type="button"
+                      class="timeline-item{% if item.ym == current_month_filter %} timeline-item-active{% endif %}"
+                      data-month="{{ item.ym }}"
+                      title="点击查看该月全部材料"
                     >
-                      {{ note.title }}
-                    </a>
-                      <!-- 中间列表精简版：只保留标题 + 发布时间 -->
-                    <time class="note-time">
-                      {{ note.created_at.strftime("%H:%M") }}
-                    </time>
-                  </div>
-                  <button 
-                    class="note-delete-btn" 
-                    data-note-id="{{ note.id }}"
-                    aria-label="删除文章"
-                    title="删除文章"
-                  >
-                    🗑️
-                  </button>
-                </li>
-              {% endfor %}
-            {% endfor %}
-          </ul>
-        {% else %}
-          <!-- 空状态：求真务实书法背景 -->
-          <div class="empty-state">
-            <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
-            <p class="empty-state-text">
-              {% if current_main_category or current_sub_category or current_tag or search_query %}
-                当前筛选条件下没有找到素材
+                      <div class="timeline-marker"></div>
+                      <div class="timeline-content">
+                        <div class="timeline-title">{{ item.year }}年{{ "%02d"|format(item.month) }}月</div>
+                        <div class="timeline-count-badge">
+                          <span class="timeline-count-text">{{ item.count }} 篇</span>
+                        </div>
+                      </div>
+                    </button>
+                  {% endfor %}
+                </div>
               {% else %}
-                还没有任何素材，点击右上角"新建素材"开始录入。
+                <p class="placeholder-text">暂无历史数据</p>
               {% endif %}
-            </p>
+            </div>
           </div>
-        {% endif %}
-        {% endif %}
+        </aside>
       </div>
 
       <!-- 手机端专属功能指南入口 -->
@@ -200,44 +232,6 @@
         <a href="{{ url_for('guide') }}">📖 功能指南</a>
       </div>
     </main>
-
-    <aside class="dashboard-right">
-      <a href="{{ url_for('guide') }}" class="desktop-guide-link">
-        <div class="guide-helper-card">
-          <div class="guide-helper-icon">📖</div>
-          <div class="guide-helper-text">
-            <div class="guide-helper-title">使用手册</div>
-            <div class="guide-helper-subtitle">点击查看完整使用说明</div>
-          </div>
-        </div>
-      </a>
-
-      <div class="widget-card">
-        <h3>历史时间轴</h3>
-        {% if timeline_archives %}
-          <div class="timeline">
-            {% for item in timeline_archives %}
-              <button
-                type="button"
-                class="timeline-item{% if item.ym == current_month_filter %} timeline-item-active{% endif %}"
-                data-month="{{ item.ym }}"
-                title="点击查看该月全部材料"
-              >
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ item.year }}年{{ "%02d"|format(item.month) }}月</div>
-                  <div class="timeline-count-badge">
-                    <span class="timeline-count-text">{{ item.count }} 篇</span>
-                  </div>
-                </div>
-              </button>
-            {% endfor %}
-          </div>
-        {% else %}
-          <p class="placeholder-text">暂无历史数据</p>
-        {% endif %}
-      </div>
-    </aside>
     </div>
   </div>
 
@@ -615,10 +609,12 @@
 
           // 数据渲染后强制刷新布局 / 滚动到最右侧显示最新日期
           setTimeout(() => {
-            if (window.heatmapChart) {
+            if (window.heatmapChart && typeof window.heatmapChart.draw === 'function') {
               window.heatmapChart.draw(); // 或者是 chart.resize()
             }
-            heatmapEl.scrollLeft = heatmapEl.scrollWidth;
+            // 兼容新的布局：优先滚动外层容器（如 .heatmap-card），否则退回自身
+            const scrollContainer = heatmapEl.parentElement || heatmapEl;
+            scrollContainer.scrollLeft = scrollContainer.scrollWidth;
           }, 100);
 
           // 点击某一天，跳转到按日期过滤的列表

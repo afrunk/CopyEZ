@@ -69,9 +69,7 @@
                         target="_blank"
                         class="quote-card-link"
                       >
-                        <article
-                          class="dashboard-quote-card quote-card{% if loop.index > 5 %} quote-item-extra{% endif %}"
-                        >
+                        <article class="dashboard-quote-card quote-card">
                           <div class="dashboard-quote-card-body">
                             <p class="dashboard-quote-main-text">
                               {{ q.text | safe }}
@@ -90,16 +88,6 @@
                       </a>
                     {% endfor %}
                   </div>
-
-                  {% if quote_count > 5 %}
-                    <button
-                      type="button"
-                      class="quote-article-more-btn"
-                      data-role="toggle-extra"
-                    >
-                      展开全部 {{ quote_count }} 条
-                    </button>
-                  {% endif %}
                 </div>
               </section>
             {% endfor %}
@@ -175,42 +163,7 @@
         });
       });
 
-      // ========== 2. 展开 / 收起超出 5 条的语录（保持原有逻辑，避免影响导出） ==========
-      document
-        .querySelectorAll(".quote-article-more-btn[data-role='toggle-extra']")
-        .forEach(function (btn) {
-          btn.addEventListener("click", function () {
-            const group = btn.closest(".quote-article-group");
-            if (!group) return;
-            const extras = group.querySelectorAll(".quote-item-extra");
-            if (!extras.length) return;
-
-            const isHidden = extras[0].classList.contains("is-hidden");
-            extras.forEach(function (el) {
-              el.classList.toggle("is-hidden");
-            });
-
-            if (isHidden) {
-              btn.textContent = "收起多余摘抄";
-            } else {
-              const count = parseInt(
-                group.getAttribute("data-quote-count") || extras.length,
-                10
-              );
-              btn.textContent = "展开全部 " + count + " 条";
-            }
-          });
-        });
-
-      // ========== 3. 初始化：默认隐藏每组超出 5 条的语录 ==========
-      document.querySelectorAll(".quote-article-group").forEach(function (group) {
-        const items = group.querySelectorAll(".quote-item-extra");
-        items.forEach(function (el) {
-          el.classList.add("is-hidden");
-        });
-      });
-
-      // ========== 4. 右侧「文章索引」联动：点击时自动展开 + 平滑滚动 ==========
+      // ========== 2. 右侧「文章索引」联动：点击时自动展开 + 平滑滚动 ==========
       function expandAndScrollTo(targetContentId) {
         const content = document.getElementById(targetContentId);
         const header = document.querySelector(`[data-target="${targetContentId}"]`);
@@ -242,7 +195,7 @@
         });
       });
 
-      // ========== 5. 页面加载时处理 URL hash（支持直接访问带 hash 的链接） ==========
+      // ========== 3. 页面加载时处理 URL hash（支持直接访问带 hash 的链接） ==========
       function handleInitialHash() {
         const hash = window.location.hash;
         if (hash && hash.startsWith('#content-')) {

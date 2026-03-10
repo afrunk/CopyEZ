@@ -679,7 +679,9 @@
         return highlightCount;
       }
 
-      // 执行高亮和滚动定位
+      // 执行高亮和滚动定位（增加保护：只在页面尚未发生明显滚动时才自动滚动到高亮位置）
+      let hasScrolledToHighlight = false;
+
       function performHighlight() {
         const highlightCount = highlightKeywords(docContent, highlightKeyword);
         
@@ -698,23 +700,26 @@
           return false;
         }
 
-        // 查找第一个高亮元素并滚动到它
-        setTimeout(() => {
-          const firstHighlight = docContent.querySelector('.search-highlight');
-          if (firstHighlight) {
-            console.log('[搜索高亮] 找到第一个高亮元素，开始滚动定位');
-            
-            // 滚动到目标位置（居中显示）
-            firstHighlight.scrollIntoView({
-              behavior: 'smooth',
-              block: 'center'
-            });
-            
-            console.log('[搜索高亮] 滚动定位完成');
-          } else {
-            console.warn('[搜索高亮] 未找到高亮元素，无法滚动定位');
-          }
-        }, 100);
+        // 查找第一个高亮元素并滚动到它：
+        // 仅在用户尚未明显滚动页面时触发，避免长文阅读过程中突然“弹回”高亮位置
+        if (!hasScrolledToHighlight && window.scrollY < 150) {
+          setTimeout(() => {
+            const firstHighlight = docContent.querySelector('.search-highlight');
+            if (firstHighlight) {
+              console.log('[搜索高亮] 找到第一个高亮元素，开始滚动定位');
+              
+              firstHighlight.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+              });
+              
+              hasScrolledToHighlight = true;
+              console.log('[搜索高亮] 滚动定位完成');
+            } else {
+              console.warn('[搜索高亮] 未找到高亮元素，无法滚动定位');
+            }
+          }, 100);
+        }
 
         return true;
       }
@@ -1053,8 +1058,21 @@
           localStorage.setItem('sidebarCollapsed', 'true');
         }
         
-        // 更新拉环位置
-        setTimeout(updateButtonPosition, 50); // 等待CSS过渡完成
+        // 更新拉环位置，并修正滚动偏移，避免收起时出现大块空白区域
+        setTimeout(function() {
+          updateButtonPosition(); // 等待 CSS 过渡完成后再更新拉环
+
+          // 收起/展开后，自动把视口对齐到正文区域顶部附近，避免用户看到大面积空白
+          var content = document.querySelector('.reader-page') || document.querySelector('.content-container');
+          if (content) {
+            var rect = content.getBoundingClientRect();
+            var targetTop = rect.top + window.pageYOffset - 80; // 预留头部高度
+            window.scrollTo({
+              top: targetTop,
+              behavior: 'instant' in window ? 'instant' : 'auto'
+            });
+          }
+        }, 80);
       }
       
       // 拉环点击事件（统一处理收起和展开）

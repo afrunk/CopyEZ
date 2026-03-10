@@ -359,6 +359,13 @@ def collect_quote_items():
             comment_val = (item.get("comment") or "").strip()
             if not text_val:
                 continue
+
+            # 仅保留“长度 >= 50 字”的语录，过短的不进入摘抄语录本
+            # - 这里按“可见字符数”计算：先去掉 HTML 标签和所有空白
+            visible_text = re.sub(r"<[^>]+>", "", text_val)  # 去掉 <span> 等标签
+            visible_text = re.sub(r"\s+", "", visible_text)  # 去掉空白字符
+            if len(visible_text) < 50:
+                continue
             safe_text_html = _sanitize_quote_html(text_val)
             note_group = grouped_by_note.setdefault(
                 note.id,
@@ -951,9 +958,10 @@ def notes():
         tag_filter = request.args.get("tag", "").strip()
         search_query = request.args.get("q", "").strip()
         global_search = request.args.get("global", "false").lower() == "true"
-        
+
         # 构建查询
         query = Note.query
+
         # 时间过滤：支持按具体日期(day)或按年月(month)过滤
         day_str = request.args.get("day", "").strip()
         month_str = request.args.get("month", "").strip()
@@ -982,15 +990,15 @@ def notes():
                 query = query.filter(Note.created_at >= month_filter_start, Note.created_at < month_filter_end)
             except Exception:
                 month_str = ""
-        
+
         # 一级分类过滤
         if main_category:
             query = query.filter(Note.mainCategory == main_category)
-        
+
         # 二级分类过滤
         if sub_category:
             query = query.filter(Note.subCategory == sub_category)
-        
+
         # 三级标签过滤：同时匹配 subCategory（二级分类）和 tags_json（三级标签）
         # 支持模糊匹配，处理 JSON 格式和空格问题
         if tag_filter:
@@ -1002,11 +1010,11 @@ def notes():
                 db.or_(
                     Note.subCategory == tag_filter_clean,  # 精确匹配二级分类
                     Note.subCategory.like(f'%{tag_filter_clean}%'),  # 模糊匹配二级分类
-                    Note.tags_json.like(f'%"{tag_filter_clean}"%'),  # 匹配 JSON 数组中的标签（带引号）
+                    Note.tags_json.like(f'%\"{tag_filter_clean}\"%'),  # 匹配 JSON 数组中的标签（带引号）
                     Note.tags_json.like(f'%{tag_filter_clean}%')  # 模糊匹配 JSON 中的标签（兼容其他格式）
                 )
             )
-        
+
         # 搜索：如果不在全局搜索模式，且已选择二级分类，则只在当前分类搜索
         if search_query:
             if not global_search and sub_category:
@@ -1027,7 +1035,7 @@ def notes():
                         Note.tags_json.like(f'%{search_query}%')
                     )
                 )
-        
+
         # 结果排序策略：
         # - 默认：按 created_at 倒序（最新在前）
         # - 标签合集模式（tag_filter）：按“发布日期/时间戳”升序（最早在前），用于“从第一章到最后一章”的阅读顺序
@@ -1062,13 +1070,13 @@ def notes():
                 grouped_notes[date_key].append(note)
 
             grouped_list = sorted(grouped_notes.items(), key=lambda x: x[0], reverse=True)
-        
+
         # 获取所有分类数据用于侧边栏
         all_notes = Note.query.all()
         main_categories = set()
         sub_categories = {}
         all_tags = set()
-        
+
         for note in all_notes:
             if note.mainCategory:
                 main_categories.add(note.mainCategory)
@@ -1080,7 +1088,7 @@ def notes():
             # 收集所有标签
             tags_list = note.get_tags_list()
             all_tags.update(tags_list)
-        
+
         # 转换为排序列表
         main_categories = sorted(main_categories)
         for key in sub_categories:
@@ -1972,8 +1980,8 @@ def new_note():
 
     return render_template(
         "new.html",
-        preset_categories=PRESET_CATEGORIES,
-        categories_by_main=categories_by_main,
+                         preset_categories=PRESET_CATEGORIES,
+                         categories_by_main=categories_by_main,
         preset_tags=PRESET_TAGS,
         current_date=today_str,
         # 默认值：新建时一级分类默认选中“全文”
@@ -2315,7 +2323,7 @@ def search_notes():
             "subCategory": note.subCategory,
             "date": note.created_at.strftime("%Y年%m月%d日")
         })
-
+    
     # 2）随心记搜索：正文与标签
     memo_query = Memo.query.filter(
         db.or_(

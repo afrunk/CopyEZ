@@ -736,6 +736,7 @@
   
   // 延迟获取元素，确保 DOM 已加载
   let lockScreen, passwordInput, lockTextLayer, passwordLayer, curtainTop, curtainBottom, lockScreenBtn, contentBlurOverlay;
+  const isMobile = window.innerWidth <= 768;
   
   function getElements() {
     lockScreen = document.getElementById('lock-screen');
@@ -913,6 +914,7 @@
         <div class="curtain-top"></div>
         <div class="curtain-bottom"></div>
         <div id="lock-password-layer">
+          <div id="lock-password-title">请输入解锁密码</div>
           <input 
             type="password" 
             id="lock-password-input" 
@@ -925,8 +927,8 @@
     
     document.body.insertAdjacentHTML('beforeend', lockScreenHTML);
     
-    // 创建毛玻璃遮罩层（如果不存在）
-    if (!document.getElementById('content-blur-overlay')) {
+    // 创建毛玻璃遮罩层（如果不存在，且为 PC 端）
+    if (!isMobile && !document.getElementById('content-blur-overlay')) {
       const blurOverlay = document.createElement('div');
       blurOverlay.id = 'content-blur-overlay';
       document.body.insertAdjacentElement('beforeend', blurOverlay);
@@ -1101,17 +1103,31 @@
         handlePasswordSubmit();
       }
     });
-    
-    // 监听滚轮事件（PC 端：禁用原生滚动，实现滚轮拉开幕布）
-    window.addEventListener('wheel', handleWheel, { passive: false });
 
-    // 监听触摸事件（移动端：用手指上滑代替滚轮）
-    window.addEventListener('touchstart', handleTouchStart, { passive: false });
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
-    window.addEventListener('touchend', handleTouchEnd, { passive: false });
+    // 放大可点击区域：点击密码层任意位置，都尝试聚焦输入框（适配 iOS 触摸）
+    if (passwordLayer && passwordInput) {
+      passwordLayer.addEventListener('click', function() {
+        try {
+          passwordInput.focus();
+        } catch (err) {
+          // 某些 iOS 场景下仍可能被系统拦截，这里静默降级
+        }
+      });
+    }
     
-    // 防止键盘滚动
-    window.addEventListener('keydown', handleKeyDown);
+    // PC 端沉浸式滚轮开门逻辑：移动端不再需要这套复杂交互
+    if (!isMobile) {
+      // 监听滚轮事件（PC 端：禁用原生滚动，实现滚轮拉开幕布）
+      window.addEventListener('wheel', handleWheel, { passive: false });
+
+      // 监听触摸事件（平板等设备：用手指上滑代替滚轮）
+      window.addEventListener('touchstart', handleTouchStart, { passive: false });
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleTouchEnd, { passive: false });
+      
+      // 防止键盘滚动
+      window.addEventListener('keydown', handleKeyDown);
+    }
     
     // 添加密码错误时的震动动画
     const style = document.createElement('style');
@@ -1129,39 +1145,75 @@
       if (isUnlocked()) {
         // 已解锁，移除锁定屏和毛玻璃遮罩
         if (lockScreen && lockScreen.parentNode) {
+          // 先从视觉和交互层面彻底禁用，再物理移除（兼容 iOS 触摸命中规则）
+          lockScreen.style.pointerEvents = 'none';
+          lockScreen.style.opacity = '0';
+          lockScreen.style.display = 'none';
           lockScreen.remove();
         }
         if (contentBlurOverlay && contentBlurOverlay.parentNode) {
+          contentBlurOverlay.style.pointerEvents = 'none';
+          contentBlurOverlay.style.opacity = '0';
+          contentBlurOverlay.style.display = 'none';
           contentBlurOverlay.remove();
         }
         document.body.classList.remove('lock-screen-active');
       } else {
-        // 未解锁，显示锁定屏并禁止滚动
+        // 未解锁：根据终端类型走不同逻辑
         if (lockScreen) {
           lockScreen.style.display = 'block';
         }
-        // 确保毛玻璃遮罩层存在
-        if (!contentBlurOverlay || !contentBlurOverlay.parentNode) {
-          if (!document.getElementById('content-blur-overlay')) {
-            const blurOverlay = document.createElement('div');
-            blurOverlay.id = 'content-blur-overlay';
-            document.body.insertAdjacentElement('beforeend', blurOverlay);
-            contentBlurOverlay = blurOverlay;
-          } else {
-            contentBlurOverlay = document.getElementById('content-blur-overlay');
+
+        // PC 端：保留原有毛玻璃和沉浸式体验
+        if (!isMobile) {
+          // 确保毛玻璃遮罩层存在
+          if (!contentBlurOverlay || !contentBlurOverlay.parentNode) {
+            if (!document.getElementById('content-blur-overlay')) {
+              const blurOverlay = document.createElement('div');
+              blurOverlay.id = 'content-blur-overlay';
+              document.body.insertAdjacentElement('beforeend', blurOverlay);
+              contentBlurOverlay = blurOverlay;
+            } else {
+              contentBlurOverlay = document.getElementById('content-blur-overlay');
+            }
           }
         }
+
         document.body.classList.add('lock-screen-active');
 
-        // 首次进入锁定状态时，直接展示密码层，避免必须依赖滚轮/滑动才能解锁
-        if (passwordLayer) {
-          passwordLayer.classList.add('visible');
-        }
-        // 对触摸设备做一点体验优化：稍微延迟后自动聚焦输入框，方便直接输入
-        if (IS_TOUCH_DEVICE && passwordInput) {
-          setTimeout(() => {
-            passwordInput.focus();
-          }, 300);
+        if (isMobile) {
+          // 移动端极简逻辑：
+          // 1. 立即展示密码层（配合 CSS 纯白背景）
+          // 2. 延迟 0.5 秒强制聚焦输入框，唤起键盘
+          if (passwordLayer) {
+            passwordLayer.classList.add('visible');
+          }
+          if (passwordInput) {
+            passwordInput.style.opacity = '1';
+            setTimeout(() => {
+              try {
+                passwordInput.focus();
+              } catch (err) {
+                // 某些 iOS WebView 仍可能拦截，这里静默失败即可
+              }
+            }, 500);
+          }
+        } else {
+          // PC 端：首次进入锁定状态时展示密码层，避免必须依赖滚轮/滑动才能解锁
+          if (passwordLayer) {
+            passwordLayer.classList.add('visible');
+          }
+          // 对触摸设备做体验优化：在动画完全结束后自动聚焦一次，确保键盘弹出
+          if (IS_TOUCH_DEVICE && passwordInput) {
+            // 幕布动画约 0.3s，文字淡出约 0.8s，这里预留 2s 兜底
+            setTimeout(() => {
+              try {
+                passwordInput.focus();
+              } catch (err) {
+                // iOS 某些环境可能依旧拦截，此处兜底即可
+              }
+            }, 2000);
+          }
         }
       }
     }
