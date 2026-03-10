@@ -1213,18 +1213,38 @@ a:hover {
 
 /* 编辑页悬浮操作坞（Floating Action Dock） */
 .edit-actions-dock {
-  position: sticky;
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: 0;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 0;
-  margin-top: 10px;
+  padding: 12px 24px;
+  margin: 0;
   background: #ffffff;
   border-top: 1px solid #f0f0f0;
   border-radius: 0;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
   z-index: 20;
+}
+
+/* EasyMDE 全屏编辑时：让操作坞固定在视口底部，避免停在页面中间 */
+body.editor-fullscreen .edit-actions-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 12px 24px;
+  border-radius: 0;
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.18);
+  z-index: 2000;
+}
+
+/* 确保全屏模式下底部留出空间，不让内容被按钮遮住（主要是移动端） */
+body.editor-fullscreen .page-section-wide {
+  padding-bottom: 72px;
 }
 
 .edit-actions-dock .btn-primary,
@@ -1273,6 +1293,11 @@ a:hover {
   white-space: nowrap;
 }
 
+/* 让正文在底部多留一块“安全区域”，避免输入时被操作坞遮住 */
+.note-form {
+  padding-bottom: 96px;
+}
+
 @media (max-width: 768px) {
   .edit-actions-dock {
     padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
@@ -1292,7 +1317,7 @@ a:hover {
   }
 
   .note-form {
-    padding-bottom: 40px; /* 底部留白，确保 footer 始终落在卡片之后 */
+    padding-bottom: 80px; /* 底部留白，加大到与操作坞高度一致，避免被遮挡 */
   }
 }
 .form-error {
