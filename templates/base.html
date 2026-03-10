@@ -45,6 +45,13 @@
       <main class="app-main">
         {% block content %}{% endblock %}
       </main>
+
+      <footer class="global-footer" aria-label="Global footer">
+        <div class="footer-content">
+          <a class="footer-link" href="{{ url_for('guide') }}">使用手册</a>
+          <span class="footer-text">CopyEZ</span>
+        </div>
+      </footer>
     </div>
 
     <!-- Toast 通知容器 -->

@@ -1976,7 +1976,15 @@ def new_note():
         categories_by_main=categories_by_main,
         preset_tags=PRESET_TAGS,
         current_date=today_str,
+        # 默认值：新建时一级分类默认选中“全文”
+        mainCategory="全文",
     )
+
+
+# 兼容：部分模板/前端可能仍使用 /add
+@app.route("/add", methods=["GET", "POST"])
+def add_note():
+    return new_note()
 
 
 @app.route("/edit/<int:note_id>", methods=["GET", "POST"])

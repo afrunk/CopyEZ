@@ -3,14 +3,14 @@
 {% block title %}新建素材 - CopyEZ{% endblock %}
 
 {% block content %}
-  <section class="page-section">
+  <section class="page-section page-section-wide">
     <h1 class="page-heading">新建素材</h1>
 
     {% if error %}
       <div class="form-error">{{ error }}</div>
     {% endif %}
 
-    <form method="post" class="note-form" id="edit-form">
+    <form method="post" action="{{ url_for('new_note') }}" class="note-form" id="edit-form" novalidate>
       <div class="edit-layout">
         <aside class="edit-sidebar">
           <div class="edit-sidebar-section">
@@ -99,7 +99,6 @@
         <textarea
           id="content"
           name="content"
-          required
               >{% if content %}{{ content|e }}{% endif %}</textarea>
         </div>
             <p class="field-help">
@@ -108,10 +107,10 @@
             </p>
       </div>
 
-      <div class="form-actions">
+          <div class="edit-actions-dock" aria-label="保存操作">
             <button type="submit" class="btn-primary" id="save-btn">保存</button>
             <span id="save-status" class="save-status" style="display: none; margin-left: 12px; color: #666; font-size: 14px;"></span>
-        <a href="{{ url_for('notes') }}" class="btn-secondary">取消</a>
+            <a href="{{ url_for('notes') }}" class="btn-secondary">取消</a>
           </div>
         </div>
       </div>
@@ -128,16 +127,7 @@
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css"
   />
-  <!-- CodeMirror 官方折叠 gutter 样式 -->
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.css"
-  />
   <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
-  <!-- CodeMirror 官方折叠插件：基础折叠、gutter 与 Markdown 折叠支持 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/markdown-fold.min.js"></script>
 
   <script src="{{ url_for('static', filename='category-selector.js') }}"></script>
   <script>
@@ -178,10 +168,9 @@
           renderingConfig: {
             singleLineBreaks: false
           },
-          // 启用 CodeMirror 官方折叠 gutter（配合 markdown-fold 插件）
-          foldGutter: true,
           lineNumbers: true,
-          gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+          // 注：折叠 gutter 依赖外部 CodeMirror 插件，某些环境会出现 CodeMirror not defined，
+          // 为避免影响保存流程，这里先禁用 fold gutter。
           toolbar: [
             "bold",
             "italic",
@@ -202,7 +191,6 @@
             "side-by-side",
             "fullscreen"
           ],
-          minHeight: "400px",
           lineWrapping: true
         });
 
@@ -210,6 +198,22 @@
         try {
           var cm = easyMDE.codemirror;
           cm.getWrapperElement().classList.add("copyez-easymde");
+          // 关键：允许编辑器随内容增长，禁止内部滚动条（页面只保留一个主滚动条）
+          try {
+            cm.setOption("viewportMargin", Infinity);
+            cm.setSize(null, "auto");
+            var resizePending = null;
+            function scheduleAutoSize() {
+              if (resizePending) return;
+              resizePending = window.requestAnimationFrame(function () {
+                resizePending = null;
+                try { cm.setSize(null, "auto"); } catch (e) {}
+              });
+            }
+            cm.on("changes", scheduleAutoSize);
+            window.addEventListener("resize", scheduleAutoSize);
+            scheduleAutoSize();
+          } catch (e) {}
 
           // 粘贴 / 拖拽图片即上传
           initImagePasteAndDrop(cm);
@@ -428,9 +432,19 @@
         // 验证必填字段
         var title = document.getElementById("title").value.trim();
 
-        // 同步 EasyMDE 内容到 textarea
+        // 同步 EasyMDE 内容到 textarea（强制，避免提交时内容未落到原 textarea）
         if (easyMDE) {
-          easyMDE.codemirror.save();
+          try {
+            var v = easyMDE.value();
+            var textareaEl = document.getElementById("content");
+            if (textareaEl) {
+              textareaEl.value = v;
+            }
+          } catch (e) {}
+          // 再兜底调用一次 CodeMirror 的 save
+          try {
+            easyMDE.codemirror.save();
+          } catch (e) {}
         }
 
         var content = document.getElementById("content").value.trim();

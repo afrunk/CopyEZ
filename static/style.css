@@ -286,6 +286,11 @@ a:hover {
   margin: 0 auto;
 }
 
+.page-section-wide {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
 .page-heading {
   margin: 0 0 16px;
   font-size: 22px;
@@ -796,12 +801,12 @@ a:hover {
   background: #ffffff;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
   position: relative;
-  /* 编辑页：锁定表单整体高度为视口剩余高度，内部滚动 */
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 160px);
-  max-height: calc(100vh - 160px);
-  overflow: hidden;
+  /* 编辑/新建：流式布局（仅页面一个主滚动条），避免表单内二次滚动导致 sticky 漂移 */
+  display: block;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  padding-bottom: 28px; /* 底部留白：确保 footer 永远在卡片之后 */
 }
 
 .form-row {
@@ -906,7 +911,7 @@ a:hover {
   /* 由外层 .note-form 控制总高度，这里仅填满剩余空间 */
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible; /* sticky footer 需要避免被 overflow:hidden 祖先裁剪 */
 }
 
 .edit-sidebar {
@@ -916,6 +921,9 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: sticky;
+  top: 20px;
+  align-self: flex-start;
 }
 
 .edit-sidebar-section {
@@ -940,7 +948,8 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
+  padding-bottom: 64px; /* 绝对防御：避免 sticky 底栏遮挡编辑器最后几行 */
 }
 
 /* 元数据区域内的字段更紧凑一些，避免挤占空间 */
@@ -1036,18 +1045,28 @@ a:hover {
   line-height: 1.6;
 }
 
-/* 限制编辑器整体高度，内部滚动，避免文章底部被截断 */
+/* 编辑器：严禁固定高度，让内容像纸一样向下延伸（配合 viewportMargin: Infinity） */
 .copyez-easymde .CodeMirror {
-  height: calc(100vh - 200px) !important; /* 动态计算高度，留出顶部和底部空间 */
-  min-height: 400px;
+  /* 关键：禁止内部固定高度，让编辑器随内容增长（配合 viewportMargin: Infinity） */
+  height: auto !important;
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.copyez-easymde .CodeMirror pre,
+.copyez-easymde .CodeMirror-line {
+  line-height: 1.8;
 }
 
 /* 强制在编辑器内部出现纵向滚动条，而不是整页滚动失败 */
 .copyez-easymde .CodeMirror-scroll {
-  overflow-y: auto !important;  /* 强制纵向滚动条可见 */
+  /* 关键：严禁编辑器内部保留垂直滚动条（页面只保留一个主滚动条） */
+  height: auto !important;
+  overflow-y: visible !important;
   overflow-x: hidden !important;
 }
 
@@ -1094,6 +1113,10 @@ a:hover {
 
 .copyez-easymde .editor-toolbar {
   border-radius: 6px 6px 0 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .copyez-easymde .editor-statusbar {
@@ -1121,14 +1144,12 @@ a:hover {
 
 /* 主编辑区：标题 + 内容堆叠，内容行撑满剩余空间 */
 .editor-row {
-  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
 .editor-field {
-  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1171,17 +1192,90 @@ a:hover {
   background: #f3f4f6;
 }
 
-/* 底部操作栏 - 收回到白色主卡片内部，右对齐 */
-.form-actions {
-  position: relative; /* 取消 fixed，回归文档流 */
+/* 编辑页悬浮操作坞（Floating Action Dock） */
+.edit-actions-dock {
+  position: sticky;
+  bottom: 0;
   display: flex;
-  justify-content: flex-end;
-  gap: 15px;
-  padding-top: 20px;
-  margin-top: 15px;
-  border-top: 1px solid #eee; /* 与上方编辑器之间一条细线分隔 */
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  margin-top: 10px;
+  background: #ffffff;
+  border-top: 1px solid #f0f0f0;
+  border-radius: 0;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+  z-index: 20;
 }
 
+.edit-actions-dock .btn-primary,
+.edit-actions-dock .btn-secondary {
+  border-radius: 6px;
+  padding: 10px 18px;
+  box-shadow: none;
+}
+
+.edit-actions-dock .btn-primary {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.edit-actions-dock .btn-primary:hover {
+  background: #6d28d9;
+  border-color: #6d28d9;
+  transform: translateY(-1px);
+}
+
+.edit-actions-dock .btn-primary:active {
+  background: #5b21b6;
+  border-color: #5b21b6;
+  transform: translateY(0);
+}
+
+.edit-actions-dock .btn-secondary {
+  background: transparent;
+  border-color: #e5e7eb;
+  color: #6b7280;
+}
+
+.edit-actions-dock .btn-secondary:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.edit-actions-dock .save-status {
+  align-self: center;
+  margin-left: 0 !important;
+  color: #6b7280 !important;
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .edit-actions-dock {
+    padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+    justify-content: space-between;
+  }
+
+  .edit-actions-dock .btn-primary,
+  .edit-actions-dock .btn-secondary {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .edit-sidebar {
+    position: static;
+    top: auto;
+    align-self: stretch;
+  }
+
+  .note-form {
+    padding-bottom: 40px; /* 底部留白，确保 footer 始终落在卡片之后 */
+  }
+}
 .form-error {
   margin-bottom: 8px;
   padding: 8px 10px;
@@ -4679,6 +4773,8 @@ body.lock-screen-active {
   border-top: 1px solid #eaeaea;
   text-align: center;
   background-color: transparent;
+  position: relative;
+  z-index: 0; /* 永远低于页面内的 sticky/fixed 操作栏 */
 }
 
 .footer-content {
@@ -5655,13 +5751,11 @@ body.lock-screen-active {
     gap: 20px;
   }
 
-  .form-actions {
-    flex-direction: column-reverse;
-  }
-
-  .form-actions .btn-primary,
-  .form-actions .btn-secondary {
-    width: 100%;
+  /* 悬浮操作坞在移动端：底部全宽，按钮更易点按 */
+  .edit-actions-dock .btn-primary,
+  .edit-actions-dock .btn-secondary {
+    flex: 1 1 0;
+    justify-content: center;
   }
 }
 
@@ -6361,7 +6455,7 @@ body.lock-screen-active {
 }
 
 /* ============================================
-   强制性编辑器与按钮布局覆盖（按用户指令）
+   编辑器与按钮布局覆盖（避免编辑器无限撑高 + 底栏吸附）
    ============================================ */
 
 /* 1. 强制缩小编辑器内 Markdown 标题字号 */
@@ -6386,30 +6480,20 @@ body.lock-screen-active {
   line-height: 1.5 !important;
 }
 
-/* 2. 强制锁死编辑器高度并开启独立滚动 */
-.CodeMirror {
-  height: 60vh !important;      /* 视窗高度的 60%，防止被内容无限撑开 */
-  min-height: 400px !important;
-  max-height: 60vh !important;
-  border-bottom: 1px solid #ddd !important; /* 底部分界线 */
-}
-
-.CodeMirror-scroll {
-  height: 100% !important;
-  overflow-y: auto !important;  /* 内部滚动条 */
-  overflow-x: hidden !important;
-}
-
-/* 3. 强制修复按钮遮挡（回归正常文档流） */
-.form-actions {
-  position: static !important;          /* 禁止 absolute/fixed 悬浮 */
-  display: flex !important;
-  justify-content: flex-end !important; /* 按钮靠右对齐 */
-  padding: 20px 0 !important;
-  margin-top: 10px !important;
+/* 2. 流式布局：禁止锁死编辑器高度/内部滚动（页面只保留一个主滚动条） */
+.copyez-easymde .CodeMirror {
+  height: auto !important;
+  min-height: 500px !important;
+  max-height: none !important;
+  border: none !important;
+  box-shadow: none !important;
   background: transparent !important;
-  width: 100% !important;
-  box-shadow: none !important;         /* 去掉多余阴影，避免悬浮感 */
+}
+
+.copyez-easymde .CodeMirror-scroll {
+  height: auto !important;
+  overflow-y: visible !important;
+  overflow-x: hidden !important;
 }
 
 /* 响应式设计 */
@@ -6431,7 +6515,7 @@ body.lock-screen-active {
   .guide-aside {
     position: static;
   }
-
+  
   .guide-main-title {
     font-size: 24px;
   }

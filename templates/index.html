@@ -138,60 +138,60 @@
             </div>
           {% endif %}
         {% else %}
-          {% if grouped_notes %}
-            <ul class="note-list">
-              {% for date_key, notes_in_date in grouped_notes %}
-                <!-- 日期分割栏 -->
-                <li class="date-divider">
-                  <div class="date-divider-content">
-                    <span class="date-divider-line"></span>
-                    <span class="date-divider-text">{{ date_key.strftime("%Y年%m月%d日") }}</span>
-                    <span class="date-divider-line"></span>
-                  </div>
-                </li>
-                
-                <!-- 该日期下的所有素材卡片 -->
-                {% for note in notes_in_date %}
-                  <li class="note-list-item" data-note-id="{{ note.id }}">
-                    <div class="note-row">
-                      <a
-                        href="{{ url_for('view_note', note_id=note.id) }}"
-                        class="note-title"
+        {% if grouped_notes %}
+          <ul class="note-list">
+            {% for date_key, notes_in_date in grouped_notes %}
+              <!-- 日期分割栏 -->
+              <li class="date-divider">
+                <div class="date-divider-content">
+                  <span class="date-divider-line"></span>
+                  <span class="date-divider-text">{{ date_key.strftime("%Y年%m月%d日") }}</span>
+                  <span class="date-divider-line"></span>
+                </div>
+              </li>
+              
+              <!-- 该日期下的所有素材卡片 -->
+              {% for note in notes_in_date %}
+                <li class="note-list-item" data-note-id="{{ note.id }}">
+                  <div class="note-row">
+                    <a
+                      href="{{ url_for('view_note', note_id=note.id) }}"
+                      class="note-title"
                         target="_blank"
                         rel="noopener noreferrer"
-                      >
-                        {{ note.title }}
-                      </a>
-                      <!-- 中间列表精简版：只保留标题 + 发布时间 -->
-                      <time class="note-time">
-                        {{ note.created_at.strftime("%H:%M") }}
-                      </time>
-                    </div>
-                    <button 
-                      class="note-delete-btn" 
-                      data-note-id="{{ note.id }}"
-                      aria-label="删除文章"
-                      title="删除文章"
                     >
-                      🗑️
-                    </button>
-                  </li>
-                {% endfor %}
+                      {{ note.title }}
+                    </a>
+                      <!-- 中间列表精简版：只保留标题 + 发布时间 -->
+                    <time class="note-time">
+                      {{ note.created_at.strftime("%H:%M") }}
+                    </time>
+                  </div>
+                  <button 
+                    class="note-delete-btn" 
+                    data-note-id="{{ note.id }}"
+                    aria-label="删除文章"
+                    title="删除文章"
+                  >
+                    🗑️
+                  </button>
+                </li>
               {% endfor %}
-            </ul>
-          {% else %}
-            <!-- 空状态：求真务实书法背景 -->
-            <div class="empty-state">
-              <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
-              <p class="empty-state-text">
-                {% if current_main_category or current_sub_category or current_tag or search_query %}
-                  当前筛选条件下没有找到素材
-                {% else %}
-                  还没有任何素材，点击右上角"新建素材"开始录入。
-                {% endif %}
-              </p>
-            </div>
-          {% endif %}
+            {% endfor %}
+          </ul>
+        {% else %}
+          <!-- 空状态：求真务实书法背景 -->
+          <div class="empty-state">
+            <img src="{{ url_for('static', filename='../images/实事求是.jpg') }}" alt="实事求是" class="empty-state-bg">
+            <p class="empty-state-text">
+              {% if current_main_category or current_sub_category or current_tag or search_query %}
+                当前筛选条件下没有找到素材
+              {% else %}
+                还没有任何素材，点击右上角"新建素材"开始录入。
+              {% endif %}
+            </p>
+          </div>
+        {% endif %}
         {% endif %}
       </div>
 
