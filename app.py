@@ -15,6 +15,7 @@ from werkzeug.utils import secure_filename
 from uuid import uuid4
 from werkzeug.exceptions import HTTPException
 from urllib.parse import quote
+from utils.scraper.manager import scrape_manager
 try:
     # 可选依赖：用于“摘抄语录本”导出为 Word
     from docx import Document
@@ -2369,6 +2370,75 @@ def search_notes():
 
     return jsonify({"articles": article_results, "memos": memo_results})
 
+
+@app.route("/api/scrape", methods=["POST"])
+def api_scrape():
+    """
+    API：素材智能抓取
+
+    请求体（JSON 或表单）：
+        { "url": "https://mp.weixin.qq.com/..." }
+
+    返回：
+        {
+            "status": "success" / "error",
+            "message": "...",
+            "title": "...",
+            "content": "..."
+        }
+    """
+    data = request.get_json(silent=True) or {}
+    url = (data.get("url") or request.form.get("url") or "").strip()
+
+    if not url:
+        return jsonify(
+            {
+                "status": "error",
+                "message": "请输入要抓取的链接",
+            }
+        ), 400
+
+    try:
+        result = scrape_manager.fetch(url)
+        # 开发调试：在终端打印抓取结果，方便排查“没有正文”等问题
+        if result is not None:
+            try:
+                print("\n==== [SCRAPE DEBUG] 抓取结果 ====")
+                print(f"URL: {url}")
+                print(f"标题: {result.title!r}")
+                print(f"正文长度: {len(result.content) if result.content is not None else 0}")
+                # 只打印前 800 字，避免终端刷屏
+                preview = (result.content or "")[:800]
+                print("正文预览:")
+                print(preview)
+                print("==== [SCRAPE DEBUG END] ====\n")
+            except Exception as _e:
+                # 调试日志失败不影响接口返回
+                print(f"[SCRAPE DEBUG] 打印结果时出错: {_e}")
+    except Exception as e:
+        # 捕获任何底层异常，统一返回友好提示
+        return jsonify(
+            {
+                "status": "error",
+                "message": f"抓取失败：{str(e)}",
+            }
+        ), 500
+
+    if not result:
+        return jsonify(
+            {
+                "status": "error",
+                "message": "当前暂不支持该链接来源，请确认是否为公众号文章",
+            }
+        ), 400
+
+    return jsonify(
+        {
+            "status": "success",
+            "title": result.title,
+            "content": result.content,
+        }
+    )
 
 @app.route("/api/memos", methods=["GET", "POST"])
 def api_memos():

@@ -653,6 +653,102 @@
           </div>
         </div>
 
+        <!-- 编辑效率增强 -->
+        <div id="feature-editor-productivity" class="guide-feature-card">
+          <div class="guide-feature-header">
+            <h2 class="guide-feature-title">
+              <span class="guide-feature-icon">🚀</span>
+              编辑效率增强
+            </h2>
+            <span class="guide-feature-badge">体验优化 · 新增</span>
+          </div>
+          <div class="guide-feature-content">
+            <p class="guide-feature-desc">
+              针对日常「边看边改」的公文场景，CopyEZ 在编辑页做了一些小而高频的优化：底部固定操作坞、图片即粘即传、配合输入法的全局输入模式，让你少动鼠标，多动键盘。
+            </p>
+
+            <div class="guide-feature-details">
+              <h3 class="guide-detail-title">底部固定操作坞</h3>
+              <ul class="guide-detail-list">
+                <li><strong>始终贴底</strong>：编辑页的「保存 / 取消」操作条固定在浏览器底部，不再随着页面高度乱跳</li>
+                <li><strong>滚动友好</strong>：长文编辑时，无论滚多长，到达底部都能第一时间看到保存按钮</li>
+                <li><strong>留白保护</strong>：正文区域自动预留底部空间，避免最后几行被按钮遮住</li>
+              </ul>
+            </div>
+
+            <div class="guide-feature-details">
+              <h3 class="guide-detail-title">图片「即粘即传」</h3>
+              <ul class="guide-detail-list">
+                <li><strong>直接粘贴</strong>：从微信、QQ、Word 等复制图片后，直接在编辑器里按 <code>Ctrl + V</code></li>
+                <li><strong>自动上传</strong>：后台调用 <code>POST /api/upload_image</code> 接口，将图片保存到 <code>/static/uploads/</code></li>
+                <li><strong>自动插图</strong>：返回的地址自动写入 Markdown，形成 <code>![](/static/uploads/xxx.png)</code> 语法</li>
+                <li><strong>格式白名单</strong>：当前支持 png / jpg / jpeg / gif / webp</li>
+              </ul>
+            </div>
+
+            <div class="guide-feature-details">
+              <h3 class="guide-detail-title">全局输入模式配合</h3>
+              <ul class="guide-detail-list">
+                <li><strong>输入法浮层</strong>：当你启用输入法的「全屏 / 全局输入」时，编辑器会尽量避免被其遮挡关键按钮</li>
+                <li><strong>推荐用法</strong>：长文建议分段输入：先在全局输入里写一小段，再回到页面继续滚动和编辑</li>
+                <li><strong>安全兜底</strong>：真正的数据仍保存在网页编辑器中，避免误关输入法导致内容丢失</li>
+              </ul>
+            </div>
+
+            <div class="guide-feature-tech">
+              <h3 class="guide-tech-title">技术实现</h3>
+              <ul class="guide-tech-list">
+                <li><strong>操作坞样式</strong>：<code>.edit-actions-dock</code> 固定定位于视口底部</li>
+                <li><strong>图片上传 API</strong>：<code>POST /api/upload_image</code>，使用 <code>allowed_image()</code> 校验扩展名</li>
+                <li><strong>图片目录</strong>：<code>static/uploads/</code>（自动创建，不会覆盖旧文件）</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 移动端适配 -->
+        <div id="feature-mobile" class="guide-feature-card">
+          <div class="guide-feature-header">
+            <h2 class="guide-feature-title">
+              <span class="guide-feature-icon">📱</span>
+              移动端适配
+            </h2>
+            <span class="guide-feature-badge">体验优化</span>
+          </div>
+          <div class="guide-feature-content">
+            <p class="guide-feature-desc">
+              虽然 CopyEZ 主要面向桌面浏览器，但在手机和平板上同样做了基础适配：保证能「看得清」「点得准」「不乱跳」，方便临时查阅与简单编辑。
+            </p>
+
+            <div class="guide-feature-details">
+              <h3 class="guide-detail-title">布局与断点</h3>
+              <ul class="guide-detail-list">
+                <li><strong>自适应宽度</strong>：内容区域在小屏设备上自动铺满屏幕，避免左右出现大面积留白</li>
+                <li><strong>导航简化</strong>：窄屏时顶部导航栏收紧，只保留核心入口按钮</li>
+                <li><strong>侧边栏折叠</strong>：阅读页的右侧批注栏在小屏幕上自动隐藏，只保留正文，必要时再展开</li>
+              </ul>
+            </div>
+
+            <div class="guide-feature-details">
+              <h3 class="guide-detail-title">字号与点击区域</h3>
+              <ul class="guide-detail-list">
+                <li><strong>阅读字号</strong>：正文在移动端略微放大，保证在 5–6 英寸手机上仍然可读</li>
+                <li><strong>按钮尺寸</strong>：常用操作（保存、删除、筛选等）在移动端保证至少 40px 的点击高度</li>
+                <li><strong>标签换行</strong>：分类标签在小屏下自动换行，避免横向滚动</li>
+              </ul>
+            </div>
+
+            <div class="guide-feature-details">
+              <h3 class="guide-detail-title">交互细节</h3>
+              <ul class="guide-detail-list">
+                <li><strong>滚动容差</strong>：长文阅读时，底部操作坞不会遮挡最后几行正文</li>
+                <li><strong>输入体验</strong>：在手机键盘弹出时，编辑区域自动上移，尽量避免「只剩半行」的极端情况</li>
+                <li><strong>锁屏页面</strong>：锁定屏幕的「求真务实」书法在窄屏上等比例缩放，保证完整展示</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         <!-- 技术参数 -->
         <div id="feature-tech" class="guide-feature-card">
           <div class="guide-feature-header">
@@ -719,6 +815,8 @@
           <a href="#feature-editor" class="guide-aside-link">📝 编辑器样式</a>
           <a href="#feature-doc" class="guide-aside-link">📄 公文样式模板</a>
           <a href="#feature-memos" class="guide-aside-link">⚡ 随心记 Memo</a>
+          <a href="#feature-mobile" class="guide-aside-link">📱 移动端适配</a>
+          <a href="#feature-editor-productivity" class="guide-aside-link">🚀 编辑效率增强</a>
           <a href="#feature-tech" class="guide-aside-link">⚙️ 技术参数</a>
         </nav>
       </div>
