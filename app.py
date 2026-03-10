@@ -17,6 +17,11 @@ from werkzeug.exceptions import HTTPException
 from urllib.parse import quote
 from utils.scraper.manager import scrape_manager
 try:
+    # 可选依赖：用于图片等比例压缩，降低随心记图片占用
+    from PIL import Image
+except ImportError:
+    Image = None
+try:
     # 可选依赖：用于“摘抄语录本”导出为 Word
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
@@ -96,8 +101,10 @@ def ensure_schema():
     engine = db.engine
     insp = inspect(engine)
 
+    table_names = insp.get_table_names()
+
     # 如果 notes 表还不存在，交给 create_all 去创建即可
-    if "notes" not in insp.get_table_names():
+    if "notes" not in table_names:
         return
 
     cols = [c["name"] for c in insp.get_columns("notes")]
@@ -153,6 +160,27 @@ def ensure_schema():
         # 如果表已存在，检查是否需要初始化预置分类
         if CustomCategory.query.count() == 0:
             _init_preset_categories()
+
+    # === Memo 表的自修复迁移（置顶/星标） ===
+    # 兼容老库：为 memos 表补充 is_pinned / is_starred / pinned_at / starred_at 字段
+    if "memos" in table_names:
+        memo_cols = [c["name"] for c in insp.get_columns("memos")]
+
+        if "is_pinned" not in memo_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE memos ADD COLUMN is_pinned BOOLEAN DEFAULT 0"))
+
+        if "is_starred" not in memo_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE memos ADD COLUMN is_starred BOOLEAN DEFAULT 0"))
+
+        if "pinned_at" not in memo_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE memos ADD COLUMN pinned_at DATETIME"))
+
+        if "starred_at" not in memo_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE memos ADD COLUMN starred_at DATETIME"))
 
 
 def _init_preset_categories():
@@ -218,6 +246,11 @@ class Memo(db.Model):
     # 由 #标签 自动提取后存入，多个标签用逗号分隔（展示时再拆分）
     tags = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    # 置顶/星标（用于重要 memo 快速归档）
+    is_pinned = db.Column(db.Boolean, default=False, nullable=False)
+    is_starred = db.Column(db.Boolean, default=False, nullable=False)
+    pinned_at = db.Column(db.DateTime, nullable=True)
+    starred_at = db.Column(db.DateTime, nullable=True)
 
     def extract_tags(self):
         """从 content 中提取 #标签 列表"""
@@ -242,6 +275,10 @@ class Memo(db.Model):
             "content": self.content,
             "tags": tags_list,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "is_pinned": bool(self.is_pinned),
+            "is_starred": bool(self.is_starred),
+            "pinned_at": self.pinned_at.isoformat() if self.pinned_at else None,
+            "starred_at": self.starred_at.isoformat() if self.starred_at else None,
         }
 
 
@@ -536,6 +573,98 @@ def deep_clean_content(content: str) -> str:
     content = content.strip()
     
     return content
+
+
+def auto_structure_speech_markdown(content: str) -> str:
+    """
+    针对“政法系统讲话稿 / 经验交流稿”这类 Word 粘贴文本的轻量级结构化工具。
+    
+    设计目标：
+    - 识别「一、二、三、」这类总分结构，自动升级为 Markdown 标题（# 一级标题）
+    - 识别「第一阶段……。」「一是突出党性。」「二是自我超越。」等句式，
+      自动为首句加粗，生成 **第一阶段……。** 的效果
+    - 完全兼容已有内容：如果用户已经手写了 # / ## 标题，则不做任何结构化改写
+    
+    触发条件（防误伤）：
+    - 原文中不存在任何以 # 开头的 Markdown 标题
+    - 且至少出现 2 条“总分结构”行（如「一、」「二、」「三、」），
+      或至少出现 2 条「一是」「二是」这类小条目句式，才启用自动结构化
+    """
+    if not content:
+        return content
+
+    # 统一换行
+    content = content.replace("\r\n", "\n").replace("\r", "\n")
+    lines = content.splitlines()
+
+    # 如果用户已经手写 Markdown 标题，则不做任何处理，完全尊重原文
+    if any(re.match(r"^\s*#+\s+", line) for line in lines):
+        return content
+
+    # 统计是否满足“讲话稿结构”特征，避免普通材料被误改
+    top_heading_pattern = re.compile(r"^\s*[一二三四五六七八九十]{1,3}、")
+    # 子层级标题模式：例如「（一）主要做法」「（二）下步打算」
+    sub_heading_pattern = re.compile(r"^\s*（[一二三四五六七八九十]{1,3}）")
+    bullet_sentence_pattern = re.compile(r"^\s*[一二三四五六七八九十][是要]")
+
+    top_heading_count = sum(1 for line in lines if top_heading_pattern.match(line or ""))
+    bullet_sentence_count = sum(1 for line in lines if bullet_sentence_pattern.match(line or ""))
+
+    if top_heading_count < 2 and bullet_sentence_count < 2:
+        # 特征不明显，当成普通文章，不启用自动结构化
+        return content
+
+    processed_lines = []
+
+    for raw in lines:
+        line = raw.rstrip("\n")
+        stripped = line.strip()
+
+        # 空行原样保留（交给 deep_clean_content 做后续规范化）
+        if not stripped:
+            processed_lines.append(line)
+            continue
+
+        # 1）总分结构：「一、心路历程：……」「二、成长感悟：……」
+        if top_heading_pattern.match(stripped):
+            # 直接作为一级标题输出（后续渲染时再按公文样式展示）
+            processed_lines.append("# " + stripped)
+            continue
+
+        # 1.1）子层级结构：「（一）主要做法」「（二）下步打算」
+        if sub_heading_pattern.match(stripped):
+            # 作为二级标题输出
+            processed_lines.append("## " + stripped)
+            continue
+
+        # 2）阶段型小标题：「第一阶段，在……阶段。后文……」
+        #    只将首句（以全角句号“。”结尾）加粗，后面的正文保持普通段落
+        m_phase = re.match(r"^(第[一二三四五六七八九十]{1,3}阶段[^。]*。)(.*)$", stripped)
+        if m_phase:
+            head = m_phase.group(1).strip()
+            tail = m_phase.group(2).lstrip()
+            if tail:
+                processed_lines.append(f"**{head}**{tail}")
+            else:
+                processed_lines.append(f"**{head}**")
+            continue
+
+        # 3）条目型句式：「一是突出党性。……」「二是自我超越。……」
+        #    同样仅加粗首句，保持后文原样
+        m_bullet = re.match(r"^([一二三四五六七八九十][是要][^。]*。)(.*)$", stripped)
+        if m_bullet:
+            head = m_bullet.group(1).strip()
+            tail = m_bullet.group(2).lstrip()
+            if tail:
+                processed_lines.append(f"**{head}**{tail}")
+            else:
+                processed_lines.append(f"**{head}**")
+            continue
+
+        # 其它行保持不变
+        processed_lines.append(line)
+
+    return "\n".join(processed_lines)
 
 
 def render_content(raw_content: str, return_toc: bool = False):
@@ -1899,8 +2028,10 @@ def new_note():
         sourceUrl = request.form.get("sourceUrl", "").strip() or None
         raw_content = request.form.get("content", "")
         
-        # 执行深度格式清洗：去除行首空格，规范化换行
-        content = deep_clean_content(raw_content)
+        # 先按讲话稿规则做一次轻量级结构化（自动识别“一、二、三、”“一是”“第一阶段”等）
+        structured_raw = auto_structure_speech_markdown(raw_content)
+        # 再执行深度格式清洗：去除行首空格，规范化换行
+        content = deep_clean_content(structured_raw)
 
         # 校验时再使用 strip 判断是否为空，避免误删有效换行
         if not title or not content.strip():
@@ -2015,8 +2146,10 @@ def edit_note(note_id: int):
         sourceUrl = request.form.get("sourceUrl", "").strip() or None
         raw_content = request.form.get("content", "")
 
+        # 与新建逻辑保持一致：先结构化讲话稿，再做深度清洗
+        structured_raw = auto_structure_speech_markdown(raw_content)
         # 执行深度格式清洗：去除行首空格，规范化换行（与新建时保持一致）
-        content = deep_clean_content(raw_content)
+        content = deep_clean_content(structured_raw)
 
         if not title or not content.strip():
             return render_template(
@@ -2371,6 +2504,35 @@ def search_notes():
     return jsonify({"articles": article_results, "memos": memo_results})
 
 
+@app.route("/api/format_markdown", methods=["POST"])
+def api_format_markdown():
+    """
+    在线格式整理 API：
+    - 仅对传入的 Markdown 文本执行 auto_structure_speech_markdown + deep_clean_content
+    - 不做数据库写入，只返回整理后的内容，供前端在编辑页原地替换
+    """
+    data = request.get_json(silent=True) or {}
+    raw_content = data.get("content", "")
+
+    try:
+        structured_raw = auto_structure_speech_markdown(raw_content)
+        cleaned = deep_clean_content(structured_raw)
+    except Exception as e:
+        return jsonify(
+            {
+                "success": False,
+                "message": f"格式整理失败: {str(e)}",
+            }
+        ), 500
+
+    return jsonify(
+        {
+            "success": True,
+            "content": cleaned,
+        }
+    )
+
+
 @app.route("/api/scrape", methods=["POST"])
 def api_scrape():
     """
@@ -2463,13 +2625,58 @@ def api_memos():
 
         return jsonify({"success": True, "memo": memo.to_dict()}), 201
 
-    # GET：列表，按创建时间倒序
+    # GET：列表
+    # - 置顶优先（按 pinned_at 倒序）
+    # - 其余按创建时间倒序
     memos = (
-        Memo.query.order_by(Memo.created_at.desc(), Memo.id.desc())
+        Memo.query.order_by(
+            Memo.is_pinned.desc(),
+            Memo.pinned_at.desc(),
+            Memo.created_at.desc(),
+            Memo.id.desc(),
+        )
         .limit(200)
         .all()
     )
     return jsonify({"memos": [m.to_dict() for m in memos]})
+
+
+@app.route("/api/memos/<int:memo_id>/pin", methods=["PUT"])
+def api_memo_pin(memo_id: int):
+    """随心记：置顶/取消置顶"""
+    memo = Memo.query.get_or_404(memo_id)
+    data = request.get_json(silent=True) or {}
+    pinned = data.get("pinned", None)
+
+    # pinned 未传则执行 toggle
+    if pinned is None:
+        pinned = not bool(memo.is_pinned)
+    else:
+        pinned = bool(pinned)
+
+    memo.is_pinned = pinned
+    memo.pinned_at = datetime.utcnow() if pinned else None
+    db.session.commit()
+    return jsonify({"success": True, "memo": memo.to_dict()}), 200
+
+
+@app.route("/api/memos/<int:memo_id>/star", methods=["PUT"])
+def api_memo_star(memo_id: int):
+    """随心记：星标/取消星标"""
+    memo = Memo.query.get_or_404(memo_id)
+    data = request.get_json(silent=True) or {}
+    starred = data.get("starred", None)
+
+    # starred 未传则执行 toggle
+    if starred is None:
+        starred = not bool(memo.is_starred)
+    else:
+        starred = bool(starred)
+
+    memo.is_starred = starred
+    memo.starred_at = datetime.utcnow() if starred else None
+    db.session.commit()
+    return jsonify({"success": True, "memo": memo.to_dict()}), 200
 
 
 @app.route("/api/memos/<int:memo_id>", methods=["PUT", "DELETE"])
@@ -2537,7 +2744,7 @@ def allowed_image(filename: str) -> bool:
 @app.route("/api/upload_image", methods=["POST"])
 def upload_image():
     """
-    编辑器图片“即粘即传”接口：
+    通用编辑器图片“即粘即传”接口（长文 Note 使用）：
     - 接收前端粘贴的图片文件（field 名称为 image）
     - 保存到 /static/uploads/ 目录下
     - 返回可直接用于 Markdown 的访问 URL
@@ -2566,6 +2773,71 @@ def upload_image():
 
     # 生成可访问的 URL（供 Markdown 使用）
     file_url = url_for("static", filename=f"uploads/{random_name}")
+
+    return jsonify(
+        {
+            "success": True,
+            "url": file_url,
+            "filename": random_name,
+        }
+    )
+
+
+@app.route("/api/memo/upload_image", methods=["POST"])
+def memo_upload_image():
+    """
+    随心记 Memo 专用图片上传接口：
+    - 支持剪贴板粘贴、拖拽上传图片
+    - 图片保存到 /static/uploads/memos/ 目录
+    - 如安装 Pillow，则自动将宽度压缩到不超过 1200px（等比例缩放）
+    - 返回可直接用于 Markdown 的访问 URL
+    """
+    if "image" not in request.files:
+        return jsonify({"success": False, "message": "未收到图片文件"}), 400
+
+    file = request.files["image"]
+
+    if not file or file.filename == "":
+        return jsonify({"success": False, "message": "文件名为空"}), 400
+
+    if not allowed_image(file.filename):
+        return jsonify({"success": False, "message": "不支持的图片格式"}), 400
+
+    # 生成安全文件名 + 随机前缀，避免覆盖
+    original_name = secure_filename(file.filename)
+    ext = original_name.rsplit(".", 1)[1].lower()
+    random_name = f"{uuid4().hex}.{ext}"
+
+    upload_dir = os.path.join(app.root_path, "static", "uploads", "memos")
+    os.makedirs(upload_dir, exist_ok=True)
+    save_path = os.path.join(upload_dir, random_name)
+
+    # 如果安装了 Pillow，则先用 Pillow 进行等比例缩放后再保存
+    if Image is not None:
+        try:
+            # 直接从上传流读取图片
+            img = Image.open(file.stream)
+            img = img.convert("RGB") if img.mode in ("P", "RGBA") else img
+
+            max_width = 1200
+            if img.width > max_width:
+                # 等比例缩放
+                new_height = int(img.height * max_width / img.width)
+                img = img.resize((max_width, new_height), Image.LANCZOS)
+
+            img.save(save_path, quality=85, optimize=True)
+        except Exception as e:
+            # 如果压缩失败，为了不影响使用，退回到原始文件保存逻辑
+            try:
+                file.stream.seek(0)
+            except Exception:
+                pass
+            file.save(save_path)
+    else:
+        # 未安装 Pillow，直接保存原图
+        file.save(save_path)
+
+    file_url = url_for("static", filename=f"uploads/memos/{random_name}")
 
     return jsonify(
         {

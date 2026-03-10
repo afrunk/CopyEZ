@@ -60,11 +60,11 @@
         <div class="form-col">
           <label for="sourceUrl">原文链接（可选）</label>
           <div class="source-url-row">
-            <input
-              type="url"
-              id="sourceUrl"
-              name="sourceUrl"
-              value="{{ sourceUrl or '' }}"
+          <input
+            type="url"
+            id="sourceUrl"
+            name="sourceUrl"
+            value="{{ sourceUrl or '' }}"
               placeholder="https://mp.weixin.qq.com/..."
             />
             <button
@@ -119,6 +119,7 @@
 
           <div class="edit-actions-dock" aria-label="保存操作">
             <button type="submit" class="btn-primary" id="save-btn">保存</button>
+            <button type="button" class="btn-secondary" id="format-btn" title="只整理格式，不保存到数据库">整理格式</button>
             <span id="save-status" class="save-status" style="display: none; margin-left: 12px; color: #666; font-size: 14px;"></span>
         <a href="{{ url_for('view_note', note_id=note.id) }}" class="btn-secondary">取消</a>
           </div>
@@ -139,6 +140,9 @@
   />
   <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 
+  <!-- Turndown：用于将 HTML（如 Word 粘贴内容）转换为 Markdown -->
+  <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+
   <script src="{{ url_for('static', filename='category-selector.js') }}"></script>
   <script>
     (function () {
@@ -158,6 +162,7 @@
       
       var form = document.getElementById("edit-form");
       var saveBtn = document.getElementById("save-btn");
+      var formatBtn = document.getElementById("format-btn");
       var saveStatus = document.getElementById("save-status");
       var scrapeBtn = document.getElementById("btn-scrape");
       var isSaving = false;
@@ -237,6 +242,9 @@
             window.addEventListener("resize", scheduleAutoSize);
             scheduleAutoSize();
           } catch (e) {}
+
+          // 智能粘贴（Word / 网页带格式内容 → Markdown）
+          initSmartPaste(cm);
 
           // 粘贴 / 拖拽图片即上传
           initImagePasteAndDrop(cm);
@@ -357,6 +365,340 @@
             throw new Error("上传失败：" + resp.status);
           }
           return resp.json();
+        });
+      }
+
+      // 智能粘贴：拦截 HTML 粘贴，深度清洗 Word / 网页 HTML，再用 Turndown 转 Markdown，并做公文标题识别
+      function initSmartPaste(cm) {
+        // 允许在 Turndown 不可用时退化为“纯文本 + 公文标题识别”模式
+        if (!cm) {
+          return;
+        }
+
+        // 用 DOM 解析 + 物理删除节点/属性的方式深度净化 HTML（保留 style 以便识别字体）
+        function sanitizeHtml(html) {
+          if (!html) return "";
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(html, "text/html");
+          var body = doc.body || doc.documentElement;
+          if (!body) return html;
+
+          // 删除明显无用/危险节点：style / meta / link / script / noscript / title
+          var uselessNodes = body.querySelectorAll(
+            "style,meta,link,script,noscript,title"
+          );
+          for (var i = uselessNodes.length - 1; i >= 0; i--) {
+            var n = uselessNodes[i];
+            if (n && n.parentNode) {
+              n.parentNode.removeChild(n);
+            }
+          }
+
+          // 删除注释节点
+          try {
+            var walker = doc.createTreeWalker(
+              body,
+              NodeFilter.SHOW_COMMENT,
+              null,
+              false
+            );
+            var comment;
+            var commentsToRemove = [];
+            while ((comment = walker.nextNode())) {
+              commentsToRemove.push(comment);
+            }
+            commentsToRemove.forEach(function (c) {
+              if (c && c.parentNode) {
+                c.parentNode.removeChild(c);
+              }
+            });
+          } catch (e) {}
+
+          // 暴力剥离大部分属性，只保留极少数“有用语义”的属性（比如 a[href]、img[src|alt]）
+          // 注意：保留 style / class，后续用于识别字体（黑体/楷体 → 标题）
+          function cleanAttributes(el) {
+            if (!el || !el.getAttributeNames) return;
+            var tag = el.tagName ? el.tagName.toLowerCase() : "";
+            var keep = {};
+            if (tag === "a") {
+              keep.href = true;
+              keep.title = true;
+            } else if (tag === "img") {
+              keep.src = true;
+              keep.alt = true;
+              keep.title = true;
+            }
+
+            var attrs = el.getAttributeNames();
+            for (var i = 0; i < attrs.length; i++) {
+              var name = attrs[i];
+              var lower = name.toLowerCase();
+              // 所有 data-*、on* 事件、lang 等一律去掉
+              if (
+                lower.indexOf("data-") === 0 ||
+                lower === "lang" ||
+                lower.indexOf("on") === 0
+              ) {
+                el.removeAttribute(name);
+                continue;
+              }
+              if (!keep[lower]) {
+                el.removeAttribute(name);
+              }
+            }
+          }
+
+          var all = body.getElementsByTagName("*");
+          for (var j = 0; j < all.length; j++) {
+            cleanAttributes(all[j]);
+          }
+
+          return body.innerHTML || "";
+        }
+
+        // 根据字体（黑体/楷体）检测标题层级：1 → #，2 → ##
+        function detectHeadingLevelByFont(node) {
+          if (!node) return 0;
+          var styleText = "";
+          try {
+            if (node.getAttribute) {
+              styleText += (node.getAttribute("style") || "") + " ";
+            }
+            if (node.style && node.style.fontFamily) {
+              styleText += node.style.fontFamily + " ";
+            }
+            if (node.querySelectorAll) {
+              var spans = node.querySelectorAll("span");
+              for (var i = 0; i < spans.length; i++) {
+                var s = spans[i];
+                if (!s) continue;
+                if (s.getAttribute) {
+                  styleText += (s.getAttribute("style") || "") + " ";
+                }
+                if (s.style && s.style.fontFamily) {
+                  styleText += s.style.fontFamily + " ";
+                }
+              }
+            }
+          } catch (e) {}
+
+          if (!styleText) return 0;
+          var lower = styleText.toLowerCase();
+          // 黑体系列 → 一级标题（用 #）
+          if (lower.indexOf("黑体") !== -1 || lower.indexOf("simhei") !== -1) {
+            return 1;
+          }
+          // 楷体系列 → 二级标题（用 ##）
+          if (
+            lower.indexOf("楷体") !== -1 ||
+            lower.indexOf("kaiti") !== -1 ||
+            lower.indexOf("楷体_gb2312") !== -1
+          ) {
+            return 2;
+          }
+          return 0;
+        }
+
+        // 公文标题识别：一、 二、 第三章 / （一） / 1. 等
+        function isTopHeading(text) {
+          if (!text) return false;
+          if (text.length > 40) return false;
+          return (
+            /^[一二三四五六七八九十]+、/.test(text) ||
+            /^第[一二三四五六七八九十]+[章节部分篇]/.test(text)
+          );
+        }
+
+        function isSecondHeading(text) {
+          if (!text) return false;
+          if (text.length > 40) return false;
+          return (
+            /^（[一二三四五六七八九十]）/.test(text) ||
+            /^\([一二三四五六七八九十]\)/.test(text)
+          );
+        }
+
+        function isThirdHeading(text) {
+          if (!text) return false;
+          if (text.length > 60) return false;
+          // 1.  2. 或 1、2、 这类序号小标题
+          return /^\d+[\.、]/.test(text);
+        }
+
+        // 轻量版行首空格清理与换行规范（浏览器端版 deep_clean_content）
+        function normalizeTextLines(text) {
+          if (!text) return text;
+          // 统一换行
+          text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+          // 去掉每一行开头的空格/制表符/全角空格
+          text = text.replace(/^[ \t\u00A0\u3000]+/gm, "");
+          // 合并多余空行
+          text = text.replace(/\n{3,}/g, "\n\n");
+          return text.trim();
+        }
+
+        function applySmartHeading(markdown) {
+          if (!markdown) return markdown;
+          var lines = markdown.split(/\r?\n/);
+
+          function isHeadingLine(trimmed) {
+            if (!trimmed) return false;
+            if (/^#{1,6}\s+/.test(trimmed)) return true;
+            return (
+              isTopHeading(trimmed) ||
+              isSecondHeading(trimmed) ||
+              isThirdHeading(trimmed)
+            );
+          }
+
+          var result = [];
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            var trimmed = line.trim();
+            if (!trimmed) {
+              result.push("");
+              continue;
+            }
+
+            // 已经是 Markdown 标题的不再处理，只负责补空行
+            if (/^#{1,6}\s+/.test(trimmed)) {
+              // 保证前后有空行
+              if (result.length && result[result.length - 1].trim() !== "") {
+                result.push("");
+              }
+              result.push(trimmed);
+              if (i + 1 < lines.length && (lines[i + 1] || "").trim() !== "") {
+                result.push("");
+              }
+              continue;
+            }
+
+            if (isTopHeading(trimmed)) {
+              if (result.length && result[result.length - 1].trim() !== "") {
+                result.push("");
+              }
+              result.push("## " + trimmed);
+              if (i + 1 < lines.length && (lines[i + 1] || "").trim() !== "") {
+                result.push("");
+              }
+            } else if (isSecondHeading(trimmed)) {
+              if (result.length && result[result.length - 1].trim() !== "") {
+                result.push("");
+              }
+              result.push("### " + trimmed);
+              if (i + 1 < lines.length && (lines[i + 1] || "").trim() !== "") {
+                result.push("");
+              }
+            } else if (isThirdHeading(trimmed)) {
+              if (result.length && result[result.length - 1].trim() !== "") {
+                result.push("");
+              }
+              result.push("#### " + trimmed);
+              if (i + 1 < lines.length && (lines[i + 1] || "").trim() !== "") {
+                result.push("");
+              }
+            } else {
+              result.push(line);
+            }
+          }
+          return result.join("\n");
+        }
+
+        cm.on("paste", function (cmInstance, e) {
+          var clipboardData =
+            e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData);
+          if (!clipboardData) {
+            return;
+          }
+
+          var html = clipboardData.getData("text/html");
+          var plain = clipboardData.getData("text/plain") || "";
+
+          // 如果既没有 HTML 也没有纯文本，就不处理
+          if (!html && !plain) {
+            return;
+          }
+
+          // 总是接管粘贴事件，以便做行首空格清理和公文标题识别
+          e.preventDefault();
+
+          try {
+            var markdown = "";
+            if (html && window.TurndownService) {
+              // Turndown 可用：走“HTML → Markdown”完整链路
+              var cleanHtml = sanitizeHtml(html);
+              var turndownService = new TurndownService({
+                headingStyle: "atx",
+                bulletListMarker: "-"
+              });
+
+              // 识别基于字体的公文标题（黑体 / 楷体）
+              turndownService.addRule("fontHeadingParagraph", {
+                filter: function (node) {
+                  if (!node || !node.nodeName) return false;
+                  var name = node.nodeName.toUpperCase();
+                  if (name !== "P" && name !== "DIV") return false;
+                  return detectHeadingLevelByFont(node) > 0;
+                },
+                replacement: function (content, node) {
+                  var level = detectHeadingLevelByFont(node);
+                  if (!level) return content;
+                  var text = (content || "").trim();
+                  if (!text) return "";
+                  // 去掉包在整段外面的 **...**，避免加粗和标题重复
+                  text = text.replace(/^\*{2}([\s\S]*?)\*{2}$/g, "$1");
+                  var prefix = "# ";
+                  if (level === 2) {
+                    prefix = "## ";
+                  }
+                  return "\n\n" + prefix + text + "\n\n";
+                }
+              });
+
+              markdown = turndownService.turndown(cleanHtml);
+
+              // 规范空白：将连续空格压缩为单空格
+              markdown = markdown.replace(/ {2,}/g, " ");
+
+              // 修正粗体内部与外部空格：
+              // 1）删除 ** 和内容之间的空格：** 三是突出韧性。** → **三是突出韧性。**
+              markdown = markdown.replace(
+                /\*\*\s+([^\*\n]+?)\s+\*\*/g,
+                "**$1**"
+              );
+              // 2）如果前后直接跟着中文/数字/字母，则在外侧补一个空格：**三是突出韧性。**内容 → **三是突出韧性。** 内容
+              markdown = markdown
+                .replace(
+                  /(\*\*[^*]+?\*\*)(?=[\u4e00-\u9fff0-9A-Za-z])/g,
+                  "$1 "
+                )
+                .replace(
+                  /([\u4e00-\u9fff0-9A-Za-z])(\*\*[^*]+?\*\*)/g,
+                  "$1 $2"
+                );
+
+              // 英文标点 → 中文标点（简单全局替换，足够覆盖大部分公文场景）
+              markdown = markdown
+                .replace(/,/g, "，")
+                .replace(/;/g, "；")
+                .replace(/:/g, "：")
+                .replace(/\?/g, "？")
+                .replace(/!/g, "！");
+            } else {
+              // Turndown 不可用：退化为对纯文本做“清行首空格 + 公文标题识别”
+              markdown = plain;
+            }
+
+            markdown = normalizeTextLines(markdown);
+            // 序号类标题兜底处理
+            markdown = applySmartHeading(markdown);
+
+            cmInstance.replaceSelection(markdown);
+          } catch (err) {
+            console.error("智能粘贴失败，回退为默认行为", err);
+            // 回退时让浏览器自行处理（不再拦截）
+            return;
+          }
         });
       }
 
@@ -527,6 +869,94 @@
         e.preventDefault();
         saveNote();
       });
+
+      // 仅整理格式，不保存数据库
+      function formatContentOnly() {
+        if (!easyMDE) {
+          showToast("编辑器尚未初始化，暂时无法整理格式", "error");
+          return;
+        }
+
+        // 将编辑器内容同步到 textarea，便于提交给后端
+        try {
+          var v = easyMDE.value();
+          var textareaEl = document.getElementById("content");
+          if (textareaEl) {
+            textareaEl.value = v;
+          }
+        } catch (e) {}
+        try {
+          easyMDE.codemirror.save();
+        } catch (e) {}
+
+        var contentEl = document.getElementById("content");
+        var raw = (contentEl && contentEl.value) ? contentEl.value : "";
+        if (!raw.trim()) {
+          showToast("内容为空，无需整理格式", "warning");
+          return;
+        }
+
+        if (!window.fetch) {
+          showToast("当前浏览器不支持在线整理格式，请直接保存使用后端整理", "error");
+          return;
+        }
+
+        var originalText = formatBtn.textContent;
+        formatBtn.disabled = true;
+        formatBtn.textContent = "整理中...";
+
+        fetch("{{ url_for('api_format_markdown') }}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          body: JSON.stringify({ content: raw })
+        })
+          .then(function (resp) {
+            return resp.json().then(function (data) {
+              return { ok: resp.ok, data: data };
+            });
+          })
+          .then(function (result) {
+            var ok = result.ok;
+            var data = result.data || {};
+
+            if (!ok || !data.success) {
+              var msg = data.message || "格式整理失败，请稍后重试";
+              showToast(msg, "error");
+              return;
+            }
+
+            var cleaned = data.content || "";
+            try {
+              easyMDE.value(cleaned);
+              if (easyMDE.codemirror) {
+                easyMDE.codemirror.refresh();
+              }
+            } catch (e) {
+              console.error("写入整理后内容失败", e);
+              showToast("整理完成，但写回编辑器失败，请重试", "error");
+              return;
+            }
+
+            showToast("已整理格式，当前页面内容已更新（尚未保存到数据库）", "success");
+          })
+          .catch(function (err) {
+            console.error("格式整理接口调用失败", err);
+            showToast("格式整理失败，请稍后重试", "error");
+          })
+          .finally(function () {
+            formatBtn.disabled = false;
+            formatBtn.textContent = originalText;
+          });
+      }
+
+      if (formatBtn) {
+        formatBtn.addEventListener("click", function () {
+          formatContentOnly();
+        });
+      }
 
       // 原文链接智能抓取
       function initScrapeButton() {

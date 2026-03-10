@@ -4783,6 +4783,28 @@ body.lock-screen-active {
   position: relative;
 }
 
+/* 置顶 Memo：左侧蓝色装饰条 + 浅蓝底，位置驱动 */
+.memo-card--pinned {
+  border-left: 4px solid #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.06);
+}
+
+/* 星标 Memo：右上角金色五角星角标，价值驱动 */
+.memo-card--starred::after {
+  content: '★';
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  font-size: 14px;
+  color: #f59e0b;
+  text-shadow: 0 0 2px rgba(250, 204, 21, 0.8);
+}
+
+.memo-card--starred .memo-card-content {
+  font-weight: 500;
+}
+
 .memo-card-body {
   margin-bottom: 6px;
 }
@@ -4794,6 +4816,17 @@ body.lock-screen-active {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* 随心记中的图片：自适应卡片宽度，保持比例，可点击放大 */
+.memo-card-content .memo-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 6px 0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  cursor: zoom-in;
 }
 
 .memo-card-footer {
@@ -4851,11 +4884,51 @@ body.lock-screen-active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .memo-action-btn:hover {
   background: #e5e7eb;
+}
+
+/* 通用：图标 + 文案布局 */
+.memo-action-icon {
+  display: inline-flex;
+  margin-right: 4px;
+  font-size: 12px;
+}
+
+.memo-action-label {
+  display: inline-block;
+}
+
+/* 置顶按钮：冷色调蓝色 */
+.memo-pin-btn {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  border: 1px solid rgba(191, 219, 254, 0.9);
+}
+
+.memo-pin-btn.is-active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 1px rgba(191, 219, 254, 0.9);
+}
+
+/* 星标按钮：暖色调琥珀金 */
+.memo-star-btn {
+  background: rgba(245, 158, 11, 0.08);
+  color: #b45309;
+  border: 1px solid rgba(253, 230, 138, 0.9);
+}
+
+.memo-star-btn.is-active {
+  background: #f59e0b;
+  color: #ffffff;
+  border-color: #d97706;
+  box-shadow: 0 0 0 1px rgba(253, 230, 138, 0.9);
 }
 
 .memo-delete-btn {
@@ -4872,6 +4945,33 @@ body.lock-screen-active {
   font-family: inherit;
   resize: vertical;
   line-height: 1.6;
+}
+
+.memo-edit-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* 移动端：操作按钮图标化，节省空间 */
+@media (max-width: 640px) {
+  .memo-card-actions {
+    opacity: 1;
+  }
+
+  .memo-action-label {
+    display: none;
+  }
+
+  .memo-action-btn {
+    padding: 4px;
+    min-width: 28px;
+    height: 28px;
+  }
+
+  .memo-action-icon {
+    margin-right: 0;
+  }
 }
 
 .memo-edit-textarea:focus {

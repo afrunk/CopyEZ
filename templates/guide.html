@@ -24,6 +24,53 @@
       <!-- 功能卡片列表 -->
       <div class="guide-features">
     
+        <!-- 智能素材抓取 -->
+        <div id="feature-scrape" class="guide-feature-card">
+          <div class="guide-feature-header">
+            <h2 class="guide-feature-title">
+              <span class="guide-feature-icon">✨</span>
+              智能素材抓取（微信一键入库）
+            </h2>
+            <span class="guide-feature-badge">核心功能 · 新增</span>
+          </div>
+          <div class="guide-feature-content">
+            <p class="guide-feature-desc">
+              在「新建素材 / 编辑素材」页，只要粘贴微信公众号文章链接，点击旁边的「✨ 智能提取」按钮，即可自动抓取标题与正文、按公文习惯重新排版，并一键写入编辑器。
+            </p>
+
+            <div class="guide-feature-details">
+              <h3 class="guide-detail-title">使用流程</h3>
+              <ol class="guide-detail-list">
+                <li>在新建或编辑页面，将公众号文章链接粘贴到「原文链接」输入框（形如 <code>https://mp.weixin.qq.com/...</code>）</li>
+                <li>点击右侧「✨ 智能提取」按钮，等待 1–3 秒</li>
+                <li>系统会自动填入文章标题，并将正文以 Markdown 形式写入下方内容编辑器</li>
+                <li>检查标题与段落是否符合需求后，可继续修改分类、标签并保存</li>
+              </ol>
+            </div>
+
+            <div class="guide-feature-details">
+              <h3 class="guide-detail-title">排版适配</h3>
+              <ul class="guide-detail-list">
+                <li><strong>微信专用解析</strong>：当前深度适配 <code>mp.weixin.qq.com</code> 结构，后续可扩展其他来源</li>
+                <li><strong>段落级拆分</strong>：按 DOM 结构递归拆段，自动保留空行，避免整篇「糊成一坨」</li>
+                <li><strong>小标题识别</strong>：对「01 / 02 / （一） / 二、」等短句自动升级为 <code>## 二级标题</code>，方便大纲导航</li>
+                <li><strong>正文净化</strong>：剔除「来源丨、记者丨、编辑丨、扫码二维码、往期推荐」等尾部杂质，仅保留正文内容</li>
+              </ul>
+            </div>
+
+            <div class="guide-feature-tech">
+              <h3 class="guide-tech-title">技术实现</h3>
+              <ul class="guide-tech-list">
+                <li><strong>统一抓取入口</strong>：<code>ScrapeManager</code>（<code>utils/scraper/manager.py</code>）按 URL 自动选择爬虫实现</li>
+                <li><strong>微信抓取器</strong>：<code>WechatScraper</code> 负责请求公众号页面、抽取标题和正文 HTML</li>
+                <li><strong>内容清洗</strong>：对正文进行 DOM 遍历，按块级元素拆段，小标题规则识别并转为 Markdown</li>
+                <li><strong>API 端点</strong>：<code>POST /api/scrape</code>，由前端在新建 / 编辑页通过 <code>fetch</code> 调用</li>
+                <li><strong>编辑器写入</strong>：成功返回后自动填入标题输入框和 EasyMDE 绑定的 <code>textarea#content</code></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+    
         <!-- 搜索功能 -->
         <div id="feature-search" class="guide-feature-card">
           <div class="guide-feature-header">
@@ -803,6 +850,7 @@
         <div class="guide-aside-title">快速跳转</div>
         <div class="guide-aside-desc">根据你的当前需求，直接跳到对应模块。</div>
         <nav class="guide-aside-nav">
+          <a href="#feature-scrape" class="guide-aside-link">✨ 智能素材抓取</a>
           <a href="#feature-search" class="guide-aside-link">🔍 搜索与高亮</a>
           <a href="#feature-new" class="guide-aside-link">➕ 新建与分类</a>
           <a href="#feature-annotations" class="guide-aside-link">✏️ 批注与标注</a>

@@ -19,8 +19,25 @@
     ></textarea>
     <div class="memo-editor-actions">
       <span class="memo-hint">按 Ctrl + Enter 快速记录</span>
-      <button id="memo-submit-btn" class="memo-submit-btn">记录</button>
+      <div>
+        <button
+          id="memo-insert-image-btn"
+          type="button"
+          class="memo-submit-btn"
+          style="margin-right: 8px; background: #ffffff; color: #2563eb; border-color: #bfdbfe;"
+        >
+          插入图片
+        </button>
+        <button id="memo-submit-btn" class="memo-submit-btn">记录</button>
+      </div>
     </div>
+    <!-- 隐藏的文件选择，用于手机/PC 手动选图 -->
+    <input
+      id="memo-image-input"
+      type="file"
+      accept="image/*"
+      style="display: none;"
+    />
   </section>
 
   <section class="memo-feed-section">
@@ -44,6 +61,9 @@
     const feed = document.getElementById('memo-feed');
     const empty = document.getElementById('memo-empty');
     const countLabel = document.getElementById('memo-count-label');
+    const hintEl = document.querySelector('.memo-hint');
+    const imageInput = document.getElementById('memo-image-input');
+    const insertImageBtn = document.getElementById('memo-insert-image-btn');
 
     function escapeHTML(text) {
       if (!text) return '';
@@ -54,12 +74,101 @@
     }
 
     function highlightTags(text) {
-      // 先做安全转义，再用正则替换形如「#标签」或「# 标签名」的片段
-      const escaped = escapeHTML(text || '');
-      return escaped.replace(
+      // 先做安全转义
+      let escaped = escapeHTML(text || '');
+
+      // 渲染 Markdown 图片语法为 <img>，提升图文预览效果
+      // 形如：![](url) 或 ![说明](url)
+      escaped = escaped.replace(
+        /!\[([^\]]*)]\(([^)]+)\)/g,
+        function (_, alt, url) {
+          const safeAlt = (alt || '').replace(/"/g, '&quot;');
+          const safeUrl = url; // 已整体 escape 过，保留原样
+          return '<img class="memo-image" src="' + safeUrl + '" alt="' + safeAlt + '">';
+        }
+      );
+
+      // 解析 #标签，高亮为可点击的胶囊
+      escaped = escaped.replace(
         /(#\s*[^\s#]+)/g,
         '<span class="memo-tag">$1</span>'
       );
+
+      return escaped;
+    }
+
+    // 在 textarea 光标位置插入文本
+    function insertAtCursor(textarea, insertText) {
+      if (!textarea) return;
+      const start = textarea.selectionStart || 0;
+      const end = textarea.selectionEnd || 0;
+      const value = textarea.value || '';
+      textarea.value = value.slice(0, start) + insertText + value.slice(end);
+      const newPos = start + insertText.length;
+      textarea.selectionStart = textarea.selectionEnd = newPos;
+      textarea.focus();
+    }
+
+    // 上传 Memo 图片
+    function uploadMemoImage(file) {
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('image', file);
+
+      if (hintEl) {
+        hintEl.dataset.originalText = hintEl.textContent;
+        hintEl.textContent = '图片上传中...';
+      }
+
+      if (input) {
+        input.disabled = true;
+      }
+
+      fetch('/api/memo/upload_image', {
+        method: 'POST',
+        body: formData,
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            return { ok: res.ok, data: data };
+          });
+        })
+        .then(function (result) {
+          const ok = result.ok;
+          const data = result.data || {};
+          if (!ok || !data.success) {
+            const msg = data.message || '图片上传失败，请稍后重试。';
+            if (window.showToast) window.showToast(msg, 'error');
+            return;
+          }
+
+          const url = data.url;
+          if (!url) return;
+
+          // 在光标处插入 Markdown 图片语法并换行
+          const markdownImage = '![](' + url + ')\\n';
+          insertAtCursor(input, markdownImage);
+
+          if (window.showToast) {
+            window.showToast('图片已上传并插入随心记', 'success');
+          }
+        })
+        .catch(function (err) {
+          console.error('上传 Memo 图片失败:', err);
+          if (window.showToast) {
+            window.showToast('图片上传失败，请稍后重试。', 'error');
+          }
+        })
+        .finally(function () {
+          if (input) {
+            input.disabled = false;
+            input.focus();
+          }
+          if (hintEl) {
+            const original = hintEl.dataset.originalText || '按 Ctrl + Enter 快速记录';
+            hintEl.textContent = original;
+          }
+        });
     }
 
     function formatDate(iso) {
@@ -79,6 +188,63 @@
 
     // 全局缓存当前列表，供事件代理中的编辑逻辑使用
     let memoCache = {};
+
+    // 图片预览层（点击图片放大）
+    function openMemoImagePreview(src, alt) {
+      if (!src) return;
+
+      // 如果已经存在预览层，先移除
+      const existing = document.getElementById('memo-image-lightbox');
+      if (existing && existing.parentNode) {
+        existing.parentNode.removeChild(existing);
+      }
+
+      const overlay = document.createElement('div');
+      overlay.id = 'memo-image-lightbox';
+      overlay.style.position = 'fixed';
+      overlay.style.inset = '0';
+      overlay.style.background = 'rgba(15,23,42,0.72)';
+      overlay.style.zIndex = '9999';
+      overlay.style.display = 'flex';
+      overlay.style.alignItems = 'center';
+      overlay.style.justifyContent = 'center';
+      overlay.style.cursor = 'zoom-out';
+
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = alt || '';
+      img.style.maxWidth = '92vw';
+      img.style.maxHeight = '88vh';
+      img.style.objectFit = 'contain';
+      img.style.borderRadius = '10px';
+      img.style.boxShadow = '0 20px 45px rgba(15,23,42,0.45)';
+      img.style.background = '#0f172a';
+      img.style.cursor = 'default';
+
+      overlay.appendChild(img);
+
+      function close() {
+        if (overlay.parentNode) {
+          overlay.parentNode.removeChild(overlay);
+        }
+        document.removeEventListener('keydown', onKey);
+      }
+
+      function onKey(e) {
+        if (e.key === 'Escape') {
+          close();
+        }
+      }
+
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) {
+          close();
+        }
+      });
+
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(overlay);
+    }
 
     function renderMemos(memos) {
       if (!memos || memos.length === 0) {
@@ -107,8 +273,15 @@
                 return '<span class="memo-tag-pill">#' + t + '</span>';
               })
               .join(' ') || '';
+          const pinText = m.is_pinned ? '取消置顶' : '置顶';
+          const starText = m.is_starred ? '取消星标' : '星标';
+          const pinClass = m.is_pinned ? ' is-active' : '';
+          const starClass = m.is_starred ? ' is-active' : '';
           return (
-            '<article class="memo-card" data-memo-id="' +
+            '<article class="memo-card' +
+            (m.is_pinned ? ' memo-card--pinned' : '') +
+            (m.is_starred ? ' memo-card--starred' : '') +
+            '" data-memo-id="' +
             m.id +
             '">' +
             '<div class="memo-card-body">' +
@@ -125,6 +298,22 @@
               : '') +
             '</footer>' +
             '<div class="memo-card-actions">' +
+            '<button class="memo-action-btn memo-pin-btn' +
+            pinClass +
+            '">' +
+            '<span class="memo-action-icon" aria-hidden="true">📌</span>' +
+            '<span class="memo-action-label">' +
+            pinText +
+            '</span>' +
+            '</button>' +
+            '<button class="memo-action-btn memo-star-btn' +
+            starClass +
+            '">' +
+            '<span class="memo-action-icon" aria-hidden="true">★</span>' +
+            '<span class="memo-action-label">' +
+            starText +
+            '</span>' +
+            '</button>' +
             '<button class="memo-action-btn memo-edit-btn">编辑</button>' +
             '<button class="memo-action-btn memo-delete-btn delete-memo-btn" data-id="' +
             m.id +
@@ -135,6 +324,70 @@
         })
         .join('');
       feed.innerHTML = html;
+    }
+
+    function toggleMemoPin(id, pinned, btn) {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '处理中...';
+      }
+      fetch('/api/memos/' + id + '/pin', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinned: pinned }),
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            return { ok: res.ok, data: data };
+          });
+        })
+        .then(function (result) {
+          const data = result.data || {};
+          if (!result.ok || !data.success) {
+            throw new Error(data.message || '置顶操作失败');
+          }
+          loadMemos();
+        })
+        .catch(function (err) {
+          console.error('置顶操作失败:', err);
+          if (window.showToast) window.showToast('置顶操作失败，请稍后重试。', 'error');
+          loadMemos();
+        })
+        .finally(function () {
+          if (btn) btn.disabled = false;
+        });
+    }
+
+    function toggleMemoStar(id, starred, btn) {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '处理中...';
+      }
+      fetch('/api/memos/' + id + '/star', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ starred: starred }),
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            return { ok: res.ok, data: data };
+          });
+        })
+        .then(function (result) {
+          const data = result.data || {};
+          if (!result.ok || !data.success) {
+            throw new Error(data.message || '星标操作失败');
+          }
+          loadMemos();
+        })
+        .catch(function (err) {
+          console.error('星标操作失败:', err);
+          if (window.showToast) window.showToast('星标操作失败，请稍后重试。', 'error');
+          loadMemos();
+        })
+        .finally(function () {
+          if (btn) btn.disabled = false;
+        });
     }
 
     function saveMemoEdit(id, content, editBtn) {
@@ -279,6 +532,29 @@
       });
     }
 
+    // 点击“插入图片”按钮：在手机/PC 打开系统文件选择
+    if (insertImageBtn && imageInput) {
+      insertImageBtn.addEventListener('click', function () {
+        try {
+          imageInput.click();
+        } catch (e) {
+          // 某些老旧浏览器可能不支持，忽略
+          console.warn('无法打开系统文件选择:', e);
+        }
+      });
+
+      imageInput.addEventListener('change', function () {
+        const files = imageInput.files;
+        if (!files || !files.length) return;
+        const file = files[0];
+        if (file && file.type && file.type.indexOf('image') === 0) {
+          uploadMemoImage(file);
+        }
+        // 用完清空，避免下次选同一张图时 change 不触发
+        imageInput.value = '';
+      });
+    }
+
     if (input) {
       input.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -286,11 +562,56 @@
           submitMemo();
         }
       });
+
+      // 支持粘贴图片
+      input.addEventListener('paste', function (e) {
+        if (!e.clipboardData) return;
+        const items = e.clipboardData.items;
+        if (!items || !items.length) return;
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (item.kind === 'file' && item.type.indexOf('image') === 0) {
+            const file = item.getAsFile();
+            if (file) {
+              e.preventDefault();
+              uploadMemoImage(file);
+              break;
+            }
+          }
+        }
+      });
+
+      // 支持拖拽图片
+      input.addEventListener('dragover', function (e) {
+        e.preventDefault();
+      });
+      input.addEventListener('drop', function (e) {
+        e.preventDefault();
+        const files = e.dataTransfer && e.dataTransfer.files;
+        if (!files || !files.length) return;
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (file.type && file.type.indexOf('image') === 0) {
+            uploadMemoImage(file);
+            // 只处理第一张图片，避免一次性拖入过多
+            break;
+          }
+        }
+      });
     }
 
     // 统一事件代理：处理编辑与删除按钮点击（解决动态渲染导致的事件丢失）
     if (feed) {
       feed.addEventListener('click', function (e) {
+        // 点击图片：放大预览
+        const img = e.target.closest('.memo-image');
+        if (img) {
+          e.preventDefault();
+          e.stopPropagation();
+          openMemoImagePreview(img.getAttribute('src'), img.getAttribute('alt') || '');
+          return;
+        }
+
         const card = e.target.closest('.memo-card');
         if (!card) return;
 
@@ -298,6 +619,24 @@
         const id = idAttr ? parseInt(idAttr, 10) : NaN;
         if (!id || !memoCache[id]) return;
         const memo = memoCache[id];
+
+        // 置顶按钮
+        const pinBtn = e.target.closest('.memo-pin-btn');
+        if (pinBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleMemoPin(id, !memo.is_pinned, pinBtn);
+          return;
+        }
+
+        // 星标按钮
+        const starBtn = e.target.closest('.memo-star-btn');
+        if (starBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleMemoStar(id, !memo.is_starred, starBtn);
+          return;
+        }
 
         // 删除按钮
         const deleteBtn = e.target.closest('.delete-memo-btn');
