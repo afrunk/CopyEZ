@@ -3,6 +3,8 @@ import os
 import re
 import traceback
 import random
+import base64
+from cryptography.fernet import Fernet
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
@@ -40,6 +42,18 @@ app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///copyez.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("COPYEZ_SECRET_KEY", "copyez-secret-key")
+
+# 修复 Flask JSON 中文编码问题
+app.config["JSON_AS_ASCII"] = False
+app.config["JSON_SORT_KEYS"] = False
+
+# 审计模块加密密钥
+AUDIT_SECRET_KEY = os.environ.get("AUDIT_SECRET_KEY", "audit-secret-key-change-in-production")
+# 生成 Fernet 密钥（必须32位url-safe base64编码）
+if len(AUDIT_SECRET_KEY) < 32:
+    # 填充密钥到32位
+    AUDIT_SECRET_KEY = (AUDIT_SECRET_KEY * 2)[:32]
+cipher = Fernet(base64.urlsafe_b64encode(AUDIT_SECRET_KEY.ljust(32)[:32].encode()))
 # 持久会话：默认 30 天免登录（用于后续极简登录体系）
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 
@@ -279,6 +293,130 @@ class Memo(db.Model):
             "is_starred": bool(self.is_starred),
             "pinned_at": self.pinned_at.isoformat() if self.pinned_at else None,
             "starred_at": self.starred_at.isoformat() if self.starred_at else None,
+        }
+
+
+# 审计模块加密工具函数
+def encrypt_content(content):
+    """加密内容"""
+    if not content:
+        return ""
+    return cipher.encrypt(content.encode()).decode()
+
+def decrypt_content(encrypted_content):
+    """解密内容"""
+    if not encrypted_content:
+        return ""
+    try:
+        return cipher.decrypt(encrypted_content.encode()).decode()
+    except Exception:
+        return "[解密失败]"
+
+
+class AuditProfile(db.Model):
+    """审计档案 - 个人信息"""
+    __tablename__ = "audit_profile"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=True)
+    age = db.Column(db.Integer, nullable=True)
+    region = db.Column(db.String(100), nullable=True)
+    avatar_url = db.Column(db.String(500), nullable=True)
+    cover_url = db.Column(db.String(500), nullable=True)
+    # 癖好、属性 - JSON 数组存储
+    preferences = db.Column(db.Text, nullable=True)  # JSON 字符串
+    attributes = db.Column(db.Text, nullable=True)    # JSON 字符串
+    # 属性账本
+    ledger_master = db.Column(db.Text, nullable=True)   # 主人视角 - 档案定义
+    ledger_slave = db.Column(db.Text, nullable=True)    # 母狗视角 - 心理侧写
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        import codecs
+
+        # 修复 SQLite UTF-8 存储问题 - 直接将存储的内容按 UTF-8 解读
+        def fix_encoding(text):
+            if text is None:
+                return None
+            if isinstance(text, str) and text:
+                try:
+                    # 检查字符串是否看起来像乱码（每个字节都是有效的 UTF-8 高字节）
+                    # 如果是 Latin-1 编码的 UTF-8 字节序列，尝试修复
+                    encoded = text.encode('latin1')
+                    # 尝试将 Latin-1 编码的字节作为 UTF-8 解码
+                    return encoded.decode('utf-8')
+                except (UnicodeDecodeError, UnicodeEncodeError, AttributeError):
+                    return text
+            return text
+
+        return {
+            "id": self.id,
+            "name": self.name,
+            "age": self.age,
+            "region": self.region,
+            "avatar_url": self.avatar_url,
+            "cover_url": self.cover_url,
+            "preferences": json.loads(self.preferences) if self.preferences else [],
+            "attributes": json.loads(self.attributes) if self.attributes else [],
+            "ledger_master": fix_encoding(self.ledger_master),
+            "ledger_slave": fix_encoding(self.ledger_slave),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class AuditLog(db.Model):
+    """审计日志 - 多视角记录"""
+    __tablename__ = "audit_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    # 角色：主人 / 母狗 / 自定义
+    role = db.Column(db.String(50), nullable=False, default="主人")
+    # 内容（加密存储）
+    content_encrypted = db.Column(db.Text, nullable=True)
+    # 图片（JSON 数组，存储路径）
+    images = db.Column(db.Text, nullable=True)
+    # 标签
+    tags = db.Column(db.String(255), nullable=True)
+    # 日记类型：master（主视角）/ slave（次视角）
+    log_type = db.Column(db.String(20), nullable=False, default="master")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    @property
+    def content(self):
+        """解密后的内容"""
+        return decrypt_content(self.content_encrypted)
+
+    @content.setter
+    def content(self, value):
+        """加密后存储"""
+        self.content_encrypted = encrypt_content(value) if value else ""
+
+    def get_images_list(self):
+        """获取图片列表"""
+        if not self.images:
+            return []
+        try:
+            return json.loads(self.images)
+        except Exception:
+            return []
+
+    def get_tags_list(self):
+        """获取标签列表"""
+        if not self.tags:
+            return []
+        return [t.strip() for t in self.tags.split(",") if t.strip()]
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "role": self.role,
+            "content": self.content,
+            "images": self.get_images_list(),
+            "tags": self.get_tags_list(),
+            "log_type": self.log_type,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 
@@ -2364,6 +2502,118 @@ def get_tags():
     return response
 
 
+@app.route("/api/notes", methods=["GET"])
+def get_notes():
+    """分页获取笔记列表API
+
+    参数：
+    - limit: 每页数量，默认20
+    - offset: 跳过数量，默认0
+    - mainCategory: 一级分类过滤
+    - subCategory: 二级分类过滤
+    - tag: 标签过滤
+    - day: 日期过滤 (YYYY-MM-DD)
+    - month: 月份过滤 (YYYY-MM)
+
+    返回：
+    {
+        "notes": [...],      # 笔记列表
+        "hasMore": true/false,  # 是否还有更多
+        "total": 100,       # 总数
+        "offset": 20         # 当前偏移量
+    }
+    """
+    try:
+        # 获取分页参数
+        limit = request.args.get("limit", 20, type=int)
+        offset = request.args.get("offset", 0, type=int)
+        limit = min(limit, 100)  # 最大100条
+
+        # 获取过滤参数
+        main_category = request.args.get("mainCategory", "").strip()
+        sub_category = request.args.get("subCategory", "").strip()
+        tag_filter = request.args.get("tag", "").strip()
+        day_str = request.args.get("day", "").strip()
+        month_str = request.args.get("month", "").strip()
+
+        # 构建查询
+        query = Note.query
+
+        # 日期过滤
+        if day_str:
+            try:
+                day_filter = datetime.strptime(day_str, "%Y-%m-%d").date()
+                start_dt = datetime.combine(day_filter, datetime.min.time())
+                end_dt = datetime.combine(day_filter, datetime.max.time())
+                query = query.filter(Note.created_at >= start_dt, Note.created_at <= end_dt)
+            except Exception:
+                pass
+
+        if month_str:
+            try:
+                ym = datetime.strptime(month_str, "%Y-%m")
+                month_filter_start = datetime(ym.year, ym.month, 1)
+                if ym.month == 12:
+                    month_filter_end = datetime(ym.year + 1, 1, 1)
+                else:
+                    month_filter_end = datetime(ym.year, ym.month + 1, 1)
+                query = query.filter(Note.created_at >= month_filter_start, Note.created_at < month_filter_end)
+            except Exception:
+                pass
+
+        # 分类过滤
+        if main_category:
+            query = query.filter(Note.mainCategory == main_category)
+
+        if sub_category:
+            query = query.filter(Note.subCategory == sub_category)
+
+        # 标签过滤
+        if tag_filter:
+            tag_filter_clean = tag_filter.strip()
+            query = query.filter(
+                db.or_(
+                    Note.subCategory == tag_filter_clean,
+                    Note.subCategory.like(f'%{tag_filter_clean}%'),
+                    Note.tags_json.like(f'%"{tag_filter_clean}"%'),
+                    Note.tags_json.like(f'%{tag_filter_clean}%')
+                )
+            )
+
+        # 获取总数
+        total = query.count()
+
+        # 分页查询
+        notes = query.order_by(Note.created_at.desc()).offset(offset).limit(limit).all()
+
+        # 转换为JSON
+        notes_data = []
+        for note in notes:
+            tags_list = note.get_tags_list()
+            notes_data.append({
+                "id": note.id,
+                "title": note.title,
+                "created_at": note.created_at.strftime("%Y-%m-%d %H:%M"),
+                "mainCategory": note.mainCategory,
+                "subCategory": note.subCategory,
+                "tags": tags_list
+            })
+
+        has_more = (offset + len(notes_data)) < total
+
+        response = jsonify({
+            "notes": notes_data,
+            "hasMore": has_more,
+            "total": total,
+            "offset": offset + len(notes_data)
+        })
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/search", methods=["GET"])
 def search_notes():
     """搜索API：长文 Note + 随心记 Memo 双轨制搜索
@@ -2448,13 +2698,17 @@ def search_notes():
             snippet = content_snippets[0]["text"]
         else:
             snippet = snippets[0]["text"] if snippets else note.title
-        
+
+        # 获取三级标签列表
+        tags_list = note.get_tags_list()
+
         article_results.append({
             "note_id": note.id,
             "title": note.title,
             "snippet": snippet,
             "mainCategory": note.mainCategory,
             "subCategory": note.subCategory,
+            "tags": tags_list,
             "date": note.created_at.strftime("%Y年%m月%d日")
         })
     
@@ -2704,6 +2958,298 @@ def api_memo_detail(memo_id: int):
     db.session.delete(memo)
     db.session.commit()
     return jsonify({"success": True, "message": "随心记已删除"}), 200
+
+
+
+# 审计模块访问密码（从环境变量读取）
+AUDIT_PASSWORD = os.environ.get("AUDIT_PASSWORD", "")
+
+
+@app.route("/audit")
+def audit():
+    """日常效能审计 - 私密模块"""
+    # 检查密码
+    password = request.args.get("password", "")
+    stored_password = request.cookies.get("audit_password", "")
+
+    if password == AUDIT_PASSWORD:
+        # 密码正确，保存到 cookie
+        response = make_response(render_template("audit.html"))
+        response.set_cookie("audit_password", password, max_age=60*60*24*30)  # 30天
+        return response
+
+    if stored_password != AUDIT_PASSWORD:
+        # 需要密码，显示密码输入页面
+        return render_template("audit_login.html", error=request.args.get("error", ""))
+
+    return render_template("audit.html")
+
+
+@app.route("/api/audit/verify", methods=["POST"])
+def audit_verify():
+    """验证审计模块密码"""
+    data = request.get_json() or {}
+    password = data.get("password", "")
+
+    if password == AUDIT_PASSWORD:
+        response = jsonify({"success": True})
+        response.set_cookie("audit_password", password, max_age=60*60*24*30)
+        return response
+
+    return jsonify({"success": False, "error": "密码错误"}), 401
+
+
+@app.route("/api/audit/profile", methods=["GET"])
+def audit_get_profile():
+    """获取审计档案"""
+    try:
+        # 检查是否有 ledger_master 列
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        columns = [c['name'] for c in inspector.get_columns('audit_profile')]
+
+        # 如果缺少 ledger 字段，添加它们
+        if 'ledger_master' not in columns:
+            try:
+                db.session.execute(db.text('ALTER TABLE audit_profile ADD COLUMN ledger_master TEXT'))
+                db.session.commit()
+            except:
+                pass
+        if 'ledger_slave' not in columns:
+            try:
+                db.session.execute(db.text('ALTER TABLE audit_profile ADD COLUMN ledger_slave TEXT'))
+                db.session.commit()
+            except:
+                pass
+
+        profile = AuditProfile.query.first()
+        if not profile:
+            # 创建默认档案
+            profile = AuditProfile()
+            db.session.add(profile)
+            db.session.commit()
+
+        # 使用 make_response 确保 UTF-8 编码
+        import json
+        response = make_response(json.dumps(profile.to_dict(), ensure_ascii=False, indent=2))
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return response
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/audit/profile", methods=["POST"])
+def audit_update_profile():
+    """更新审计档案"""
+    import traceback
+    try:
+        # 检查并添加缺失的列
+        from sqlalchemy import inspect
+        try:
+            inspector = inspect(db.engine)
+            columns = [c['name'] for c in inspector.get_columns('audit_profile')]
+            print(f"当前列: {columns}")
+            if 'ledger_master' not in columns:
+                try:
+                    db.session.execute(db.text('ALTER TABLE audit_profile ADD COLUMN ledger_master TEXT'))
+                    db.session.commit()
+                    print("添加 ledger_master 列成功")
+                except Exception as e:
+                    print(f"添加 ledger_master 失败: {e}")
+            if 'ledger_slave' not in columns:
+                try:
+                    db.session.execute(db.text('ALTER TABLE audit_profile ADD COLUMN ledger_slave TEXT'))
+                    db.session.commit()
+                    print("添加 ledger_slave 列成功")
+                except Exception as e:
+                    print(f"添加 ledger_slave 失败: {e}")
+        except Exception as col_err:
+            print(f"列检查警告: {col_err}")
+
+        data = request.get_json() or {}
+        field = data.get("field", "")
+        value = data.get("value", "")
+        print(f"更新字段: {field} = {value[:50] if value else ''}...")
+
+        profile = AuditProfile.query.first()
+        if not profile:
+            print("创建新档案")
+            profile = AuditProfile()
+            db.session.add(profile)
+            db.session.commit()
+            print(f"新档案ID: {profile.id}")
+
+        if field == "name":
+            profile.name = value
+        elif field == "age":
+            profile.age = int(value) if value else None
+        elif field == "region":
+            profile.region = value
+        elif field == "preferences":
+            profile.preferences = json.dumps(value) if isinstance(value, list) else value
+        elif field == "attributes":
+            profile.attributes = json.dumps(value) if isinstance(value, list) else value
+        elif field == "ledger_master":
+            profile.ledger_master = value
+        elif field == "ledger_slave":
+            profile.ledger_slave = value
+
+        db.session.commit()
+        print("保存成功")
+        return jsonify({"success": True})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+def _audit_allowed_image(filename):
+    if not filename or "." not in filename:
+        return False
+    return filename.rsplit(".", 1)[1].lower() in {"png", "jpg", "jpeg", "gif", "webp"}
+
+
+@app.route("/api/audit/profile/avatar", methods=["POST"])
+def audit_upload_avatar():
+    """上传审计档案头像"""
+    file = request.files.get("avatar")
+    if not file or not file.filename:
+        return jsonify({"success": False, "error": "未选择文件"}), 400
+    if not _audit_allowed_image(file.filename):
+        return jsonify({"success": False, "error": "仅支持 png/jpg/jpeg/gif/webp"}), 400
+
+    ext = file.filename.rsplit(".", 1)[1].lower()
+    filename = secure_filename(f"{uuid4().hex}.{ext}")
+    upload_dir = os.path.join(app.root_path, "static", "uploads", "audit_private")
+    os.makedirs(upload_dir, exist_ok=True)
+    filepath = os.path.join(upload_dir, filename)
+    file.save(filepath)
+
+    relative_url = f"/static/uploads/audit_private/{filename}"
+    profile = AuditProfile.query.first()
+    if not profile:
+        profile = AuditProfile()
+        db.session.add(profile)
+    profile.avatar_url = relative_url
+    db.session.commit()
+
+    return jsonify({"success": True, "avatar_url": relative_url})
+
+
+@app.route("/api/audit/profile/cover", methods=["POST"])
+def audit_upload_cover():
+    """上传审计档案封面"""
+    file = request.files.get("cover")
+    if not file or not file.filename:
+        return jsonify({"success": False, "error": "未选择文件"}), 400
+    if not _audit_allowed_image(file.filename):
+        return jsonify({"success": False, "error": "仅支持 png/jpg/jpeg/gif/webp"}), 400
+
+    ext = file.filename.rsplit(".", 1)[1].lower()
+    filename = secure_filename(f"{uuid4().hex}.{ext}")
+    upload_dir = os.path.join(app.root_path, "static", "uploads", "audit_private")
+    os.makedirs(upload_dir, exist_ok=True)
+    filepath = os.path.join(upload_dir, filename)
+    file.save(filepath)
+
+    relative_url = f"/static/uploads/audit_private/{filename}"
+    profile = AuditProfile.query.first()
+    if not profile:
+        profile = AuditProfile()
+        db.session.add(profile)
+    profile.cover_url = relative_url
+    db.session.commit()
+
+    return jsonify({"success": True, "cover_url": relative_url})
+
+
+@app.route("/api/audit/logs", methods=["GET"])
+def audit_get_logs():
+    """获取审计日志列表"""
+    log_type = request.args.get("type", "master")
+    logs = AuditLog.query.filter_by(log_type=log_type).order_by(AuditLog.created_at.desc()).limit(100).all()
+    return jsonify([log.to_dict() for log in logs])
+
+
+@app.route("/api/audit/logs", methods=["POST"])
+def audit_create_log():
+    """创建审计日志（支持 FormData 或 JSON）"""
+    # 兼容 JSON 请求（移动端）和 FormData 请求（桌面端）
+    if request.is_json:
+        data = request.get_json()
+        content = data.get("content", "")
+        role = data.get("role", "主人")
+        log_type = data.get("log_type", "master")
+        # JSON 时直接使用图片 URL 列表
+        images = data.get("images", [])
+    else:
+        content = request.form.get("content", "")
+        role = request.form.get("role", "主人")
+        log_type = request.form.get("log_type", "master")
+        # FormData 时处理文件上传
+        images = []
+        if 'images' in request.files:
+            for file in request.files.getlist('images'):
+                if file and file.filename:
+                    filename = secure_filename(f"{uuid4()}_{file.filename}")
+                    filepath = os.path.join(app.root_path, 'static', 'uploads', 'audit_private', filename)
+                    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+                    file.save(filepath)
+                    images.append(f"/static/uploads/audit_private/{filename}")
+
+    log = AuditLog(
+        content=content,
+        role=role,
+        log_type=log_type,
+        images=json.dumps(images) if images else "[]"
+    )
+    db.session.add(log)
+    db.session.commit()
+
+    return jsonify({"success": True, "log": log.to_dict()})
+
+
+@app.route("/api/audit/upload-images", methods=["POST"])
+def audit_upload_images():
+    """上传审计日志图片（编辑时使用）"""
+    images = []
+    if 'images' in request.files:
+        for file in request.files.getlist('images'):
+            if file and file.filename:
+                filename = secure_filename(f"{uuid4()}_{file.filename}")
+                filepath = os.path.join(app.root_path, 'static', 'uploads', 'audit_private', filename)
+                os.makedirs(os.path.dirname(filepath), exist_ok=True)
+                file.save(filepath)
+                images.append(f"/static/uploads/audit_private/{filename}")
+    return jsonify({"success": True, "images": images})
+
+
+@app.route("/api/audit/logs/<int:log_id>", methods=["PUT"])
+def audit_update_log(log_id):
+    """更新审计日志"""
+    log = AuditLog.query.get_or_404(log_id)
+    data = request.get_json()
+    
+    if "content" in data:
+        log.content = data["content"]
+    if "tags" in data:
+        log.tags = data["tags"]
+    if "images" in data:
+        # 直接存储图片路径列表（前端负责上传新图片并传递完整列表）
+        log.images = json.dumps(data["images"]) if data["images"] else "[]"
+    
+    db.session.commit()
+    return jsonify({"success": True, "log": log.to_dict()})
+
+
+@app.route("/api/audit/logs/<int:log_id>", methods=["DELETE"])
+def audit_delete_log(log_id):
+    """删除审计日志"""
+    log = AuditLog.query.get_or_404(log_id)
+    db.session.delete(log)
+    db.session.commit()
+    return jsonify({"success": True})
 
 
 @app.route("/guide")

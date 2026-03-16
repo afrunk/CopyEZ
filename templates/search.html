@@ -116,6 +116,31 @@
       return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
+    // 标签点击跳转函数
+    function filterByTag(tag) {
+      const url = new URL('{{ url_for("notes") }}', window.location.origin);
+      url.searchParams.set('tag', tag);
+      window.location.href = url.toString();
+    }
+
+    // 一级分类点击跳转
+    function filterByMainCategory(category) {
+      const url = new URL('{{ url_for("notes") }}', window.location.origin);
+      url.searchParams.set('mainCategory', category);
+      url.searchParams.delete('subCategory');
+      url.searchParams.delete('tag');
+      window.location.href = url.toString();
+    }
+
+    // 二级分类点击跳转
+    function filterBySubCategory(mainCategory, subCategory) {
+      const url = new URL('{{ url_for("notes") }}', window.location.origin);
+      url.searchParams.set('mainCategory', mainCategory);
+      url.searchParams.set('subCategory', subCategory);
+      url.searchParams.delete('tag');
+      window.location.href = url.toString();
+    }
+
     function renderArticles(articles) {
       const list = document.getElementById('search-articles-list');
       const empty = document.getElementById('search-articles-empty');
@@ -128,8 +153,34 @@
       empty.style.display = 'none';
       if (articlesCountEl) articlesCountEl.textContent = articles.length;
 
+      function renderTagPill(tag) {
+        return '<span class="note-tag-pill" onclick="filterByTag(\'' + escapeHtml(tag) + '\'); event.stopPropagation();">' + escapeHtml(tag) + '</span>';
+      }
+
       list.innerHTML = articles
         .map(function (r) {
+          // 构建三级分类路径
+          const pathParts = [];
+          if (r.mainCategory) {
+            pathParts.push('<span class="category-level category-level-1" onclick="filterByMainCategory(\'' + escapeHtml(r.mainCategory) + '\'); event.stopPropagation();"><svg class="category-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 3l.04.87a1.99 1.99 0 0 0-.342 1.311l.637 7A2 2 0 0 0 2.826 14H13.174a2 2 0 0 0 1.991-1.819l.637-7A2 2 0 0 0 13.81 3H9.828a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 6.172 1H2.5a2 2 0 0 0-2 2zm.694 2.09A1 1 0 0 1 2.19 4H13.81a1 1 0 0 1 .995 1.09l-.637 7a1 1 0 0 1-.995.91H2.826a1 1 0 0 1-.995-.91l-.637-7z"/></svg>' + escapeHtml(r.mainCategory) + '</span>');
+          }
+          if (r.subCategory) {
+            pathParts.push('<span class="category-level category-level-2" onclick="filterBySubCategory(\'' + escapeHtml(r.mainCategory || '') + '\', \'' + escapeHtml(r.subCategory) + '\'); event.stopPropagation();">' + escapeHtml(r.subCategory) + '</span>');
+          }
+          if (r.tags && r.tags.length > 0) {
+            const tags = r.tags.slice(0, 3);
+            const tagParts = tags.map(function(tag) {
+              return '<span class="category-level category-level-3" onclick="filterByTag(\'' + escapeHtml(tag) + '\'); event.stopPropagation();"><svg class="category-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2v4.586l7 7L13.586 9l-7-7H2zM1 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2z"/><path d="M4.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>' + escapeHtml(tag) + '</span>';
+            });
+            pathParts.push(tagParts.join('<span class="category-sep">,</span>'));
+            if (r.tags.length > 3) {
+              pathParts.push('<span class="category-more">+' + (r.tags.length - 3) + '</span>');
+            }
+          }
+          const categoryPath = pathParts.length > 0
+            ? '<div class="note-category-path">' + pathParts.join('<span class="category-sep">/</span>') + '</div>'
+            : '';
+
           return (
             '<div class="search-result-card" data-note-id="' +
             r.note_id +
@@ -146,16 +197,7 @@
             highlight(r.snippet || '', q) +
             '</div>' +
             '<div class="search-result-footer">' +
-            (r.mainCategory
-              ? '<span class="search-result-category tag-level-1">' +
-                escapeHtml(r.mainCategory) +
-                '</span>'
-              : '') +
-            (r.subCategory
-              ? '<span class="search-result-category tag-level-2">' +
-                escapeHtml(r.subCategory) +
-                '</span>'
-              : '') +
+            categoryPath +
             '</div>' +
             '</div>'
           );

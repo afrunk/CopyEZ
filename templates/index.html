@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}素材列表 - CopyEZ{% endblock %}
+{% block title %}素材列表 - TAIYI{% endblock %}
 
 {% block header_search %}
   <!-- 导航栏中间的搜索框 -->
@@ -142,6 +142,7 @@
                 
                 <!-- 该日期下的所有素材卡片 -->
                 {% for note in notes_in_date %}
+                  {% set note_tags = note.get_tags_list() %}
                   <li class="note-list-item" data-note-id="{{ note.id }}">
                     <div class="note-row">
                       <a
@@ -152,13 +153,41 @@
                       >
                         {{ note.title }}
                       </a>
+                      <!-- 分类路径容器：显示完整三级分类路径 -->
+                      {% if note.mainCategory or note.subCategory or note_tags %}
+                      <div class="note-category-path">
+                        {% if note.mainCategory %}
+                        <span class="category-level category-level-1" onclick="filterByMainCategory('{{ note.mainCategory }}'); event.stopPropagation();">
+                          <svg class="category-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 3l.04.87a1.99 1.99 0 0 0-.342 1.311l.637 7A2 2 0 0 0 2.826 14H13.174a2 2 0 0 0 1.991-1.819l.637-7A2 2 0 0 0 13.81 3H9.828a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 6.172 1H2.5a2 2 0 0 0-2 2zm.694 2.09A1 1 0 0 1 2.19 4H13.81a1 1 0 0 1 .995 1.09l-.637 7a1 1 0 0 1-.995.91H2.826a1 1 0 0 1-.995-.91l-.637-7z"/></svg>
+                          {{ note.mainCategory }}
+                        </span>
+                        {% endif %}
+                        {% if note.subCategory %}
+                        <span class="category-sep">/</span>
+                        <span class="category-level category-level-2" onclick="filterBySubCategory('{{ note.mainCategory or '' }}', '{{ note.subCategory }}'); event.stopPropagation();">{{ note.subCategory }}</span>
+                        {% endif %}
+                        {% if note_tags %}
+                        <span class="category-sep">/</span>
+                        {% for tag in note_tags[:3] %}
+                        <span class="category-level category-level-3" onclick="filterByTag('{{ tag }}'); event.stopPropagation();">
+                          <svg class="category-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2v4.586l7 7L13.586 9l-7-7H2zM1 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2z"/><path d="M4.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>
+                          {{ tag }}
+                        </span>
+                        {% if not loop.last %}<span class="category-sep">,</span>{% endif %}
+                        {% endfor %}
+                        {% if note_tags|length > 3 %}
+                        <span class="category-more">+{{ note_tags|length - 3 }}</span>
+                        {% endif %}
+                        {% endif %}
+                      </div>
+                      {% endif %}
                         <!-- 中间列表精简版：只保留标题 + 发布时间 -->
                       <time class="note-time">
                         {{ note.created_at.strftime("%H:%M") }}
                       </time>
                     </div>
-                    <button 
-                      class="note-delete-btn" 
+                    <button
+                      class="note-delete-btn"
                       data-note-id="{{ note.id }}"
                       aria-label="删除文章"
                       title="删除文章"
@@ -169,6 +198,11 @@
                 {% endfor %}
               {% endfor %}
             </ul>
+            <!-- 无限滚动加载区域 -->
+            <ul id="infinite-scroll-loader" class="skeleton-container" style="display: none;"></ul>
+            <div id="infinite-scroll-end" class="infinite-scroll-end" style="display: none;">
+              <span>已加载全部素材</span>
+            </div>
           {% else %}
             <!-- 空状态：求真务实书法背景 -->
             <div class="empty-state">
@@ -255,6 +289,287 @@
       url.searchParams.delete('q'); // 清除搜索
       window.location.href = url.toString();
     }
+
+    // =====================
+    // 无限滚动加载逻辑
+    // =====================
+    (function() {
+      'use strict';
+
+      const PAGE_SIZE = 20;
+      let currentOffset = 0;
+      let isLoading = false;
+      let hasMore = true;
+      let observer = null;
+
+      // 获取当前筛选参数
+      function getFilterParams() {
+        const params = new URLSearchParams();
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mainCategory')) params.set('mainCategory', urlParams.get('mainCategory'));
+        if (urlParams.get('subCategory')) params.set('subCategory', urlParams.get('subCategory'));
+        if (urlParams.get('tag')) params.set('tag', urlParams.get('tag'));
+        if (urlParams.get('day')) params.set('day', urlParams.get('day'));
+        if (urlParams.get('month')) params.set('month', urlParams.get('month'));
+        return params;
+      }
+
+      // 渲染单条笔记卡片
+      function renderNoteCard(note) {
+        const tags = note.tags || [];
+        const tagHtml = tags.slice(0, 3).map(tag => {
+          return `<span class="category-level category-level-3" onclick="filterByTag('${escapeHtml(tag)}'); event.stopPropagation();">
+            <svg class="category-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2v4.586l7 7L13.586 9l-7-7H2zM1 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2z"/><path d="M4.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>${escapeHtml(tag)}</span>`;
+        }).join('<span class="category-sep">,</span>');
+
+        const moreTags = tags.length > 3 ? `<span class="category-more">+${tags.length - 3}</span>` : '';
+
+        let categoryPath = '';
+        if (note.mainCategory || note.subCategory || tags.length > 0) {
+          const pathParts = [];
+          if (note.mainCategory) {
+            pathParts.push(`<span class="category-level category-level-1" onclick="filterByMainCategory('${escapeHtml(note.mainCategory)}'); event.stopPropagation();"><svg class="category-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 3l.04.87a1.99 1.99 0 0 0-.342 1.311l.637 7A2 2 0 0 0 2.826 14H13.174a2 2 0 0 0 1.991-1.819l.637-7A2 2 0 0 0 13.81 3H9.828a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 6.172 1H2.5a2 2 0 0 0-2 2zm.694 2.09A1 1 0 0 1 2.19 4H13.81a1 1 0 0 1 .995 1.09l-.637 7a1 1 0 0 1-.995.91H2.826a1 1 0 0 1-.995-.91l-.637-7z"/></svg>${escapeHtml(note.mainCategory)}</span>`);
+          }
+          if (note.subCategory) {
+            pathParts.push(`<span class="category-level category-level-2" onclick="filterBySubCategory('${escapeHtml(note.mainCategory || '')}', '${escapeHtml(note.subCategory)}'); event.stopPropagation();">${escapeHtml(note.subCategory)}</span>`);
+          }
+          if (tags.length > 0) {
+            pathParts.push(tagHtml + moreTags);
+          }
+          categoryPath = `<div class="note-category-path">${pathParts.join('<span class="category-sep">/</span>')}</div>`;
+        }
+
+        const time = note.created_at ? note.created_at.split(' ')[1]?.substring(0, 5) : '';
+
+        return `<li class="note-list-item" data-note-id="${note.id}">
+          <div class="note-row">
+            <a href="/note/${note.id}" class="note-title" target="_blank" rel="noopener noreferrer">${escapeHtml(note.title)}</a>
+            ${categoryPath}
+            <time class="note-time">${time}</time>
+          </div>
+          <button class="note-delete-btn" data-note-id="${note.id}" aria-label="删除文章" title="删除文章">🗑️</button>
+        </li>`;
+      }
+
+      // 渲染骨架屏 HTML
+      function renderSkeletonItems(count) {
+        let html = '';
+        for (let i = 0; i < count; i++) {
+          html += `
+            <li class="skeleton-item">
+              <div style="flex:1">
+                <div class="skeleton-title"></div>
+                <div class="skeleton-tags">
+                  <div class="skeleton-tag" style="width:50px"></div>
+                  <div class="skeleton-tag" style="width:70px"></div>
+                  <div class="skeleton-tag" style="width:45px"></div>
+                </div>
+              </div>
+              <div class="skeleton-time"></div>
+            </li>`;
+        }
+        return html;
+      }
+
+      // 加载更多笔记
+      async function loadMoreNotes() {
+        if (isLoading || !hasMore) return;
+
+        isLoading = true;
+
+        // 显示骨架屏
+        const loader = document.getElementById('infinite-scroll-loader');
+        const endMsg = document.getElementById('infinite-scroll-end');
+        if (endMsg) endMsg.style.display = 'none';
+
+        // 插入骨架屏
+        const noteList = document.querySelector('.note-list');
+        if (loader && noteList) {
+          loader.innerHTML = renderSkeletonItems(5);
+          loader.style.display = 'block';
+        }
+
+        try {
+          const params = getFilterParams();
+          params.set('limit', PAGE_SIZE);
+          params.set('offset', currentOffset);
+
+          const response = await fetch(`/api/notes?${params.toString()}`);
+          const data = await response.json();
+
+          // 隐藏骨架屏
+          if (loader) loader.style.display = 'none';
+
+          if (data.notes && data.notes.length > 0) {
+            if (noteList) {
+              // 检查是否需要添加新的日期分割栏
+              const lastDateDivider = noteList.querySelector('.date-divider:last-of-type');
+              let lastDate = lastDateDivider ? lastDateDivider.querySelector('.date-divider-text')?.textContent : null;
+
+              // 逐条添加笔记，带交错动画
+              let delayIndex = 0;
+              data.notes.forEach(note => {
+                const noteDate = note.created_at ? note.created_at.split(' ')[0] : '';
+                const formattedDate = noteDate ? formatChineseDate(noteDate) : '';
+
+                // 如果日期变了，添加新的分割栏
+                if (formattedDate && formattedDate !== lastDate) {
+                  const divider = document.createElement('li');
+                  divider.className = 'date-divider';
+                  divider.innerHTML = `<div class="date-divider-content">
+                    <span class="date-divider-line"></span>
+                    <span class="date-divider-text">${formattedDate}</span>
+                    <span class="date-divider-line"></span>
+                  </div>`;
+                  noteList.appendChild(divider);
+                  lastDate = formattedDate;
+                }
+
+                // 添加笔记卡片，带进场动画
+                const li = document.createElement('li');
+                li.innerHTML = renderNoteCard(note);
+                const card = li.firstElementChild;
+                card.classList.add('fade-in');
+                card.style.animationDelay = `${delayIndex * 0.05}s`;
+                noteList.appendChild(card);
+                delayIndex++;
+              });
+
+              currentOffset = data.offset;
+              // 只有返回数据少于 PAGE_SIZE 时才认为没有更多
+              hasMore = data.notes.length >= PAGE_SIZE;
+
+              // 重新绑定删除按钮事件
+              bindDeleteButtons();
+
+              // 更新加载完毕提示
+              if (!hasMore) {
+                if (endMsg) {
+                  endMsg.innerHTML = `<span>已加载全部素材，共 ${currentOffset} 篇</span>`;
+                  endMsg.style.display = 'block';
+                }
+              }
+            }
+          } else {
+            hasMore = false;
+            if (endMsg) {
+              endMsg.innerHTML = `<span>已加载全部素材</span>`;
+              endMsg.style.display = 'block';
+            }
+          }
+        } catch (error) {
+          console.error('加载失败:', error);
+          if (loader) loader.style.display = 'none';
+        } finally {
+          isLoading = false;
+        }
+      }
+
+      // 格式化日期为中文
+      function formatChineseDate(dateStr) {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr;
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}年${month}月${day}日`;
+      }
+
+      // 初始化无限滚动
+      function initInfiniteScroll() {
+        const noteList = document.querySelector('.note-list');
+        const loader = document.getElementById('infinite-scroll-loader');
+
+        // 计算初始加载的数量
+        if (noteList) {
+          const initialItems = noteList.querySelectorAll('.note-list-item');
+          currentOffset = initialItems.length;
+        }
+
+        // 隐藏加载提示（首次加载时）
+        if (loader) loader.style.display = 'none';
+
+        // 创建 Intersection Observer，带防抖
+        const sentinel = document.createElement('div');
+        sentinel.id = 'infinite-scroll-sentinel';
+        sentinel.style.height = '1px';
+        sentinel.style.width = '100%';
+
+        const notesListContainer = document.querySelector('.notes-list-container');
+        if (notesListContainer) {
+          notesListContainer.appendChild(sentinel);
+        }
+
+        // 防抖函数
+        let debounceTimer = null;
+        const debounceLoad = () => {
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            if (hasMore && !isLoading) {
+              loadMoreNotes();
+            }
+          }, 100);
+        };
+
+        observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting && hasMore && !isLoading) {
+              debounceLoad();
+            }
+          });
+        }, {
+          rootMargin: '200px'
+        });
+
+        if (sentinel) {
+          observer.observe(sentinel);
+        }
+
+        // 监听 URL 参数变化，重新初始化
+        window.addEventListener('popstate', function() {
+          window.location.reload();
+        });
+      }
+
+      // 页面加载完成后初始化
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initInfiniteScroll);
+      } else {
+        initInfiniteScroll();
+      }
+
+      // 删除按钮事件绑定
+      function bindDeleteButtons() {
+        document.querySelectorAll('.note-delete-btn').forEach(btn => {
+          btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!confirm('确定要删除这篇素材吗？')) return;
+
+            const noteId = this.dataset.noteId;
+            try {
+              const response = await fetch(`/api/note/${noteId}/delete`, {
+                method: 'DELETE'
+              });
+              if (response.ok) {
+                const item = this.closest('.note-list-item');
+                if (item) {
+                  item.style.opacity = '0';
+                  item.style.transform = 'translateX(20px)';
+                  setTimeout(() => item.remove(), 200);
+                }
+              }
+            } catch (error) {
+              console.error('删除失败:', error);
+              alert('删除失败，请稍后重试');
+            }
+          });
+        });
+      }
+
+      // 初始绑定删除按钮
+      bindDeleteButtons();
+    })();
 
     // 三级标签过滤
     function filterByTag(tag) {
@@ -357,6 +672,25 @@
 
       const articleHTML = articles.slice(0, 5).map(result => {
         const highlightedSnippet = highlightKeywords(result.snippet, query);
+        // 构建三级分类路径
+        const pathParts = [];
+        if (result.mainCategory) {
+          pathParts.push(`<span class="category-level category-level-1" onclick="filterByMainCategory('${escapeHtml(result.mainCategory)}'); event.stopPropagation();"><svg class="category-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 3l.04.87a1.99 1.99 0 0 0-.342 1.311l.637 7A2 2 0 0 0 2.826 14H13.174a2 2 0 0 0 1.991-1.819l.637-7A2 2 0 0 0 13.81 3H9.828a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 6.172 1H2.5a2 2 0 0 0-2 2zm.694 2.09A1 1 0 0 1 2.19 4H13.81a1 1 0 0 1 .995 1.09l-.637 7a1 1 0 0 1-.995.91H2.826a1 1 0 0 1-.995-.91l-.637-7z"/></svg>${escapeHtml(result.mainCategory)}</span>`);
+        }
+        if (result.subCategory) {
+          pathParts.push(`<span class="category-level category-level-2" onclick="filterBySubCategory('${escapeHtml(result.mainCategory || '')}', '${escapeHtml(result.subCategory)}'); event.stopPropagation();">${escapeHtml(result.subCategory)}</span>`);
+        }
+        if (result.tags && result.tags.length > 0) {
+          const tags = result.tags.slice(0, 3);
+          const tagParts = tags.map(tag => `<span class="category-level category-level-3" onclick="filterByTag('${escapeHtml(tag)}'); event.stopPropagation();"><svg class="category-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2v4.586l7 7L13.586 9l-7-7H2zM1 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2z"/><path d="M4.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>${escapeHtml(tag)}</span>`);
+          pathParts.push(tagParts.join('<span class="category-sep">,</span>'));
+          if (result.tags.length > 3) {
+            pathParts.push(`<span class="category-more">+${result.tags.length - 3}</span>`);
+          }
+        }
+        const categoryPath = pathParts.length > 0
+          ? `<div class="note-category-path">${pathParts.join('<span class="category-sep">/</span>')}</div>`
+          : '';
         return `
           <div class="search-result-card" data-note-id="${result.note_id}" data-keyword="${encodeURIComponent(query)}">
             <div class="search-result-header">
@@ -365,8 +699,7 @@
             </div>
             <div class="search-result-snippet">${highlightedSnippet}</div>
             <div class="search-result-footer">
-              ${result.mainCategory ? `<span class="search-result-category tag-level-1">${escapeHtml(result.mainCategory)}</span>` : ''}
-              ${result.subCategory ? `<span class="search-result-category tag-level-2">${escapeHtml(result.subCategory)}</span>` : ''}
+              ${categoryPath}
             </div>
           </div>
         `;

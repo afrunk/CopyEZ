@@ -1,0 +1,2835 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>效能档案</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --color-bg: #f0f2f5;
+      --color-bg-card: #ffffff;
+      --color-text-primary: #1a1a2e;
+      --color-text-secondary: #4a4a68;
+      --color-text-muted: #9898a6;
+      --color-border: rgba(255, 255, 255, 0.5);
+      --color-brand-blue: #2d5af5;
+      --color-brand-blue-dark: #1e3eb8;
+      --color-brand-purple: #8b5cf6;
+      --color-brand-purple-light: #a78bfa;
+      --color-accent-master: #2d5af5;
+      --color-accent-slave: #a78bfa;
+      --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 16px rgba(0, 0, 0, 0.06);
+      --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.06), 0 12px 24px rgba(0, 0, 0, 0.08);
+      --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    body {
+      font-family: 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #e8eaf0 0%, #f5f7fa 50%, #eef1f6 100%);
+      min-height: 100vh;
+      color: var(--color-text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .audit-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 24px 64px;
+    }
+
+    /* ========== 档案卡片 - 极简立体风格 ========== */
+    .profile-section {
+      background: var(--color-bg-card);
+      border-radius: 24px;
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      margin: 30px;
+      position: relative;
+    }
+
+    /* 磨砂玻璃封面区：不裁剪下方头像，并压住内容区白底 */
+    .profile-cover {
+      height: 180px;
+      background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+      position: relative;
+      overflow: visible;
+      z-index: 2;
+    }
+
+    .profile-cover::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(circle at 20% 80%, rgba(45, 90, 245, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+    }
+
+    .profile-cover-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* ========== 头像容器 ========== */
+    .profile-avatar-wrap {
+      position: absolute;
+      bottom: -55px;
+      left: 32px;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 10;
+      border: 3px solid #fff;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+      background: #e5e7eb;
+    }
+
+    /* 头像/占位层 */
+    .profile-avatar,
+    .avatar-placeholder {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .profile-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+
+    .profile-avatar img.avatar-loaded {
+      display: block;
+    }
+
+    /* 默认占位头像 */
+    .avatar-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(145deg, #f3f4f6 0%, #d1d5db 100%);
+      color: #9ca3af;
+    }
+
+    .avatar-placeholder.hidden {
+      display: none;
+    }
+
+    .avatar-placeholder i {
+      width: 44px;
+      height: 44px;
+    }
+
+    /* 悬停遮罩 + 相机图标 */
+    .profile-avatar-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+      z-index: 5;
+    }
+
+    .profile-avatar-wrap:hover .profile-avatar-overlay {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .profile-avatar-overlay i {
+      color: #fff;
+      width: 32px;
+      height: 32px;
+    }
+
+    /* 封面上传按钮 */
+    .cover-upload-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 10;
+    }
+
+    .profile-cover:hover .cover-upload-btn {
+      opacity: 1;
+    }
+
+    .profile-content {
+      padding: 72px 32px 32px;
+    }
+
+    .profile-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .profile-name {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .profile-name .edit-icon {
+      font-size: 16px;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .profile-name .edit-icon:hover {
+      background: var(--color-brand-purple-light);
+      color: var(--color-brand-purple);
+    }
+
+    .profile-meta {
+      display: flex;
+      gap: 20px;
+      color: var(--color-text-secondary);
+      font-size: 15px;
+      margin-bottom: 20px;
+    }
+
+    .profile-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .profile-meta-item.profile-meta-editable {
+      cursor: pointer;
+      padding: 4px 8px;
+      margin: -4px -8px;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .profile-meta-item.profile-meta-editable:hover {
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    .profile-meta-item .edit-icon-inline {
+      margin-left: 2px;
+      color: var(--color-text-secondary);
+      opacity: 0.6;
+    }
+
+    .profile-meta-item.profile-meta-editable:hover .edit-icon-inline {
+      opacity: 1;
+      color: var(--color-brand-purple);
+    }
+
+    .profile-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .profile-tag {
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      background: rgba(139, 92, 246, 0.1);
+      color: var(--color-brand-purple);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .profile-tag.attribute {
+      background: rgba(45, 90, 245, 0.1);
+      color: var(--color-brand-blue);
+      border: 1px solid rgba(45, 90, 245, 0.2);
+    }
+
+    /* ========== 属性账本区域 ========== */
+    .attribute-ledger {
+      margin-top: 32px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .ledger-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ledger-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .ledger-block {
+      background: #fbfbff;
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .ledger-block::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      border-radius: 4px 0 0 4px;
+    }
+
+    /* 主人视角 - 冰蓝色调 */
+    .ledger-block.master {
+      background: linear-gradient(135deg, rgba(45, 90, 245, 0.04) 0%, rgba(45, 90, 245, 0.08) 100%);
+      border: 1px solid rgba(45, 90, 245, 0.1);
+    }
+
+    .ledger-block.master::before {
+      background: linear-gradient(180deg, var(--color-brand-blue), #5b8def);
+    }
+
+    .ledger-block.master .ledger-block-icon {
+      color: var(--color-brand-blue);
+    }
+
+    .ledger-block.master .ledger-block-label {
+      color: var(--color-brand-blue);
+    }
+
+    /* 母狗视角 - 浅紫色调 */
+    .ledger-block.slave {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.04) 0%, rgba(139, 92, 246, 0.08) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.1);
+    }
+
+    .ledger-block.slave::before {
+      background: linear-gradient(180deg, var(--color-brand-purple), #c4b5fd);
+    }
+
+    .ledger-block.slave .ledger-block-icon {
+      color: var(--color-brand-purple);
+    }
+
+    .ledger-block.slave .ledger-block-label {
+      color: var(--color-brand-purple);
+    }
+
+    /* 头部 */
+    .ledger-block-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .ledger-block-icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .ledger-block-label {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* 正文区域 */
+    .ledger-block-text {
+      font-size: 15px;
+      line-height: 1.9;
+      color: var(--color-text-secondary);
+      white-space: pre-wrap;
+      min-height: 80px;
+      padding: 16px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid transparent;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      user-select: none;
+      pointer-events: auto;
+    }
+
+    .ledger-block-text:hover {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(139, 92, 246, 0.2);
+    }
+
+    .ledger-block-text.placeholder {
+      color: var(--color-text-muted);
+      font-style: italic;
+    }
+
+    .ledger-block.master .ledger-block-text:hover {
+      border-color: rgba(45, 90, 245, 0.2);
+    }
+
+    /* 点击时的视觉反馈 */
+    .ledger-block-text:active {
+      transform: scale(0.99);
+    }
+
+    /* 编辑模式 */
+    .ledger-block-text.editing {
+      background: #fff !important;
+      border-color: rgba(139, 92, 246, 0.3) !important;
+      box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.08);
+      outline: none;
+      cursor: text !important;
+      user-select: text !important;
+    }
+
+    .ledger-block.master .ledger-block-text.editing {
+      border-color: rgba(45, 90, 245, 0.3) !important;
+      box-shadow: 0 0 0 4px rgba(45, 90, 245, 0.08);
+    }
+
+    /* 底部 */
+    .ledger-block-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    .ledger-timestamp {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      opacity: 0.6;
+    }
+
+    .ledger-save-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, var(--color-brand-purple), #a78bfa);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .ledger-save-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    }
+
+    .ledger-block.master .ledger-save-btn {
+      background: linear-gradient(135deg, var(--color-brand-blue), #5b8def);
+    }
+
+    .ledger-block.master .ledger-save-btn:hover {
+      box-shadow: 0 4px 12px rgba(45, 90, 245, 0.3);
+    }
+
+    .ledger-edit-btn {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .ledger-edit-btn:hover {
+      background: rgba(139, 92, 246, 0.1);
+      color: var(--color-brand-purple);
+    }
+
+    /* 可编辑字段 */
+    .editable-field {
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .editable-field:hover {
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    .editable-field input {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-brand-purple);
+      color: var(--color-text-primary);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: inherit;
+      width: 180px;
+      box-shadow: var(--shadow-soft);
+      outline: none;
+    }
+
+    /* ========== 垂直时间轴区域 ========== */
+    .timeline-section {
+      margin-top: 24px;
+    }
+
+    /* ========== 统一录入模态框 ========== */
+    .input-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .input-modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .input-modal {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 85vh;
+      padding: 24px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.2);
+      transform: translateY(20px) scale(0.95);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .input-modal-overlay.active .input-modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .input-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .input-modal-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+
+    .input-modal-close {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-secondary);
+      transition: all 0.2s;
+    }
+
+    .input-modal-close:hover {
+      background: rgba(0, 0, 0, 0.1);
+      color: var(--color-text-primary);
+    }
+
+    .input-modal-role {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .input-modal-role .role-btn {
+      flex: 1;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .input-modal-role .role-btn.active {
+      color: #fff;
+    }
+
+    .input-modal-role .role-btn-master.active {
+      background: var(--color-brand-blue);
+      border-color: var(--color-brand-blue);
+    }
+
+    .input-modal-role .role-btn-slave.active {
+      background: var(--color-brand-purple);
+      border-color: var(--color-brand-purple);
+    }
+
+    .input-modal-role .role-btn:not(.active) {
+      background: transparent;
+      border-color: rgba(0, 0, 0, 0.1);
+      color: var(--color-text-secondary);
+    }
+
+    .input-modal-textarea {
+      width: 100%;
+      min-height: 150px;
+      max-height: 400px;
+      padding: 20px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 16px;
+      font-size: 16px;
+      line-height: 1.8;
+      resize: none;
+      outline: none;
+      font-family: inherit;
+      background: rgba(255, 255, 255, 0.8);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-modal-textarea:focus {
+      border-color: var(--color-brand-purple);
+      box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+    }
+
+    .input-modal-images {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .input-modal-image-item {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .input-modal-image-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .input-modal-image-item button {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .input-modal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .input-modal-tool {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      background: transparent;
+      color: var(--color-text-secondary);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .input-modal-tool:hover {
+      background: rgba(139, 92, 246, 0.05);
+      border-color: var(--color-brand-purple);
+      color: var(--color-brand-purple);
+    }
+
+    .input-modal-submit {
+      padding: 12px 32px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, var(--color-brand-purple), #a78bfa);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+      transition: all 0.2s;
+    }
+
+    .input-modal-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+    }
+
+    .input-modal-submit:active {
+      transform: translateY(0);
+    }
+
+    /* ========== 悬浮触发按钮 ========== */
+    .compose-fab {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--color-brand-purple), #a78bfa);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+      z-index: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .compose-fab:hover {
+      transform: scale(1.05);
+      box-shadow: 0 10px 32px rgba(139, 92, 246, 0.5);
+    }
+
+    .compose-fab:active {
+      transform: scale(0.95);
+    }
+
+    /* 移动端适配 */
+    @media (max-width: 768px) {
+      .compose-fab {
+        bottom: 24px;
+        right: 24px;
+        width: 56px;
+        height: 56px;
+      }
+
+      .input-modal {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-width: 100%;
+        border-radius: 24px 24px 0 0;
+        max-height: 85vh;
+        transform: translateY(100%);
+      }
+
+      .input-modal-overlay.active .input-modal {
+        transform: translateY(0);
+      }
+
+      .input-modal-textarea {
+        min-height: 120px;
+      }
+
+      .input-modal-footer {
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+      }
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 0 8px;
+    }
+
+    .timeline-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .timeline-tabs {
+      display: flex;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(10px);
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .timeline-tab {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .timeline-tab.active {
+      background: var(--color-bg-card);
+      color: var(--color-brand-purple);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .timeline-tab:hover:not(.active) {
+      color: var(--color-text-primary);
+    }
+
+    /* ========== 沉浸式发布框 ========== */
+    .publish-card {
+      background: var(--color-bg-card);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow-card);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+
+    .publish-card:focus-within {
+      box-shadow: var(--shadow-elevated), 0 0 0 2px rgba(139, 92, 246, 0.2);
+    }
+
+    .publish-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      opacity: 0.7;
+      transition: opacity 0.3s;
+      min-width: 0;
+    }
+
+    .publish-header > span {
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    .publish-card:focus-within .publish-header {
+      opacity: 1;
+    }
+
+    /* 角色切换按钮 */
+    .publish-role-toggle {
+      display: flex;
+      gap: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .role-btn {
+      padding: 6px 14px;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--color-text-secondary);
+    }
+
+    .role-btn.active {
+      color: #fff;
+    }
+
+    .role-btn-master.active {
+      background: var(--color-brand-blue);
+    }
+
+    .role-btn-slave.active {
+      background: var(--color-brand-purple);
+    }
+
+    .role-btn:not(.active) {
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    .publish-textarea {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      background: transparent;
+      border: none;
+      color: var(--color-text-primary);
+      font-size: 15px;
+      line-height: 1.8;
+      resize: none;
+      outline: none;
+      min-height: 80px;
+      font-family: inherit;
+    }
+
+    .publish-textarea::placeholder {
+      color: var(--color-text-muted);
+    }
+
+    .publish-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.3s ease;
+    }
+
+    .publish-card:focus-within .publish-actions {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .publish-tools {
+      display: flex;
+      gap: 8px;
+    }
+
+    .publish-tool-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: var(--color-bg);
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .publish-tool-btn:hover {
+      background: rgba(45, 90, 245, 0.08);
+      color: var(--color-brand-blue);
+      border-color: rgba(45, 90, 245, 0.2);
+    }
+
+    .publish-submit-btn {
+      padding: 10px 24px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, var(--color-brand-purple) 0%, #7c3aed 100%);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s;
+      box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+    }
+
+    .publish-submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+    }
+
+    .image-preview-area {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .image-preview-item {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .image-preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .image-preview-item .remove-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .image-preview-item .remove-btn:hover {
+      background: rgba(220, 38, 38, 0.8);
+    }
+
+    /* ========== 垂直时间轴 ========== */
+    .timeline-container {
+      position: relative;
+      padding-left: 40px;
+    }
+
+    /* 轴线 */
+    .timeline-container::before {
+      content: '';
+      position: absolute;
+      left: 12px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(180deg, 
+        var(--color-brand-blue) 0%, 
+        rgba(45, 90, 245, 0.3) 50%,
+        var(--color-brand-purple) 100%
+      );
+      border-radius: 2px;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-left: 36px;
+      padding-bottom: 28px;
+      animation: slideIn 0.4s ease-out;
+    }
+
+    .timeline-item:last-child {
+      padding-bottom: 0;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* 节点 */
+    .timeline-node {
+      position: absolute;
+      left: -40px;
+      top: 4px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--color-bg-card);
+      border: 3px solid var(--color-brand-blue);
+      box-shadow: 0 0 0 4px rgba(45, 90, 245, 0.15);
+      z-index: 1;
+    }
+
+    .timeline-item.slave .timeline-node {
+      border-color: var(--color-brand-purple);
+      box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+    }
+
+    /* 悬浮卡片 */
+    .timeline-card {
+      background: var(--color-bg-card);
+      border-radius: 16px;
+      padding: 20px 22px;
+      box-shadow: var(--shadow-soft);
+      transition: all 0.25s ease;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .timeline-card:hover {
+      box-shadow: var(--shadow-elevated);
+      transform: translateX(4px);
+    }
+
+    /* 主人视角 - 实色边框 */
+    .timeline-item.master .timeline-card {
+      border-left: 3px solid var(--color-brand-blue);
+    }
+
+    /* 母狗视角 - 虚线边框 + 半透明背景 */
+    .timeline-item.slave .timeline-card {
+      background: rgba(139, 92, 246, 0.04);
+      border: 1px dashed rgba(139, 92, 246, 0.3);
+      border-left: 3px dashed var(--color-brand-purple);
+    }
+
+    .timeline-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .timeline-role {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .timeline-role-badge {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .timeline-item.master .timeline-role-badge {
+      background: rgba(45, 90, 245, 0.1);
+      color: var(--color-brand-blue);
+    }
+
+    .timeline-item.slave .timeline-role-badge {
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--color-brand-purple);
+    }
+
+    .timeline-time {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      font-weight: 400;
+    }
+
+    .timeline-card-actions {
+      display: flex;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .timeline-card:hover .timeline-card-actions {
+      opacity: 1;
+    }
+
+    .timeline-action-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: none;
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .timeline-action-btn:hover {
+      background: rgba(139, 92, 246, 0.1);
+      color: var(--color-brand-purple);
+    }
+
+    .timeline-action-btn.delete:hover {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+    }
+
+    .timeline-content {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--color-text-primary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .timeline-images {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .timeline-images img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .timeline-images img:hover {
+      transform: scale(1.02);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .timeline-tags {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .timeline-tag {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      padding: 3px 10px;
+      background: var(--color-bg);
+      border-radius: 6px;
+    }
+
+    /* 空状态 */
+    .timeline-empty {
+      text-align: center;
+      padding: 60px 40px;
+      color: var(--color-text-muted);
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 20px;
+      border: 1px dashed rgba(0, 0, 0, 0.08);
+    }
+
+    .timeline-empty-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 16px;
+      opacity: 0.4;
+    }
+
+    /* 模态框 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: #fff;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      transform: translateY(20px);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-secondary);
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--color-text-primary);
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .modal-body textarea {
+      width: 100%;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.7;
+      resize: vertical;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .modal-body textarea:focus {
+      outline: none;
+      border-color: var(--color-brand-purple);
+    }
+
+    .edit-images-section {
+      margin-top: 20px;
+    }
+
+    .edit-images-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .edit-images-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .edit-image-item {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .edit-image-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .edit-image-remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .edit-add-image-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px dashed rgba(139, 92, 246, 0.4);
+      color: var(--color-brand-purple);
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: all 0.2s;
+    }
+
+    .edit-add-image-btn:hover {
+      background: rgba(139, 92, 246, 0.05);
+      border-color: var(--color-brand-purple);
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 16px 24px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .btn-cancel {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      background: #fff;
+      color: var(--color-text-secondary);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    .btn-save {
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: none;
+      background: var(--color-brand-purple);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-save:hover {
+      background: #7c3aed;
+    }
+
+    /* 确认弹窗 */
+    .confirm-modal-content {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      width: 85%;
+      max-width: 320px;
+      text-align: center;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .confirm-modal-content p {
+      font-size: 16px;
+      color: var(--color-text-primary);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .confirm-modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .confirm-cancel {
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      background: #fff;
+      color: var(--color-text-secondary);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .confirm-ok {
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: none;
+      background: #ef4444;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    /* 长按菜单 */
+    .context-menu {
+      position: fixed;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      padding: 8px;
+      z-index: 1000;
+      min-width: 130px;
+      animation: contextMenuFade 0.15s ease;
+    }
+
+    @keyframes contextMenuFade {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .context-menu button {
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      background: transparent;
+      font-size: 14px;
+      color: var(--color-text-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+
+    .context-menu button:hover {
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    .context-menu button.danger {
+      color: #ef4444;
+    }
+
+    .context-menu button.danger:hover {
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    /* Lightbox */
+    .lightbox {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+    }
+
+    .lightbox.active {
+      display: flex;
+    }
+
+    .lightbox img {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 32px;
+      cursor: pointer;
+      transition: color 0.2s;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+    }
+
+    .lightbox-close:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+      body {
+        overflow-x: hidden;
+      }
+
+      .audit-container {
+        padding: 16px 12px 100px;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+
+      .profile-section {
+        margin: 16px 8px;
+        border-radius: 16px;
+      }
+
+      .profile-cover {
+        height: 140px;
+      }
+
+      .profile-avatar-wrap {
+        width: 80px;
+        height: 80px;
+        min-width: 80px;
+        min-height: 80px;
+        bottom: -40px;
+        left: 20px;
+        border-width: 2px;
+      }
+
+      .profile-content {
+        padding: 56px 16px 20px;
+      }
+
+      .profile-name {
+        font-size: 22px;
+      }
+
+      .profile-meta {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .profile-meta-item {
+        font-size: 13px;
+      }
+
+      .ledger-content {
+        grid-template-columns: 1fr;
+      }
+
+      .ledger-title {
+        font-size: 15px;
+        padding: 12px;
+      }
+
+      .ledger-block {
+        padding: 12px;
+        border-radius: 12px;
+      }
+
+      .ledger-block-label {
+        font-size: 12px;
+      }
+
+      .ledger-block-text {
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      /* 时间轴优化 */
+      .timeline-container {
+        padding-left: 20px;
+      }
+
+      .timeline-container::before {
+        left: 4px;
+      }
+
+      .timeline-node {
+        left: -20px;
+        width: 10px;
+        height: 10px;
+      }
+
+      .timeline-card {
+        padding: 14px;
+        border-radius: 12px;
+      }
+
+      .timeline-content {
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .timeline-images {
+        gap: 6px;
+      }
+
+      .timeline-images img {
+        width: calc(50% - 3px);
+        aspect-ratio: 1;
+        object-fit: cover;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      /* 操作按钮优化 */
+      .timeline-action-btn {
+        width: 32px;
+        height: 32px;
+      }
+
+      /* 模态框优化 */
+      .modal-content {
+        width: 95%;
+        max-height: 85vh;
+        margin: 10px;
+      }
+
+      .modal-body {
+        padding: 16px;
+      }
+
+      .edit-image-item {
+        width: 64px;
+        height: 64px;
+      }
+    }
+
+    /* 更小屏幕 */
+    @media (max-width: 480px) {
+      .profile-cover {
+        height: 120px;
+      }
+
+      .profile-avatar-wrap {
+        width: 70px;
+        height: 70px;
+        min-width: 70px;
+        min-height: 70px;
+        bottom: -35px;
+        left: 16px;
+      }
+
+      .profile-content {
+        padding: 48px 12px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="audit-container">
+    <!-- 档案卡片 -->
+    <section class="profile-section">
+      <div class="profile-cover">
+        <img id="cover-image" class="profile-cover-img" src="" style="display: none;" />
+        <label class="cover-upload-btn" for="cover-upload" title="点击更换封面">
+          <i data-lucide="image" style="width: 18px; height: 18px;"></i>
+        </label>
+        <input type="file" id="cover-upload" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" style="position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none;" />
+        <label class="profile-avatar-wrap" for="avatar-upload" aria-label="上传头像">
+          <div class="profile-avatar">
+            <img id="avatar-image" src="" alt="" role="presentation" />
+            <span class="avatar-placeholder" id="avatar-placeholder" aria-hidden="true">
+              <i data-lucide="user" style="width: 48px; height: 48px;"></i>
+            </span>
+          </div>
+          <span class="profile-avatar-overlay">
+            <i data-lucide="camera" style="width: 28px; height: 28px;"></i>
+          </span>
+        </label>
+        <input type="file" id="avatar-upload" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" style="position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none;" />
+      </div>
+      <div class="profile-content">
+        <div class="profile-header-row">
+          <div class="profile-name">
+            <span class="editable-field" data-field="name" id="profile-name-text">未设置姓名</span>
+            <span class="edit-icon" onclick="editField('name')">
+              <i data-lucide="pencil" style="width: 16px; height: 16px;"></i>
+            </span>
+          </div>
+        </div>
+        <div class="profile-meta">
+          <span class="profile-meta-item profile-meta-editable" onclick="editField('age')" title="点击编辑年龄">
+            <i data-lucide="user" style="width: 15px; height: 15px;"></i>
+            <span class="editable-field" data-field="age" id="profile-age-text">--</span>岁
+            <span class="edit-icon-inline"><i data-lucide="pencil" style="width: 12px; height: 12px;"></i></span>
+          </span>
+          <span class="profile-meta-item profile-meta-editable" onclick="editField('region')" title="点击编辑地区">
+            <i data-lucide="map-pin" style="width: 15px; height: 15px;"></i>
+            <span class="editable-field" data-field="region" id="profile-region-text">未设置地区</span>
+            <span class="edit-icon-inline"><i data-lucide="pencil" style="width: 12px; height: 12px;"></i></span>
+          </span>
+        </div>
+        <div class="profile-tags" id="profile-preferences"></div>
+        <div class="profile-tags" id="profile-attributes" style="margin-top: 8px;"></div>
+
+        <!-- 属性账本 -->
+        <div class="attribute-ledger">
+          <div class="ledger-title">
+            <i data-lucide="book-open" style="width: 16px; height: 16px;"></i>
+            属性解析
+          </div>
+          <div class="ledger-content">
+            <!-- 主人视角 -->
+            <div class="ledger-block master">
+              <div class="ledger-block-header">
+                <i data-lucide="shield" class="ledger-block-icon"></i>
+                <div class="ledger-block-label">主人视角 · 档案定义</div>
+              </div>
+              <div class="ledger-block-text" id="ledger-master-text" onclick="editLedger('master')">点击编辑属性定义...</div>
+              <div class="ledger-block-footer">
+                <span class="ledger-timestamp" id="ledger-master-timestamp"></span>
+                <button class="ledger-save-btn" id="save-btn-master" style="display: none;">
+                  <i data-lucide="check" style="width: 14px; height: 14px;"></i>
+                  保存
+                </button>
+              </div>
+            </div>
+            <!-- 母狗视角 -->
+            <div class="ledger-block slave">
+              <div class="ledger-block-header">
+                <i data-lucide="heart" class="ledger-block-icon"></i>
+                <div class="ledger-block-label">母狗视角 · 心理侧写</div>
+              </div>
+              <div class="ledger-block-text" id="ledger-slave-text" onclick="editLedger('slave')">点击编辑心理侧写...</div>
+              <div class="ledger-block-footer">
+                <span class="ledger-timestamp" id="ledger-slave-timestamp"></span>
+                <button class="ledger-save-btn" id="save-btn-slave" style="display: none;">
+                  <i data-lucide="check" style="width: 14px; height: 14px;"></i>
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 时间轴区域 -->
+    <section class="timeline-section">
+      <div class="timeline-header">
+        <div class="timeline-title">
+          <i data-lucide="clock" style="width: 18px; height: 18px;"></i>
+          记录时间轴
+        </div>
+        <div class="timeline-tabs">
+          <button class="timeline-tab active" data-tab="master">
+            <i data-lucide="user" style="width: 14px; height: 14px;"></i>
+            主人视角
+          </button>
+          <button class="timeline-tab" data-tab="slave">
+            <i data-lucide="heart" style="width: 14px; height: 14px;"></i>
+            母狗视角
+          </button>
+        </div>
+      </div>
+
+      <!-- 统一录入模态框（PC+移动端共用） -->
+      <div class="input-modal-overlay" id="input-modal" onclick="closeInputModal(event)">
+        <div class="input-modal" onclick="event.stopPropagation()">
+          <div class="input-modal-header">
+            <span class="input-modal-title">撰写记录</span>
+            <button class="input-modal-close" onclick="closeInputModal()">
+              <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+            </button>
+          </div>
+          <div class="input-modal-role">
+            <button class="role-btn role-btn-master active" data-role="主人" onclick="selectRole('主人')">主人视角</button>
+            <button class="role-btn role-btn-slave" data-role="母狗" onclick="selectRole('母狗')">母狗视角</button>
+          </div>
+          <textarea id="log-content-modal" class="input-modal-textarea" placeholder="在此撰写你的思考... (支持 Ctrl+V 粘贴图片)" oninput="autoGrow(this)"></textarea>
+          <div class="input-modal-images" id="modal-image-preview"></div>
+          <div class="input-modal-footer">
+            <button class="input-modal-tool" onclick="document.getElementById('image-upload-modal').click()">
+              <i data-lucide="image" style="width: 18px; height: 18px;"></i>
+              添加图片
+            </button>
+            <input type="file" id="image-upload-modal" accept="image/*" multiple style="display: none;" onchange="handleModalImageUpload(this)" />
+            <button class="input-modal-submit" onclick="submitLog()">立即发布</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 悬浮触发按钮 -->
+      <div class="compose-fab" onclick="openInputModal()">
+        <i data-lucide="plus" style="width: 24px; height: 24px;"></i>
+      </div>
+
+      <!-- 垂直时间轴 -->
+      <div class="timeline-container" id="timeline-container">
+        <div class="timeline-empty">
+          <i data-lucide="file-text" class="timeline-empty-icon"></i>
+          <p>暂无记录，开始你的第一篇书写</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <span class="lightbox-close">&times;</span>
+    <img id="lightbox-img" src="" alt="" />
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+  <script>
+    let currentTab = 'master';
+    let pendingImages = [];
+    let profileData = {};
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      // 先显示占位符，防止闪烁
+      showAvatarPlaceholder();
+      loadProfile();
+      loadLogs();
+      setupTabs();
+      setupImageUpload();
+      setupAvatarUpload();
+      setupCoverUpload();
+      lucide.createIcons();
+
+      // 绑定保存按钮点击事件
+      document.getElementById('save-btn-master').onclick = function() { saveLedger('master'); };
+      document.getElementById('save-btn-slave').onclick = function() { saveLedger('slave'); };
+    });
+
+    // 角色选择
+    let currentRole = '主人';
+    function selectRole(role) {
+      currentRole = role;
+      document.querySelectorAll('.role-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.role === role);
+      });
+    }
+
+    // textarea 自动增高
+    function autoGrow(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 400) + 'px';
+    }
+
+    // 统一录入模态框
+    function openInputModal() {
+      document.getElementById('input-modal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => {
+        document.getElementById('log-content-modal').focus();
+      }, 300);
+    }
+
+    function closeInputModal(event) {
+      if (event && event.target !== event.currentTarget) return;
+      document.getElementById('input-modal').classList.remove('active');
+      document.body.style.overflow = '';
+      // 清理状态
+      document.getElementById('log-content-modal').value = '';
+      document.getElementById('modal-image-preview').innerHTML = '';
+    }
+
+    // 模态框图片上传
+    function handleModalImageUpload(input) {
+      const files = Array.from(input.files);
+      const container = document.getElementById('modal-image-preview');
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const div = document.createElement('div');
+          div.className = 'input-modal-image-item';
+          div.innerHTML = `
+            <img src="${e.target.result}" alt="图片" />
+            <button type="button" onclick="this.parentElement.remove()">
+              <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+            </button>
+          `;
+          container.appendChild(div);
+          lucide.createIcons();
+        };
+        reader.readAsDataURL(file);
+      });
+      input.value = '';
+    }
+
+    function dataURLtoBlob(dataurl) {
+      const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) u8arr[n] = bstr.charCodeAt(n);
+      return new Blob([u8arr], { type: mime });
+    }
+
+    // 头像上传
+    function setupAvatarUpload() {
+      const input = document.getElementById('avatar-upload');
+      if (!input) return;
+      input.onchange = async function() {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('avatar', file);
+        try {
+          const resp = await fetch('/api/audit/profile/avatar', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await resp.json();
+          if (data.success && data.avatar_url) {
+            showAvatarImage(data.avatar_url);
+            profileData.avatar_url = data.avatar_url;
+          } else {
+            alert(data.error || '上传失败');
+          }
+        } catch (e) {
+          console.error(e);
+          alert('上传失败');
+        }
+        input.value = '';
+      };
+    }
+
+    // 封面上传
+    function setupCoverUpload() {
+      const input = document.getElementById('cover-upload');
+      if (!input) return;
+      input.onchange = async function() {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('cover', file);
+        try {
+          const resp = await fetch('/api/audit/profile/cover', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await resp.json();
+          if (data.success && data.cover_url) {
+            const img = document.getElementById('cover-image');
+            img.src = data.cover_url + '?t=' + Date.now();
+            img.style.display = 'block';
+            profileData.cover_url = data.cover_url;
+          } else {
+            alert(data.error || '上传失败');
+          }
+        } catch (e) {
+          console.error(e);
+          alert('上传失败');
+        }
+        input.value = '';
+      };
+    }
+
+    // 加载档案
+    async function loadProfile() {
+      try {
+        // 添加加载状态
+        const masterText = document.getElementById('ledger-master-text');
+        const slaveText = document.getElementById('ledger-slave-text');
+        if (masterText) masterText.style.opacity = '0.5';
+        if (slaveText) slaveText.style.opacity = '0.5';
+
+        const resp = await fetch('/api/audit/profile');
+        const responseText = await resp.text();
+        console.log('API 原始响应:', responseText.substring(0, 200));
+
+        // 手动解析 JSON 以正确处理 Unicode 转义
+        const data = JSON.parse(responseText);
+        console.log('API 返回数据:', data);
+        profileData = data;
+        renderProfile(data);
+
+        // 恢复加载状态
+        if (masterText) masterText.style.opacity = '1';
+        if (slaveText) slaveText.style.opacity = '1';
+      } catch(e) {
+        console.error('加载档案失败:', e);
+      }
+    }
+
+    function showAvatarPlaceholder() {
+      const img = document.getElementById('avatar-image');
+      const ph = document.getElementById('avatar-placeholder');
+      if (img) { img.removeAttribute('src'); img.classList.remove('avatar-loaded'); img.classList.add('avatar-failed'); }
+      if (ph) ph.classList.remove('hidden');
+    }
+
+    function showAvatarImage(url) {
+      const img = document.getElementById('avatar-image');
+      const ph = document.getElementById('avatar-placeholder');
+      if (!img || !ph) return;
+      ph.classList.add('hidden');
+      img.classList.remove('avatar-failed');
+      img.classList.add('avatar-loaded');
+      img.onerror = function() { showAvatarPlaceholder(); };
+      img.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+    }
+
+    function renderProfile(data) {
+      if (!data) data = {};
+      document.getElementById('profile-name-text').textContent = data.name || '未设置姓名';
+      document.getElementById('profile-age-text').textContent = data.age || '--';
+      document.getElementById('profile-region-text').textContent = data.region || '未设置地区';
+
+      if (data.avatar_url && typeof data.avatar_url === 'string') {
+        showAvatarImage(data.avatar_url);
+      } else {
+        showAvatarPlaceholder();
+      }
+      if (data.cover_url) {
+        const coverEl = document.getElementById('cover-image');
+        coverEl.src = data.cover_url;
+        coverEl.style.display = 'block';
+      } else {
+        document.getElementById('cover-image').style.display = 'none';
+      }
+
+      // 癖好标签
+      const prefsContainer = document.getElementById('profile-preferences');
+      prefsContainer.innerHTML = (data.preferences || []).map(p => `<span class="profile-tag">${p}</span>`).join('');
+
+      // 属性标签
+      const attrsContainer = document.getElementById('profile-attributes');
+      attrsContainer.innerHTML = (data.attributes || []).map(a => `<span class="profile-tag attribute">${a}</span>`).join('');
+
+      // 属性账本
+      const masterTextEl = document.getElementById('ledger-master-text');
+      const slaveTextEl = document.getElementById('ledger-slave-text');
+
+      // 获取数据 - 优先使用 ledger_master/ledger_slave
+      let masterContent = data.ledger_master || '';
+      let slaveContent = data.ledger_slave || '';
+
+      console.log('API 返回 ledger_master:', typeof masterContent, masterContent);
+      console.log('API 返回 ledger_slave:', typeof slaveContent, slaveContent);
+
+      // 检查是否有效内容（非空且不是乱码占位符）
+      const isValidContent = (content) => content && content.trim().length > 0 && content !== '点击编辑属性定义...' && content !== '点击编辑心理侧写...';
+
+      // 设置文本内容
+      if (isValidContent(masterContent)) {
+        masterTextEl.textContent = masterContent;
+        masterTextEl.classList.remove('placeholder');
+      } else {
+        masterTextEl.textContent = '点击编辑属性定义...';
+        masterTextEl.classList.add('placeholder');
+      }
+
+      if (isValidContent(slaveContent)) {
+        slaveTextEl.textContent = slaveContent;
+        slaveTextEl.classList.remove('placeholder');
+      } else {
+        slaveTextEl.textContent = '点击编辑心理侧写...';
+        slaveTextEl.classList.add('placeholder');
+      }
+
+      // 恢复 onclick 属性
+      masterTextEl.onclick = function() { editLedger('master'); };
+      slaveTextEl.onclick = function() { editLedger('slave'); };
+
+      // 更新时间戳
+      const masterTs = document.getElementById('ledger-master-timestamp');
+      const slaveTs = document.getElementById('ledger-slave-timestamp');
+      if (data.updated_at) {
+        const d = new Date(data.updated_at);
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (isValidContent(masterContent)) masterTs.textContent = `最后审计于：${dateStr}`;
+        if (isValidContent(slaveContent)) slaveTs.textContent = `最后审计于：${dateStr}`;
+      }
+    }
+
+    // 字段编辑
+    function editField(field) {
+      const el = document.getElementById(`profile-${field}-text`);
+      let currentValue = profileData[field] ?? '';
+      if (field === 'age' && (currentValue === '--' || currentValue === '')) currentValue = '';
+      if (field === 'region' && (currentValue === '未设置地区' || currentValue === '')) currentValue = '';
+      const input = document.createElement('input');
+      input.type = field === 'age' ? 'number' : 'text';
+      input.placeholder = field === 'age' ? '年龄' : '地区';
+      input.value = currentValue;
+      input.onblur = () => saveField(field, input.value);
+      input.onkeydown = (e) => { if (e.key === 'Enter') saveField(field, input.value); };
+      el.textContent = '';
+      el.appendChild(input);
+      input.focus();
+    }
+
+    async function saveField(field, value) {
+      try {
+        await fetch('/api/audit/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ field, value })
+        });
+        loadProfile();
+      } catch(e) { console.error(e); }
+    }
+
+    // 账本编辑
+    let editingLedger = null;
+
+    function editLedger(type) {
+      if (editingLedger) return; // 防止重复编辑
+      editingLedger = type;
+
+      const el = document.getElementById(`ledger-${type}-text`);
+      const currentValue = profileData[`ledger_${type}`] || '';
+      const saveBtn = document.getElementById(`save-btn-${type}`);
+
+      // 保存按钮显示
+      saveBtn.style.display = 'flex';
+
+      // 获取占位符文本
+      const placeholder = type === 'master' ? '在此输入档案定义...' : '在此输入心理侧写...';
+      // 如果是空字符串或未定义，使用空字符串
+      const text = currentValue || '';
+
+      // 创建 textarea
+      const textarea = document.createElement('textarea');
+      textarea.className = 'ledger-textarea-editing';
+      textarea.value = text;
+      textarea.placeholder = placeholder;
+
+      // 设置样式
+      textarea.style.cssText = `
+        width: 100%;
+        min-height: 120px;
+        background: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 16px;
+        font-size: 15px;
+        line-height: 1.9;
+        resize: none;
+        outline: none;
+        font-family: inherit;
+      `;
+
+      // 自动增高
+      const autoGrow = () => {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 300) + 'px';
+      };
+      textarea.oninput = autoGrow;
+
+      // Ctrl+Enter 保存
+      textarea.onkeydown = (e) => {
+        if (e.ctrlKey && e.key === 'Enter') {
+          e.preventDefault();
+          saveLedger(type, textarea.value);
+        }
+      };
+
+      // 点击外部保存
+      textarea.onblur = () => {
+        setTimeout(() => {
+          if (editingLedger === type) {
+            saveLedger(type, textarea.value);
+          }
+        }, 200);
+      };
+
+      // 替换内容
+      el.textContent = '';
+      el.classList.add('editing');
+      el.appendChild(textarea);
+
+      setTimeout(() => {
+        textarea.focus();
+        autoGrow();
+      }, 10);
+    }
+
+    async function saveLedger(type, value) {
+      if (!editingLedger) return;
+
+      // 如果没有传入 value，尝试从 textarea 获取
+      console.log('saveLedger called:', type, 'value:', value);
+      if (value === undefined) {
+        const el = document.getElementById(`ledger-${type}-text`);
+        const textarea = el ? el.querySelector('textarea') : null;
+        console.log('textarea element:', textarea);
+        if (textarea) {
+          value = textarea.value;
+          console.log('value from textarea:', value);
+        } else {
+          value = '';
+          console.log('no textarea found, using empty string');
+        }
+      }
+
+      const el = document.getElementById(`ledger-${type}-text`);
+      const saveBtn = document.getElementById(`save-btn-${type}`);
+      const timestampEl = document.getElementById(`ledger-${type}-timestamp`);
+
+      try {
+        console.log('保存 ledger:', type, '=', value);
+        const response = await fetch('/api/audit/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ field: `ledger_${type}`, value })
+        });
+        console.log('保存响应状态:', response.status);
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || '保存失败');
+        }
+
+        // 更新显示
+        el.classList.remove('editing');
+        el.textContent = value || (type === 'master' ? '点击编辑属性定义...' : '点击编辑心理侧写...');
+        // 恢复 onclick 属性（确保保存后仍可点击编辑）
+        el.onclick = function() { editLedger(type); };
+
+        // 隐藏保存按钮
+        saveBtn.style.display = 'none';
+
+        // 更新时间戳
+        const now = new Date();
+        timestampEl.textContent = `最后审计于：${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        editingLedger = null;
+        loadProfile();
+      } catch(e) {
+        console.error('保存失败:', e);
+        alert('保存失败: ' + e.message);
+        editingLedger = null;
+      }
+    }
+
+    // Tab 切换
+    function setupTabs() {
+      document.querySelectorAll('.timeline-tab').forEach(tab => {
+        tab.onclick = () => {
+          document.querySelectorAll('.timeline-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          currentTab = tab.dataset.tab;
+          loadLogs();
+        };
+      });
+    }
+
+    // 加载日志
+    async function loadLogs() {
+      try {
+        const resp = await fetch(`/api/audit/logs?type=${currentTab}`);
+        const logs = await resp.json();
+        renderLogs(logs);
+      } catch(e) { console.error(e); }
+    }
+
+    function renderLogs(logs) {
+      const container = document.getElementById('timeline-container');
+      if (!logs || logs.length === 0) {
+        container.innerHTML = `
+          <div class="timeline-empty">
+            <i data-lucide="file-text" class="timeline-empty-icon"></i>
+            <p>暂无记录，开始你的第一篇书写</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = logs.map((log, index) => {
+        const date = new Date(log.created_at);
+        const timeStr = date.toLocaleString('zh-CN', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        const imagesHtml = (log.images || []).map(img =>
+          `<img src="${img}" onclick="openLightbox('${img}')" />`
+        ).join('');
+        const tagsHtml = (log.tags || []).map(t => `<span class="timeline-tag">#${t}</span>`).join('');
+
+        const logClass = log.role === '主人' ? 'master' : 'slave';
+
+        return `
+          <div class="timeline-item ${logClass}" style="animation-delay: ${index * 0.05}s" data-log-id="${log.id}" oncontextmenu="showContextMenu(event, ${log.id})">
+            <div class="timeline-node"></div>
+            <div class="timeline-card">
+              <div class="timeline-card-header">
+                <div class="timeline-role">
+                  <span class="timeline-role-badge">${log.role}</span>
+                </div>
+                <div class="timeline-card-actions">
+                  <button class="timeline-action-btn" onclick="editLog(${log.id})" title="编辑">
+                    <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
+                  </button>
+                  <button class="timeline-action-btn delete" onclick="deleteLog(${log.id})" title="删除">
+                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                  </button>
+                </div>
+              </div>
+              <span class="timeline-time">${timeStr}</span>
+              <div class="timeline-content">${escapeHtml(log.content)}</div>
+              ${imagesHtml ? `<div class="timeline-images">${imagesHtml}</div>` : ''}
+              ${tagsHtml ? `<div class="timeline-tags">${tagsHtml}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // 编辑/删除日志
+    let currentEditingLog = null;
+
+    async function editLog(logId) {
+      const logs = await fetch(`/api/audit/logs?type=${currentTab}`).then(r => r.json());
+      const log = logs.find(l => l.id === logId);
+      if (!log) return;
+
+      currentEditingLog = log;
+      showEditModal(log);
+    }
+
+    function showEditModal(log) {
+      const modal = document.getElementById('edit-log-modal') || createEditModal();
+      document.getElementById('edit-log-id').value = log.id;
+      document.getElementById('edit-log-content').value = log.content || '';
+      
+      // 渲染已有图片
+      const imagesContainer = document.getElementById('edit-log-images');
+      imagesContainer.innerHTML = '';
+      (log.images || []).forEach((img, idx) => {
+        const div = document.createElement('div');
+        div.className = 'edit-image-item';
+        div.innerHTML = `
+          <img src="${img}" alt="图片${idx + 1}" />
+          <button type="button" class="edit-image-remove" onclick="removeEditImage(this, '${img}')">
+            <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+          </button>
+        `;
+        imagesContainer.appendChild(div);
+      });
+      lucide.createIcons();
+
+      modal.classList.add('active');
+    }
+
+    function createEditModal() {
+      const modal = document.createElement('div');
+      modal.id = 'edit-log-modal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-content edit-log-modal-content">
+          <div class="modal-header">
+            <h3>编辑记录</h3>
+            <button class="modal-close" onclick="closeEditModal()">
+              <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="edit-log-id" />
+            <textarea id="edit-log-content" placeholder="记录内容..." rows="6"></textarea>
+            <div class="edit-images-section">
+              <label class="edit-images-label">图片（点击删除）</label>
+              <div class="edit-images-grid" id="edit-log-images"></div>
+              <label class="edit-add-image-btn">
+                <i data-lucide="plus" style="width: 16px; height: 16px;"></i> 添加图片
+                <input type="file" accept="image/*" multiple style="display:none" onchange="handleEditImageUpload(this)" />
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeEditModal()">取消</button>
+            <button class="btn-save" onclick="saveEditLog()">保存</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      lucide.createIcons();
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeEditModal();
+      });
+      return modal;
+    }
+
+    function closeEditModal() {
+      const modal = document.getElementById('edit-log-modal');
+      if (modal) modal.classList.remove('active');
+      currentEditingLog = null;
+    }
+
+    let editImagesToAdd = [];
+
+    function removeEditImage(btn, imgUrl) {
+      btn.parentElement.remove();
+      const input = document.getElementById('edit-log-id');
+      const logId = parseInt(input.value);
+      const logs = document.querySelectorAll('.timeline-item');
+      // 标记删除的图片
+      if (!currentEditingLog._removedImages) currentEditingLog._removedImages = [];
+      currentEditingLog._removedImages.push(imgUrl);
+    }
+
+    function handleEditImageUpload(input) {
+      const files = Array.from(input.files);
+      const container = document.getElementById('edit-log-images');
+      
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const div = document.createElement('div');
+          div.className = 'edit-image-item';
+          div.innerHTML = `
+            <img src="${e.target.result}" alt="新图片" />
+            <button type="button" class="edit-image-remove" onclick="this.parentElement.remove()">
+              <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+            </button>
+          `;
+          container.appendChild(div);
+          lucide.createIcons();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function saveEditLog() {
+      const logId = document.getElementById('edit-log-id').value;
+      const content = document.getElementById('edit-log-content').value;
+
+      // 收集当前显示的图片URL
+      const imagesContainer = document.getElementById('edit-log-images');
+      const images = [];
+      const newImages = [];
+
+      imagesContainer.querySelectorAll('img').forEach(img => {
+        const src = img.src;
+        if (src.startsWith('data:')) {
+          newImages.push(src);
+        } else {
+          images.push(src);
+        }
+      });
+
+      // 上传新图片
+      if (newImages.length > 0) {
+        try {
+          const formData = new FormData();
+          for (let img of newImages) {
+            const res = await fetch(img);
+            const blob = await res.blob();
+            formData.append('images', blob, 'image.jpg');
+          }
+          const resp = await fetch('/api/audit/upload-images', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await resp.json();
+          if (data.images) {
+            images.push(...data.images);
+          }
+        } catch(e) {
+          console.error('图片上传失败', e);
+        }
+      }
+
+      try {
+        await fetch(`/api/audit/logs/${logId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, images })
+        });
+        closeEditModal();
+        loadLogs();
+      } catch(e) {
+        console.error(e);
+        alert('保存失败');
+      }
+    }
+
+    async function deleteLog(logId) {
+      showConfirmModal('确定删除这条记录吗？', async () => {
+        const card = document.querySelector(`.timeline-item[data-log-id="${logId}"] .timeline-card`);
+        if (card) {
+          card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+          card.style.opacity = '0';
+          card.style.transform = 'scale(0.95)';
+        }
+        setTimeout(async () => {
+          try {
+            await fetch(`/api/audit/logs/${logId}`, { method: 'DELETE' });
+            loadLogs();
+          } catch(e) {
+            console.error(e);
+            alert('删除失败');
+          }
+        }, 300);
+      });
+    }
+
+    // 移动端长按菜单
+    let contextMenuLogId = null;
+    function showContextMenu(e, logId) {
+      e.preventDefault();
+      const existing = document.getElementById('context-menu');
+      if (existing) existing.remove();
+
+      contextMenuLogId = logId;
+      const menu = document.createElement('div');
+      menu.id = 'context-menu';
+      menu.className = 'context-menu';
+      menu.innerHTML = `
+        <button onclick="editLog(${logId}); closeContextMenu();">
+          <i data-lucide="pencil" style="width: 16px; height: 16px;"></i> 编辑
+        </button>
+        <button class="danger" onclick="deleteLog(${logId}); closeContextMenu();">
+          <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i> 删除
+        </button>
+      `;
+      document.body.appendChild(menu);
+      lucide.createIcons();
+
+      const x = Math.min(e.clientX, window.innerWidth - 140);
+      const y = Math.min(e.clientY, window.innerHeight - 100);
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
+
+      setTimeout(() => {
+        document.addEventListener('click', closeContextMenu, { once: true });
+      }, 10);
+    }
+
+    function closeContextMenu() {
+      const menu = document.getElementById('context-menu');
+      if (menu) menu.remove();
+      contextMenuLogId = null;
+    }
+
+    // 确认弹窗
+    function showConfirmModal(message, onConfirm) {
+      const existing = document.getElementById('confirm-modal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'confirm-modal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="confirm-modal-content">
+          <p>${message}</p>
+          <div class="confirm-modal-actions">
+            <button class="confirm-cancel">取消</button>
+            <button class="confirm-ok">确定</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      modal.querySelector('.confirm-cancel').onclick = () => modal.remove();
+      modal.querySelector('.confirm-ok').onclick = () => {
+        modal.remove();
+        onConfirm();
+      };
+      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+      setTimeout(() => modal.classList.add('active'), 10);
+    }
+
+    // 图片上传（模态框版本）
+    function setupImageUpload() {
+      const uploadInput = document.getElementById('image-upload-modal');
+      const textarea = document.getElementById('log-content-modal');
+
+      if (!uploadInput || !textarea) return;
+
+      uploadInput.onchange = handleModalImageFiles;
+
+      // 粘贴上传图片
+      textarea.onpaste = (e) => {
+        const items = e.clipboardData.items;
+        const files = [];
+        for (let item of items) {
+          if (item.type.startsWith('image/')) {
+            files.push(item.getAsFile());
+          }
+        }
+        if (files.length > 0) {
+          e.preventDefault();
+          handleModalImageFiles({ target: { files } });
+        }
+      };
+    }
+
+    // 处理模态框图片上传
+    function handleModalImageFiles(e) {
+      const files = Array.from(e.target.files);
+      const container = document.getElementById('modal-image-preview');
+      files.forEach(file => {
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const div = document.createElement('div');
+            div.className = 'input-modal-image-item';
+            div.innerHTML = `
+              <img src="${ev.target.result}" alt="图片" />
+              <button type="button" onclick="this.parentElement.remove()">
+                <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+              </button>
+            `;
+            container.appendChild(div);
+            lucide.createIcons();
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+      e.target.value = '';
+    }
+
+    async function handleImageFiles(e) {
+      const files = Array.from(e.target.files);
+      for (let file of files) {
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            pendingImages.push(ev.target.result);
+            renderImagePreviews();
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+      e.target.value = '';
+    }
+
+    function renderImagePreviews() {
+      const container = document.getElementById('image-preview');
+      if (pendingImages.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+      container.innerHTML = pendingImages.map((img, i) => `
+        <div class="image-preview-item">
+          <img src="${img}" />
+          <button class="remove-btn" onclick="removeImage(${i})">&times;</button>
+        </div>
+      `).join('');
+    }
+
+    function removeImage(index) {
+      pendingImages.splice(index, 1);
+      renderImagePreviews();
+    }
+
+    // 提交日志（统一模态框版本）
+    async function submitLog() {
+      const content = document.getElementById('log-content-modal').value.trim();
+      const container = document.getElementById('modal-image-preview');
+      const images = [];
+      container.querySelectorAll('img').forEach(img => images.push(img.src));
+
+      if (!content && images.length === 0) {
+        alert('请输入内容或上传图片');
+        return;
+      }
+
+      // 分离 data URL 和已上传的 URL
+      const newImages = images.filter(src => src.startsWith('data:'));
+      const existingImages = images.filter(src => !src.startsWith('data:'));
+
+      try {
+        // 先上传新图片
+        let uploadedImages = [];
+        if (newImages.length > 0) {
+          const formData = new FormData();
+          newImages.forEach(src => {
+            formData.append('images', dataURLtoBlob(src), 'image.jpg');
+          });
+          const resp = await fetch('/api/audit/upload-images', { method: 'POST', body: formData });
+          const data = await resp.json();
+          if (data.images) uploadedImages = data.images;
+        }
+
+        // 合并所有图片
+        const allImages = [...existingImages, ...uploadedImages];
+
+        // 发送 JSON 请求
+        await fetch('/api/audit/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content,
+            role: currentRole,
+            log_type: currentTab,
+            images: allImages
+          })
+        });
+
+        // 关闭模态框并刷新
+        closeInputModal();
+        loadLogs();
+      } catch(e) {
+        console.error(e);
+        alert('发布失败');
+      }
+    }
+
+    function dataURLtoBlob(dataurl) {
+      const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) u8arr[n] = bstr.charCodeAt(n);
+      return new Blob([u8arr], { type: mime });
+    }
+
+    // Lightbox
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox').classList.add('active');
+    }
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+    }
+
+    // HTML 转义
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

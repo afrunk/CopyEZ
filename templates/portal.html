@@ -2,333 +2,367 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <title>CopyEZ | 公文素材库</title>
+    <title>TAIYI | 数字化个人工作台</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      :root {
+        --color-bg: #f8fafc;
+        --color-bg-card: #ffffff;
+        --color-text-primary: #1f2937;
+        --color-text-secondary: #6b7280;
+        --color-text-muted: #9ca3af;
+        --color-brand-blue: #3b82f6;
+        --color-brand-blue-dark: #2563eb;
+        --color-brand-purple: #8b5cf6;
+        --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.04);
       }
 
       body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei',
-          sans-serif;
-        background: radial-gradient(circle at top left, #f2f6ff 0, #ffffff 48%, #f9fafb 100%);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        background: var(--color-bg);
         min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        overflow-x: hidden;
-        color: #111827;
+        color: var(--color-text-primary);
+        -webkit-font-smoothing: antialiased;
       }
 
-      .portal-container {
-        width: 100%;
-        max-width: 1120px;
-        display: grid;
-        grid-template-columns: minmax(0, 3fr) minmax(0, 2.5fr);
-        align-items: center;
+      /* 按行对齐：每行左侧介绍 + 右侧卡片 */
+      .hero-wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 48px 24px 64px;
+        display: flex;
+        flex-direction: column;
         gap: 56px;
-        padding: 56px 24px;
       }
 
-      .portal-left {
+      .hero-row {
         display: flex;
-        flex-direction: column;
-        gap: 24px;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 56px;
       }
 
-      .product-badge {
+      .hero-block {
+        flex: 1;
+        max-width: 520px;
+        padding-top: 8px;
+      }
+
+      .hero-status {
         display: inline-flex;
         align-items: center;
-        gap: 10px;
-        padding: 6px 14px;
-        border-radius: 999px;
-        background: rgba(37, 99, 235, 0.06);
-        color: #1d4ed8;
-        font-size: 12px;
-        font-weight: 500;
-        width: fit-content;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--color-text-secondary);
+        margin-bottom: 24px;
       }
 
-      .product-badge-dot {
+      .hero-status-dot {
         width: 8px;
         height: 8px;
-        border-radius: 999px;
+        border-radius: 50%;
         background: #22c55e;
-        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.25);
       }
 
-      .portal-title-main {
-        font-size: 36px;
-        line-height: 1.25;
-        font-weight: 650;
-        letter-spacing: 0.03em;
+      .hero-title {
+        font-size: 32px;
+        font-weight: 700;
+        line-height: 1.3;
+        margin-bottom: 16px;
       }
 
-      .portal-title-highlight {
-        color: #1d4ed8;
+      .hero-title .brand {
+        color: var(--color-text-primary);
       }
 
-      .portal-subtitle {
-        margin-top: 6px;
+      .hero-title .accent {
+        color: var(--color-brand-blue);
+      }
+
+      .hero-title .accent-purple {
+        color: var(--color-brand-purple);
+      }
+
+      .hero-desc {
         font-size: 15px;
-        color: #4b5563;
-        line-height: 1.8;
-        max-width: 30rem;
+        line-height: 1.75;
+        color: var(--color-text-secondary);
+        margin-bottom: 24px;
+        max-width: 480px;
       }
 
-      .portal-metadata-row {
+      .hero-features {
         display: flex;
         flex-wrap: wrap;
-        gap: 16px;
-        margin-top: 10px;
-        font-size: 12px;
-        color: #6b7280;
+        gap: 12px 20px;
+        margin-bottom: 32px;
       }
 
-      .portal-metadata-item {
+      .hero-feature {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--color-text-secondary);
+      }
+
+      .hero-feature::before {
+        content: '';
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--color-text-muted);
+      }
+
+      .hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 24px;
+        border-radius: 10px;
+        border: none;
+        font-size: 15px;
+        font-weight: 500;
+        text-decoration: none;
+        color: #fff;
+        background: linear-gradient(135deg, var(--color-brand-blue) 0%, var(--color-brand-blue-dark) 100%);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+      }
+
+      .btn-ghost {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 4px 10px;
-        border-radius: 999px;
-        background: rgba(17, 24, 39, 0.04);
-      }
-
-      .portal-metadata-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 999px;
-        background: #9ca3af;
-      }
-
-      .portal-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 18px;
-      }
-
-      .portal-primary-btn,
-      .portal-secondary-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 10px 18px;
-        border-radius: 999px;
-        border: none;
-        cursor: pointer;
+        padding: 12px 20px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
         font-size: 14px;
         font-weight: 500;
         text-decoration: none;
-        transition: all 0.18s ease-out;
+        color: var(--color-text-secondary);
+        transition: border-color 0.2s, color 0.2s;
       }
 
-      .portal-primary-btn {
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        color: #ffffff;
-        box-shadow: 0 12px 22px rgba(37, 99, 235, 0.26);
+      .btn-ghost:hover {
+        border-color: var(--color-text-muted);
+        color: var(--color-text-primary);
       }
 
-      .portal-primary-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 16px 32px rgba(37, 99, 235, 0.32);
+      .btn-primary-purple {
+        background: linear-gradient(135deg, var(--color-brand-purple) 0%, #7c3aed 100%);
+        box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
       }
 
-      .portal-secondary-btn {
-        background: rgba(255, 255, 255, 0.7);
-        color: #111827;
-        border: 1px solid rgba(148, 163, 184, 0.55);
+      .btn-primary-purple:hover {
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
       }
 
-      .portal-secondary-btn:hover {
-        background: rgba(249, 250, 251, 0.95);
-      }
-
-      .portal-arrow {
-        font-size: 15px;
-      }
-
-      .portal-right {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .portal-entry-card {
-        background: #ffffff;
-        border-radius: 22px;
-        padding: 28px 26px;
-        box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
+      /* 右侧卡片：与当行左侧区块对齐 */
+      .hero-row .floating-card {
+        flex-shrink: 0;
+        width: 360px;
+        margin-top: 8px;
+        background: var(--color-bg-card);
+        border-radius: 20px;
+        border: none;
+        padding: 26px 24px;
+        box-shadow: var(--shadow-card);
+        display: block;
         text-decoration: none;
         color: inherit;
-        display: block;
-        width: 100%;
-        max-width: 420px;
-        border: 1px solid rgba(226, 232, 240, 0.95);
-        position: relative;
-        overflow: hidden;
+        transition: box-shadow 0.25s ease, transform 0.25s ease;
       }
 
-      .portal-card-header {
+      .floating-card:hover {
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07), 0 4px 8px rgba(0, 0, 0, 0.04);
+        transform: translateY(-2px);
+      }
+
+      .card-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
+        margin-bottom: 14px;
       }
 
-      .portal-card-title {
-        font-size: 18px;
+      .card-title {
+        font-size: 16px;
         font-weight: 600;
+        color: var(--color-text-primary);
       }
 
-      .portal-card-tag {
-        font-size: 11px;
+      .card-tag {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-brand-blue);
         padding: 4px 10px;
         border-radius: 999px;
-        background: rgba(37, 99, 235, 0.06);
-        color: #1d4ed8;
+        background: rgba(59, 130, 246, 0.08);
       }
 
-      .portal-card-body-title {
-        font-size: 22px;
-        font-weight: 650;
-        margin-bottom: 8px;
+      .card-tag.card-tag-purple {
+        color: var(--color-brand-purple);
+        background: rgba(139, 92, 246, 0.1);
       }
 
-      .portal-card-body-desc {
-        font-size: 13px;
-        color: #6b7280;
+      .card-headline {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        line-height: 1.4;
+        margin-bottom: 10px;
+      }
+
+      .card-desc {
+        font-size: 14px;
         line-height: 1.7;
+        color: var(--color-text-secondary);
         margin-bottom: 18px;
       }
 
-      .portal-card-meta {
+      .card-meta {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 11px;
-        color: #9ca3af;
+        font-size: 12px;
+        color: var(--color-text-muted);
       }
 
-      .portal-card-pill {
-        padding: 3px 10px;
-        border-radius: 999px;
-        background: rgba(15, 23, 42, 0.03);
-      }
-
-      .portal-card-accent {
-        position: absolute;
-        inset: auto -46px -46px auto;
-        width: 140px;
-        height: 140px;
-        background: radial-gradient(circle at 20% 20%, #bfdbfe, #1d4ed8);
-        opacity: 0.12;
-        filter: blur(4px);
-        pointer-events: none;
+      .portal-footer {
+        text-align: center;
+        padding: 24px;
+        font-size: 12px;
+        color: var(--color-text-muted);
       }
 
       @media (max-width: 900px) {
-        .portal-container {
-          grid-template-columns: minmax(0, 1fr);
-          padding-top: 40px;
-          padding-bottom: 40px;
+        .hero-wrap {
+          padding: 32px 20px 48px;
           gap: 40px;
         }
 
-        .portal-title-main {
-          font-size: 28px;
+        .hero-row {
+          flex-direction: column;
+          align-items: stretch;
         }
 
-        .portal-subtitle {
-          font-size: 14px;
-        }
-
-        .portal-right {
-          order: -1;
-        }
-      }
-
-      @media (max-width: 600px) {
-        body {
-          justify-content: flex-start;
-        }
-
-        .portal-container {
-          padding: 24px 16px 40px;
-        }
-
-        .portal-entry-card {
-          box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
-          padding: 22px 20px;
+        .hero-row .floating-card {
+          width: 100%;
+          max-width: 400px;
+          margin-top: 0;
         }
       }
     </style>
   </head>
   <body>
-    <div class="portal-container">
-      <div class="portal-left">
-        <div class="product-badge">
-          <span class="product-badge-dot"></span>
-          已部署 · 日常写作工作台
-        </div>
-        <div>
-          <h1 class="portal-title-main">
-            CopyEZ
-            <span class="portal-title-highlight">公文素材库</span>
+    <div class="hero-wrap">
+      <!-- 第一行：CopyEZ 介绍 + 今日写作入口卡片 -->
+      <div class="hero-row">
+        <div class="hero-block">
+          <div class="hero-status">
+            <span class="hero-status-dot"></span>
+            <span>已部署 · 日常写作工作台</span>
+          </div>
+          <h1 class="hero-title">
+            <span class="brand">CopyEZ</span> <span class="accent">公文素材库</span>
           </h1>
-          <p class="portal-subtitle">
-            深度贴合公文写作逻辑，把“平时材料”变成“随手可用”的知识库。支持按要素拆分、场景检索和沉浸式阅读，让每一次落笔都有素材可依。
+          <p class="hero-desc">
+            深度贴合公文写作逻辑，把「平时材料」变成「随手可用」的知识库。支持按要素拆分、场景检索和沉浸式阅读，让每一次落笔都有素材可依。
           </p>
-        </div>
-        <div class="portal-metadata-row">
-          <span class="portal-metadata-item">
-            <span class="portal-metadata-dot"></span>
-            私有部署 · 本地数据不出机
-          </span>
-          <span class="portal-metadata-item">
-            <span class="portal-metadata-dot"></span>
-            针对公文场景优化交互
-          </span>
-          <span class="portal-metadata-item">
-            <span class="portal-metadata-dot"></span>
-            支持多维标签与要素管理
-          </span>
-        </div>
-        <div class="portal-actions">
-          <a href="{{ url_for('notes') }}" class="portal-primary-btn">
-            进入素材工作台
-            <span class="portal-arrow">↗</span>
-          </a>
-          <a href="{{ url_for('guide') }}" class="portal-secondary-btn">
-            查看使用指南
-          </a>
-        </div>
-      </div>
-
-      <div class="portal-right">
-        <a href="{{ url_for('notes') }}" class="portal-entry-card">
-          <div class="portal-card-header">
-            <div class="portal-card-title">今日写作入口</div>
-            <div class="portal-card-tag">沉浸式素材阅读</div>
+          <div class="hero-features">
+            <span class="hero-feature">私有部署 · 本地数据不出机</span>
+            <span class="hero-feature">针对公文场景优化交互</span>
+            <span class="hero-feature">支持多维标签与要素管理</span>
           </div>
-          <div>
-            <div class="portal-card-body-title">从“好段落”开始构稿</div>
-            <div class="portal-card-body-desc">
-              先浏览，再下笔。按专题、要素和场景组织公文素材，支持一键进入阅读器视图，保持写作时的专注与连贯。
-            </div>
+          <div class="hero-actions">
+            <a href="{{ url_for('notes') }}" class="btn-primary">
+              <i data-lucide="arrow-up-right" style="width: 18px; height: 18px;"></i>
+              进入素材工作台
+            </a>
+            <a href="{{ url_for('guide') }}" class="btn-ghost">查看使用指南</a>
           </div>
-          <div class="portal-card-meta">
-            <span class="portal-card-pill">支持标签筛选 · 组合检索</span>
+        </div>
+        <a href="{{ url_for('notes') }}" class="floating-card">
+          <div class="card-header">
+            <span class="card-title">今日写作入口</span>
+            <span class="card-tag">沉浸式素材阅读</span>
+          </div>
+          <p class="card-headline">从「好段落」开始构稿</p>
+          <p class="card-desc">
+            先浏览，再下笔。按专题、要素和场景组织公文素材，支持一键进入阅读器视图，保持写作时的专注与连贯。
+          </p>
+          <div class="card-meta">
+            <span>支持标签筛选 · 组合检索</span>
             <span>CopyEZ · 公文写作助手</span>
           </div>
-          <div class="portal-card-accent"></div>
+        </a>
+      </div>
+
+      <!-- 第二行：日常效能审计介绍 + 日常效能审计卡片（上下对齐） -->
+      <div class="hero-row">
+        <div class="hero-block">
+          <div class="hero-status">
+            <span class="hero-status-dot" style="background: var(--color-brand-purple);"></span>
+            <span>已部署 · 私密效能工作台</span>
+          </div>
+          <h2 class="hero-title">
+            <span class="brand">TAIYI</span> <span class="accent-purple">日常效能审计</span>
+          </h2>
+          <p class="hero-desc">
+            定期进行效能自审，沉淀底层逻辑。支持个人档案、多视角日志、多维数据分析与本地隐私加密，助力持续改进。
+          </p>
+          <div class="hero-features">
+            <span class="hero-feature">密码保护 · 数据不出本地</span>
+            <span class="hero-feature">多视角日志与标签管理</span>
+            <span class="hero-feature">支持图片上传与多维分析</span>
+          </div>
+          <div class="hero-actions">
+            <a href="{{ url_for('audit') }}" class="btn-primary btn-primary-purple">
+              <i data-lucide="arrow-up-right" style="width: 18px; height: 18px;"></i>
+              进入审计模块
+            </a>
+          </div>
+        </div>
+        <a href="{{ url_for('audit') }}" class="floating-card">
+          <div class="card-header">
+            <span class="card-title">日常效能审计</span>
+            <span class="card-tag card-tag-purple">私密记录</span>
+          </div>
+          <p class="card-headline">从「自审」开始沉淀</p>
+          <p class="card-desc">
+            定期进行效能自审，沉淀底层逻辑。支持多维数据分析与隐私加密，助力个人持续改进。
+          </p>
+          <div class="card-meta">
+            <span>支持多维分析 · 本地加密</span>
+            <span>TAIYI · 效能审计</span>
+          </div>
         </a>
       </div>
     </div>
+
+    <footer class="portal-footer">
+      <p>TAIYI v1.0 | 数字化个人工作台</p>
+    </footer>
+
+    <script>
+      lucide.createIcons();
+    </script>
   </body>
 </html>
