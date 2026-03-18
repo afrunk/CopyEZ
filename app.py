@@ -196,6 +196,53 @@ def ensure_schema():
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE memos ADD COLUMN starred_at DATETIME"))
 
+    # === AuditProfile 表的自修复迁移 ===
+    # 兼容老库：为 audit_profile 表补充 tags / ledger_master / ledger_slave 字段
+    if "audit_profile" in table_names:
+        audit_cols = [c["name"] for c in insp.get_columns("audit_profile")]
+
+        if "ledger_master" not in audit_cols:
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE audit_profile ADD COLUMN ledger_master TEXT"))
+                print("[迁移] 添加 audit_profile.ledger_master 列成功")
+            except Exception as e:
+                print(f"[迁移] 添加 audit_profile.ledger_master 列失败: {e}")
+
+        if "ledger_slave" not in audit_cols:
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE audit_profile ADD COLUMN ledger_slave TEXT"))
+                print("[迁移] 添加 audit_profile.ledger_slave 列成功")
+            except Exception as e:
+                print(f"[迁移] 添加 audit_profile.ledger_slave 列失败: {e}")
+
+        if "tags" not in audit_cols:
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE audit_profile ADD COLUMN tags TEXT DEFAULT '[]'"))
+                print("[迁移] 添加 audit_profile.tags 列成功")
+            except Exception as e:
+                print(f"[迁移] 添加 audit_profile.tags 列失败: {e}")
+
+        if "contract_json" not in audit_cols:
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE audit_profile ADD COLUMN contract_json TEXT"))
+                print("[迁移] 添加 audit_profile.contract_json 列成功")
+            except Exception as e:
+                print(f"[迁移] 添加 audit_profile.contract_json 列失败: {e}")
+
+    # 创建 visit_log 表（/audit 访问记录，供 /a 监控页使用）
+    if "visit_log" not in table_names:
+        db.create_all()
+        print("[迁移] 创建 visit_log 表成功")
+
+    # 创建 audit_action_log 表（档案/契约/时间轴等操作记录）
+    if "audit_action_log" not in table_names:
+        db.create_all()
+        print("[迁移] 创建 audit_action_log 表成功")
+
 
 def _init_preset_categories():
     """初始化预置的二级分类到数据库"""
@@ -313,6 +360,50 @@ def decrypt_content(encrypted_content):
         return "[解密失败]"
 
 
+class VisitLog(db.Model):
+    """访问日志"""
+    __tablename__ = "visit_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    visited_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    ip_address = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(500), nullable=True)
+    is_admin = db.Column(db.Boolean, default=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "visited_at": self.visited_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "ip_address": self.ip_address or "-",
+            "user_agent": self.user_agent or "-",
+            "is_admin": self.is_admin,
+        }
+
+
+class AuditActionLog(db.Model):
+    """审计操作日志（档案/契约/时间轴等增删改）"""
+    __tablename__ = "audit_action_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    ip_address = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(500), nullable=True)
+    is_admin = db.Column(db.Boolean, default=False)
+    action_type = db.Column(db.String(64), nullable=False)   # 如：更新档案、契约确认签署、新增时间轴记录
+    action_detail = db.Column(db.String(200), nullable=True)  # 如：标签、姓名、contract_json
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "ip_address": self.ip_address or "-",
+            "user_agent": self.user_agent or "-",
+            "is_admin": self.is_admin,
+            "action_type": self.action_type,
+            "action_detail": self.action_detail or "",
+        }
+
+
 class AuditProfile(db.Model):
     """审计档案 - 个人信息"""
     __tablename__ = "audit_profile"
@@ -329,6 +420,10 @@ class AuditProfile(db.Model):
     # 属性账本
     ledger_master = db.Column(db.Text, nullable=True)   # 主人视角 - 档案定义
     ledger_slave = db.Column(db.Text, nullable=True)    # 母狗视角 - 心理侧写
+    # 核心属性标签 - JSON 数组存储
+    tags = db.Column(db.Text, nullable=True)  # JSON 字符串
+    # 权力交换契约 - JSON 存储
+    contract_json = db.Column(db.Text, nullable=True)  # JSON 字符串
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -361,6 +456,8 @@ class AuditProfile(db.Model):
             "attributes": json.loads(self.attributes) if self.attributes else [],
             "ledger_master": fix_encoding(self.ledger_master),
             "ledger_slave": fix_encoding(self.ledger_slave),
+            "tags": json.loads(self.tags) if self.tags else [],
+            "contract_json": self.contract_json,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -2965,24 +3062,157 @@ def api_memo_detail(memo_id: int):
 AUDIT_PASSWORD = os.environ.get("AUDIT_PASSWORD", "")
 
 
+def _record_audit_action(req, action_type, action_detail=None):
+    """记录一次审计相关操作（档案/契约/时间轴等）"""
+    xff = req.headers.get("X-Forwarded-For", "")
+    ip = xff.split(",")[0].strip() if xff else req.remote_addr
+    is_admin = req.cookies.get("is_admin", "") == "true"
+    ua = req.headers.get("User-Agent", "")[:500]
+    detail = (action_detail or "")[:200]
+    try:
+        log = AuditActionLog(
+            ip_address=ip, user_agent=ua, is_admin=is_admin,
+            action_type=action_type, action_detail=detail
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as e:
+        err_msg = str(e).lower()
+        if "no such table" in err_msg or "audit_action_log" in err_msg:
+            try:
+                db.create_all()
+                db.session.add(AuditActionLog(
+                    ip_address=ip, user_agent=ua, is_admin=is_admin,
+                    action_type=action_type, action_detail=detail
+                ))
+                db.session.commit()
+            except Exception:
+                pass
+        else:
+            print(f"[AuditActionLog] 记录失败: {e}")
+
+
+def _record_visit(req, is_admin_visit=False):
+    """记录一次访问"""
+    try:
+        xff = req.headers.get("X-Forwarded-For", "")
+        ip = xff.split(",")[0].strip() if xff else req.remote_addr
+        log = VisitLog(
+            ip_address=ip,
+            user_agent=req.headers.get("User-Agent", "")[:500],
+            is_admin=is_admin_visit
+        )
+        db.session.add(log)
+        db.session.commit()
+        print(f"[VisitLog] 记录成功 ip={ip} is_admin={is_admin_visit}")
+    except Exception as e:
+        # 表不存在时（如用 flask run 启动未执行 create_all）自动建表并重试一次
+        err_msg = str(e).lower()
+        if "no such table" in err_msg or "visit_log" in err_msg:
+            try:
+                db.create_all()
+                xff = req.headers.get("X-Forwarded-For", "")
+                ip = xff.split(",")[0].strip() if xff else req.remote_addr
+                ua = req.headers.get("User-Agent", "")[:500]
+                db.session.add(VisitLog(ip_address=ip, user_agent=ua, is_admin=is_admin_visit))
+                db.session.commit()
+                print(f"[VisitLog] 建表后补录成功 ip={ip} is_admin={is_admin_visit}")
+                return
+            except Exception as e2:
+                print(f"[VisitLog] 建表后仍失败: {e2}")
+        print(f"[VisitLog] 记录失败: {e}")
+
+
 @app.route("/audit")
 def audit():
     """日常效能审计 - 私密模块"""
-    # 检查密码
     password = request.args.get("password", "")
     stored_password = request.cookies.get("audit_password", "")
+    is_admin_flag = request.cookies.get("is_admin", "") == "true"
+    is_new_admin = request.args.get("auth", "") == "master"
 
     if password == AUDIT_PASSWORD:
-        # 密码正确，保存到 cookie
         response = make_response(render_template("audit.html"))
-        response.set_cookie("audit_password", password, max_age=60*60*24*30)  # 30天
+        response.set_cookie("audit_password", password, max_age=60*60*24*30)
+        _record_visit(request, is_admin_visit=is_admin_flag)
+        _record_audit_visit(request, is_admin_flag)
         return response
 
     if stored_password != AUDIT_PASSWORD:
-        # 需要密码，显示密码输入页面
         return render_template("audit_login.html", error=request.args.get("error", ""))
 
+    # ?auth=master → 设置长期 is_admin cookie
+    if is_new_admin:
+        response = make_response(render_template("audit.html"))
+        response.set_cookie("is_admin", "true", max_age=60*60*24*365)
+        _record_visit(request, is_admin_visit=True)
+        _record_audit_visit(request, True)
+        return response
+
+    _record_visit(request, is_admin_visit=is_admin_flag)
+    _record_audit_visit(request, is_admin_flag)
     return render_template("audit.html")
+
+
+def _record_audit_visit(req, is_admin=False):
+    """访问审计页面时，在 AuditLog 中创建访问记录"""
+    try:
+        xff = req.headers.get("X-Forwarded-For", "")
+        ip = xff.split(",")[0].strip() if xff else req.remote_addr
+        role = "管理员" if is_admin else "访客"
+        log = AuditLog(
+            content=f"📋 访问审计页面",
+            role=role,
+            log_type="master",
+            images="[]"
+        )
+        db.session.add(log)
+        db.session.commit()
+        print(f"[AuditLog] 访问记录成功 ip={ip} role={role}")
+    except Exception as e:
+        print(f"[AuditLog] 访问记录失败: {e}")
+
+
+@app.route("/monitor")
+def audit_monitor():
+    """访问监控看板"""
+    return render_template("audit_monitor.html")
+
+
+@app.route("/api/logs", methods=["GET"])
+def get_visit_logs():
+    """获取访问 + 操作日志合并列表（供 /a 监控页）"""
+    try:
+        events = []
+        for log in VisitLog.query.order_by(VisitLog.visited_at.desc()).limit(150).all():
+            events.append({
+                "type": "visit",
+                "id": f"v{log.id}",
+                "at": log.visited_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "ip_address": log.ip_address or "-",
+                "is_admin": log.is_admin,
+                "action_type": "访问页面",
+                "action_detail": "",
+            })
+        for log in AuditActionLog.query.order_by(AuditActionLog.created_at.desc()).limit(150).all():
+            events.append({
+                "type": "action",
+                "id": f"a{log.id}",
+                "at": log.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "ip_address": log.ip_address or "-",
+                "is_admin": log.is_admin,
+                "action_type": log.action_type or "",
+                "action_detail": log.action_detail or "",
+            })
+        events.sort(key=lambda x: x["at"], reverse=True)
+        return jsonify(events[:250])
+    except Exception as e:
+        if "no such table" in str(e).lower():
+            try:
+                db.create_all()
+            except Exception:
+                pass
+        return jsonify([])
 
 
 @app.route("/api/audit/verify", methods=["POST"])
@@ -3021,6 +3251,19 @@ def audit_get_profile():
                 db.session.commit()
             except:
                 pass
+        if 'tags' not in columns:
+            try:
+                from sqlalchemy import text
+                conn = db.engine.connect()
+                conn.execute(text('ALTER TABLE audit_profile ADD COLUMN tags TEXT'))
+                conn.commit()
+                conn.close()
+            except:
+                try:
+                    db.session.execute(db.text('ALTER TABLE audit_profile ADD COLUMN tags TEXT'))
+                    db.session.commit()
+                except:
+                    pass
 
         profile = AuditProfile.query.first()
         if not profile:
@@ -3065,6 +3308,26 @@ def audit_update_profile():
                     print("添加 ledger_slave 列成功")
                 except Exception as e:
                     print(f"添加 ledger_slave 失败: {e}")
+            if 'tags' not in columns:
+                try:
+                    # 使用原始连接执行，避免 ORM 缓存问题
+                    from sqlalchemy import text
+                    conn = db.engine.connect()
+                    conn.execute(text('ALTER TABLE audit_profile ADD COLUMN tags TEXT'))
+                    conn.commit()
+                    conn.close()
+                    print("添加 tags 列成功")
+                    # 刷新元数据
+                    db.session.expire_all()
+                except Exception as e:
+                    print(f"添加 tags 失败: {e}")
+                    # 尝试使用 db.session 执行
+                    try:
+                        db.session.execute(db.text('ALTER TABLE audit_profile ADD COLUMN tags TEXT'))
+                        db.session.commit()
+                        print("添加 tags 列成功(备用方法)")
+                    except Exception as e2:
+                        print(f"备用方法也失败: {e2}")
         except Exception as col_err:
             print(f"列检查警告: {col_err}")
 
@@ -3095,12 +3358,45 @@ def audit_update_profile():
             profile.ledger_master = value
         elif field == "ledger_slave":
             profile.ledger_slave = value
+        elif field == "tags":
+            profile.tags = json.dumps(value) if isinstance(value, list) else value
+        elif field == "contract_json":
+            profile.contract_json = value
 
         db.session.commit()
         print("保存成功")
+        # 操作记录：区分契约签署与普通档案更新
+        if field == "contract_json" and value:
+            try:
+                c = json.loads(value) if isinstance(value, str) else value
+                if c.get("signed"):
+                    _record_audit_action(request, "契约确认签署", None)
+                else:
+                    _record_audit_action(request, "更新档案", "契约")
+            except Exception:
+                _record_audit_action(request, "更新档案", "契约")
+        else:
+            field_label = {"name": "姓名", "age": "年龄", "region": "地区", "preferences": "癖好",
+                           "attributes": "属性", "ledger_master": "主人账本", "ledger_slave": "母狗账本", "tags": "标签"}.get(field, field)
+            _record_audit_action(request, "更新档案", field_label)
         return jsonify({"success": True})
     except Exception as e:
         traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/audit/contract/reset", methods=["POST"])
+def audit_reset_contract():
+    """将契约状态重置为未确认（上传服务器前或需要重新签署时使用）"""
+    try:
+        profile = AuditProfile.query.first()
+        if not profile:
+            return jsonify({"success": True, "message": "无档案"})
+        profile.contract_json = None
+        db.session.commit()
+        _record_audit_action(request, "契约重置为未确认", None)
+        return jsonify({"success": True, "message": "契约已重置为未确认"})
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
@@ -3133,7 +3429,7 @@ def audit_upload_avatar():
         db.session.add(profile)
     profile.avatar_url = relative_url
     db.session.commit()
-
+    _record_audit_action(request, "上传头像", None)
     return jsonify({"success": True, "avatar_url": relative_url})
 
 
@@ -3160,7 +3456,7 @@ def audit_upload_cover():
         db.session.add(profile)
     profile.cover_url = relative_url
     db.session.commit()
-
+    _record_audit_action(request, "上传封面", None)
     return jsonify({"success": True, "cover_url": relative_url})
 
 
@@ -3206,7 +3502,7 @@ def audit_create_log():
     )
     db.session.add(log)
     db.session.commit()
-
+    _record_audit_action(request, "新增时间轴记录", log_type)
     return jsonify({"success": True, "log": log.to_dict()})
 
 
@@ -3240,6 +3536,7 @@ def audit_update_log(log_id):
         log.images = json.dumps(data["images"]) if data["images"] else "[]"
     
     db.session.commit()
+    _record_audit_action(request, "编辑时间轴记录", str(log_id))
     return jsonify({"success": True, "log": log.to_dict()})
 
 
@@ -3249,6 +3546,7 @@ def audit_delete_log(log_id):
     log = AuditLog.query.get_or_404(log_id)
     db.session.delete(log)
     db.session.commit()
+    _record_audit_action(request, "删除时间轴记录", str(log_id))
     return jsonify({"success": True})
 
 
