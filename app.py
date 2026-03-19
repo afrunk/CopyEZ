@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone, tzinfo
 import os
 import re
 import traceback
@@ -13,6 +13,13 @@ from markupsafe import Markup
 import json
 import markdown
 import bleach
+
+# ── 北京时间（UTC+8）工具函数 ──────────────────────────────────────────────
+BJ_TZ = timezone(timedelta(hours=8))
+
+def now_bj():
+    """返回当前北京时间（避免使用 utcnow 导致 ±8h 误差）"""
+    return datetime.now(BJ_TZ)
 from werkzeug.utils import secure_filename
 from uuid import uuid4
 from werkzeug.exceptions import HTTPException
@@ -263,9 +270,9 @@ class Note(db.Model):
     title = db.Column(db.String(255), nullable=False)
     tags = db.Column(db.String(255), nullable=True)  # 保留旧字段以兼容
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_bj)
     # 记录最近一次编辑时间，支持"二次加工 / 修改"场景
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=now_bj, onupdate=now_bj)
     # 存储划线的位置、颜色和批注内容（JSON 格式）
     annotations = db.Column(db.Text, nullable=True)
     # 存储右侧总体的深度思考笔记
@@ -306,7 +313,7 @@ class Memo(db.Model):
     content = db.Column(db.Text, nullable=False)
     # 由 #标签 自动提取后存入，多个标签用逗号分隔（展示时再拆分）
     tags = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=now_bj, index=True)
     # 置顶/星标（用于重要 memo 快速归档）
     is_pinned = db.Column(db.Boolean, default=False, nullable=False)
     is_starred = db.Column(db.Boolean, default=False, nullable=False)
@@ -365,7 +372,7 @@ class VisitLog(db.Model):
     __tablename__ = "visit_log"
 
     id = db.Column(db.Integer, primary_key=True)
-    visited_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    visited_at = db.Column(db.DateTime, default=now_bj, nullable=False)
     ip_address = db.Column(db.String(64), nullable=True)
     user_agent = db.Column(db.String(500), nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
@@ -385,7 +392,7 @@ class AuditActionLog(db.Model):
     __tablename__ = "audit_action_log"
 
     id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_bj, nullable=False)
     ip_address = db.Column(db.String(64), nullable=True)
     user_agent = db.Column(db.String(500), nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
@@ -424,8 +431,8 @@ class AuditProfile(db.Model):
     tags = db.Column(db.Text, nullable=True)  # JSON 字符串
     # 权力交换契约 - JSON 存储
     contract_json = db.Column(db.Text, nullable=True)  # JSON 字符串
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_bj)
+    updated_at = db.Column(db.DateTime, default=now_bj, onupdate=now_bj)
 
     def to_dict(self):
         import codecs
@@ -478,7 +485,7 @@ class AuditLog(db.Model):
     tags = db.Column(db.String(255), nullable=True)
     # 日记类型：master（主视角）/ slave（次视角）
     log_type = db.Column(db.String(20), nullable=False, default="master")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=now_bj, index=True)
 
     @property
     def content(self):
@@ -524,7 +531,7 @@ class CustomCategory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
     main_category = db.Column(db.String(50), nullable=True)  # 关联的一级分类（可选）
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_bj)
     
     def to_dict(self):
         return {
@@ -1574,7 +1581,7 @@ def notes():
         try:
             log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "notes_error.log")
             with open(log_path, "a", encoding="utf-8") as f:
-                f.write("\n===== /notes Exception at {} =====\n".format(datetime.utcnow().isoformat()))
+                f.write("\n===== /notes Exception at {} =====\n".format(now_bj().isoformat()))
                 f.write(f"Type: {type(e)}\n")
                 f.write(f"Detail: {repr(e)}\n")
                 f.write(traceback.format_exc())
@@ -1726,8 +1733,7 @@ def api_activity_stats():
     - 仅按天聚合，不区分具体时间
     - 始终覆盖从 (now - 364 天) 到 today 共 365 天，避免因为数据缺失导致前端“截断”
     """
-    # 使用 datetime.now() 作为时间基准，确保以当前系统时间为参照
-    now = datetime.now()
+    now = now_bj()
     today = now.date()
     start_date = today - timedelta(days=364)
 
@@ -2169,10 +2175,10 @@ def note_global_thought(note_id: int):
         data = request.get_json()
         # 块状化存储：每个笔记块作为独立记录
         thought_data = {
-            "id": data.get("id") or f"thought_{datetime.utcnow().timestamp()}_{note_id}",
+            "id": data.get("id") or f"thought_{now_bj().timestamp()}_{note_id}",
             "content": data.get("content", ""),
-            "created_at": data.get("created_at") or datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "created_at": data.get("created_at") or now_bj().isoformat(),
+            "updated_at": now_bj().isoformat()
         }
         
         # 解析现有的笔记块列表
@@ -2343,7 +2349,7 @@ def new_note():
         categories_by_main[main].append(cat.name)
     
     # 默认发布日期：当天日期
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = now_bj().strftime("%Y-%m-%d")
 
     return render_template(
         "new.html",
@@ -2426,7 +2432,7 @@ def edit_note(note_id: int):
         note.publishDate = publishDate
         note.sourceUrl = sourceUrl
         note.set_tags_list(tags_list)
-        note.updated_at = datetime.utcnow()
+        note.updated_at = now_bj()
 
         # 提交数据库事务，确保数据写入成功
         try:
@@ -3006,7 +3012,7 @@ def api_memo_pin(memo_id: int):
         pinned = bool(pinned)
 
     memo.is_pinned = pinned
-    memo.pinned_at = datetime.utcnow() if pinned else None
+    memo.pinned_at = now_bj() if pinned else None
     db.session.commit()
     return jsonify({"success": True, "memo": memo.to_dict()}), 200
 
@@ -3025,7 +3031,7 @@ def api_memo_star(memo_id: int):
         starred = bool(starred)
 
     memo.is_starred = starred
-    memo.starred_at = datetime.utcnow() if starred else None
+    memo.starred_at = now_bj() if starred else None
     db.session.commit()
     return jsonify({"success": True, "memo": memo.to_dict()}), 200
 
@@ -3135,7 +3141,6 @@ def audit():
         response = make_response(render_template("audit.html"))
         response.set_cookie("audit_password", password, max_age=60*60*24*30)
         _record_visit(request, is_admin_visit=is_admin_flag)
-        _record_audit_visit(request, is_admin_flag)
         return response
 
     if stored_password != AUDIT_PASSWORD:
@@ -3146,31 +3151,10 @@ def audit():
         response = make_response(render_template("audit.html"))
         response.set_cookie("is_admin", "true", max_age=60*60*24*365)
         _record_visit(request, is_admin_visit=True)
-        _record_audit_visit(request, True)
         return response
 
     _record_visit(request, is_admin_visit=is_admin_flag)
-    _record_audit_visit(request, is_admin_flag)
     return render_template("audit.html")
-
-
-def _record_audit_visit(req, is_admin=False):
-    """访问审计页面时，在 AuditLog 中创建访问记录"""
-    try:
-        xff = req.headers.get("X-Forwarded-For", "")
-        ip = xff.split(",")[0].strip() if xff else req.remote_addr
-        role = "管理员" if is_admin else "访客"
-        log = AuditLog(
-            content=f"📋 访问审计页面",
-            role=role,
-            log_type="master",
-            images="[]"
-        )
-        db.session.add(log)
-        db.session.commit()
-        print(f"[AuditLog] 访问记录成功 ip={ip} role={role}")
-    except Exception as e:
-        print(f"[AuditLog] 访问记录失败: {e}")
 
 
 @app.route("/monitor")
@@ -3462,10 +3446,13 @@ def audit_upload_cover():
 
 @app.route("/api/audit/logs", methods=["GET"])
 def audit_get_logs():
-    """获取审计日志列表"""
+    """获取审计日志列表（排除「访问审计页面」等系统访问记录）"""
     log_type = request.args.get("type", "master")
-    logs = AuditLog.query.filter_by(log_type=log_type).order_by(AuditLog.created_at.desc()).limit(100).all()
-    return jsonify([log.to_dict() for log in logs])
+    logs = AuditLog.query.filter_by(log_type=log_type).order_by(AuditLog.created_at.desc()).limit(150).all()
+    # 不展示访问记录类内容，只展示用户写的记录
+    skip_prefixes = ("访问审计页面", "📋 访问审计页面")
+    filtered = [log for log in logs if not any(((log.content or "").strip().startswith(p) for p in skip_prefixes))]
+    return jsonify([log.to_dict() for log in filtered[:100]])
 
 
 @app.route("/api/audit/logs", methods=["POST"])
