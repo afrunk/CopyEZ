@@ -250,6 +250,27 @@ def ensure_schema():
         db.create_all()
         print("[迁移] 创建 audit_action_log 表成功")
 
+    # 创建 visit_alias 表（访客 IP 自定义名称）
+    if "visit_alias" not in table_names:
+        db.create_all()
+        print("[迁移] 创建 visit_alias 表成功")
+
+
+_schema_ensured = False
+
+
+@app.before_request
+def _ensure_schema_once():
+    """首次请求时确保 visit_log 等表已创建（兼容 flask run 未执行 ensure_schema 的情况）"""
+    global _schema_ensured
+    if _schema_ensured:
+        return
+    try:
+        ensure_schema()
+        _schema_ensured = True
+    except Exception:
+        pass
+
 
 def _init_preset_categories():
     """初始化预置的二级分类到数据库"""
@@ -385,6 +406,16 @@ class VisitLog(db.Model):
             "user_agent": self.user_agent or "-",
             "is_admin": self.is_admin,
         }
+
+
+class VisitAlias(db.Model):
+    """访客 IP 自定义名称"""
+    __tablename__ = "visit_alias"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ip_address = db.Column(db.String(64), unique=True, nullable=False)
+    alias_name = db.Column(db.String(100), nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_bj, onupdate=now_bj)
 
 
 class AuditActionLog(db.Model):
@@ -3159,8 +3190,10 @@ def audit():
 
 @app.route("/monitor")
 def audit_monitor():
-    """访问监控看板"""
-    return render_template("audit_monitor.html")
+    """访问监控看板（无需登录，仅凭链接即可查看）"""
+    _record_audit_action(request, "查看监控页", None)
+    is_admin = request.cookies.get("is_admin", "") == "true"
+    return render_template("audit_monitor.html", IS_ADMIN=is_admin)
 
 
 @app.route("/api/logs", methods=["GET"])
@@ -3189,14 +3222,74 @@ def get_visit_logs():
                 "action_detail": log.action_detail or "",
             })
         events.sort(key=lambda x: x["at"], reverse=True)
-        return jsonify(events[:250])
+        events = events[:250]
+
+        # 曾完成「契约确认签署」的分组键（与监控页 guest:/admin: + IP 一致），全表查询不受 250 条截断影响
+        contract_keys = []
+        try:
+            rows = (
+                db.session.query(AuditActionLog.ip_address, AuditActionLog.is_admin)
+                .filter(AuditActionLog.action_type == "契约确认签署")
+                .distinct()
+                .all()
+            )
+            for ip_addr, is_adm in rows:
+                ip_norm = (ip_addr or "-").strip() or "-"
+                prefix = "admin:" if is_adm else "guest:"
+                contract_keys.append(prefix + ip_norm)
+        except Exception:
+            pass
+
+        return jsonify({"events": events, "contract_signed_keys": contract_keys})
     except Exception as e:
         if "no such table" in str(e).lower():
             try:
                 db.create_all()
             except Exception:
                 pass
-        return jsonify([])
+        return jsonify({"events": [], "contract_signed_keys": []})
+
+
+@app.route("/api/visit-aliases", methods=["GET"])
+def get_visit_aliases():
+    """获取所有 IP → 自定义名称（供监控页展示）"""
+    try:
+        rows = VisitAlias.query.all()
+        return jsonify({r.ip_address: r.alias_name for r in rows})
+    except Exception as e:
+        if "no such table" in str(e).lower():
+            try:
+                db.create_all()
+            except Exception:
+                pass
+        return jsonify({})
+
+
+@app.route("/api/visit-aliases", methods=["POST"])
+def set_visit_alias():
+    """为某 IP 设置/更新自定义名称（监控页为私密链接，不设鉴权；仅作展示用昵称）"""
+    try:
+        data = request.get_json() or {}
+        ip = (data.get("ip") or "").strip()
+        name = (data.get("name") or "").strip()
+        if not ip:
+            return jsonify({"error": "ip required"}), 400
+        alias = VisitAlias.query.filter_by(ip_address=ip).first()
+        if not name or name == ip:
+            # 清空昵称：删除记录，前端恢复显示 IP
+            if alias:
+                db.session.delete(alias)
+            db.session.commit()
+            return jsonify({"success": True, "ip": ip, "name": ip, "cleared": True})
+        if alias:
+            alias.alias_name = name[:100]
+        else:
+            alias = VisitAlias(ip_address=ip, alias_name=name[:100])
+            db.session.add(alias)
+        db.session.commit()
+        return jsonify({"success": True, "ip": ip, "name": alias.alias_name})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/audit/verify", methods=["POST"])
