@@ -1351,6 +1351,12 @@ def index():
     return render_template("portal.html")
 
 
+@app.route("/ORC_documents")
+def orc_documents():
+    """ORC_documents 产品介绍页"""
+    return render_template("landing.html")
+
+
 @app.route("/notes")
 def notes():
     """笔记列表页：扁平化列表，按创建日期分组展示，支持分类过滤和搜索"""
