@@ -29,6 +29,15 @@
       }
 
       /* 按行对齐：每行左侧介绍 + 右侧卡片 */
+      /* 第二行：左侧卡片 + 右侧介绍 */
+      .hero-row.reverse {
+        flex-direction: row-reverse;
+      }
+
+      .hero-row.reverse .hero-block {
+        padding-top: 24px;
+      }
+      
       .hero-wrap {
         max-width: 1100px;
         margin: 0 auto;
@@ -313,6 +322,48 @@
             <span>CopyEZ · 公文写作助手</span>
           </div>
         </a>
+      </div>
+
+      <!-- 第二行：ORC_documents 产品入口（右侧卡片 + 左侧介绍） -->
+      <div class="hero-row reverse">
+        <a href="{{ url_for('orc_documents') }}" class="floating-card">
+          <div class="card-header">
+            <span class="card-title">ORC_documents</span>
+            <span class="card-tag card-tag-purple">客户智能分配</span>
+          </div>
+          <p class="card-headline">让每一条客户线索都能得到及时响应</p>
+          <p class="card-desc">
+            智能地域派单 · 超时自动重派 · 公海资源激活 · 多维数据洞察
+          </p>
+          <div class="card-meta">
+            <span>私有化部署 · 数据自主可控</span>
+            <span>申请演示 →</span>
+          </div>
+        </a>
+        <div class="hero-block">
+          <div class="hero-status">
+            <span class="hero-status-dot" style="background: #8b5cf6;"></span>
+            <span>客户智能分配管理系统</span>
+          </div>
+          <h2 class="hero-title">
+            <span class="brand">精准分配</span> <span class="accent-purple">高效流转</span>
+          </h2>
+          <p class="hero-desc">
+            一套系统，实现从线索录入到业务转化的全链路闭环管理。告别经验判断与逐个查找，智能地域派单让每一条商机都能得到及时响应。
+          </p>
+          <div class="hero-features">
+            <span class="hero-feature">7×24h 全天候自动运行</span>
+            <span class="hero-feature">100% 数据本地存储</span>
+            <span class="hero-feature">全程操作可追溯</span>
+          </div>
+          <div class="hero-actions">
+            <a href="{{ url_for('orc_documents') }}" class="btn-primary btn-primary-purple">
+              <i data-lucide="layout-dashboard" style="width: 18px; height: 18px;"></i>
+              了解更多
+            </a>
+            <a href="{{ url_for('orc_documents') }}" class="btn-ghost">申请演示</a>
+          </div>
+        </div>
       </div>
     </div>
 
