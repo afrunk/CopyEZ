@@ -1,0 +1,177 @@
+{% extends "ledger/base.html" %}
+
+{% block title %}统计分析 - LedgerEZ{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>统计分析</h1>
+    <p>通过大分类看哪里花钱最明显</p>
+  </div>
+</div>
+
+<div class="chip-row" id="statsViewChips" style="margin-bottom:12px">
+  <button class="chip view-me active" onclick="setStatsView('me', this)">我的统计</button>
+  <button class="chip view-wife" id="partnerStatsChip" onclick="setStatsView('partner', this)" style="display:none">对方统计</button>
+  <button class="chip view-combined" id="combinedStatsChip" onclick="setStatsView('combined', this)" style="display:none">共同统计</button>
+</div>
+
+<!-- Not bound tip - compact strip -->
+<div id="notBoundTip" class="not-bound-strip" style="display:none;margin-bottom:12px">
+  <span>🔗 绑定对方账本后可查看共同统计</span>
+  <a href="/ledger/settings" class="btn btn-sm btn-outline">去绑定</a>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid g4">
+  <div class="card stat-card">
+    <div class="stat-label">本月收入</div>
+    <div class="stat-money income" id="statsIncome">¥0.00</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">本月支出</div>
+    <div class="stat-money expense" id="statsExpense">¥0.00</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">本月结余</div>
+    <div class="stat-money neutral" id="statsBalance">¥0.00</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">最高支出分类</div>
+    <div class="stat-money neutral" id="statsTopCategory" style="font-size:18px">-</div>
+  </div>
+</div>
+
+<!-- Chart & Ranking -->
+<div class="section chart-layout">
+  <div class="card">
+    <div class="section-header">
+      <h3>支出类别占比</h3>
+      <span class="muted" id="chartSubtitle">我的账本</span>
+    </div>
+    <div class="donut-wrap" id="statsDonutWrap">
+      <div class="donut" id="statsDonut">
+        <div class="donut-center">
+          <div class="donut-center-amount" id="statsDonutTotal">¥0</div>
+          <div class="donut-center-label">总支出</div>
+        </div>
+      </div>
+      <div class="rank" id="statsRank"></div>
+    </div>
+    <div class="donut-empty" id="statsDonutEmpty" style="display:none">
+      <span>暂无支出数据</span>
+    </div>
+  </div>
+  <div class="card">
+    <h3 class="card-title">月度提醒</h3>
+    <div class="record-list" id="statsAlerts">
+      <div class="small-empty">暂无提醒</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentStatsView = 'me';
+let isBound = false;
+
+async function checkBindStatus() {
+  try {
+    const res = await fetch('/ledger/api/bind-status');
+    const data = await res.json();
+    isBound = data.bound;
+    
+    if (isBound) {
+      document.getElementById('partnerStatsChip').style.display = '';
+      document.getElementById('combinedStatsChip').style.display = '';
+      document.getElementById('notBoundTip').style.display = 'none';
+    } else {
+      document.getElementById('notBoundTip').style.display = 'flex';
+    }
+  } catch(e) {
+    document.getElementById('notBoundTip').style.display = 'flex';
+  }
+}
+
+function setStatsView(view, btn) {
+  document.querySelectorAll('#statsViewChips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  
+  currentStatsView = view;
+  
+  // Update subtitle
+  const subtitles = {'me': '我的账本', 'partner': '对方账本', 'combined': '共同账本'};
+  document.getElementById('chartSubtitle').textContent = subtitles[view] || '我的账本';
+  
+  loadStats();
+}
+
+async function loadStats() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  
+  try {
+    const res = await fetch(`/ledger/api/stats/monthly?year=${year}&month=${month}&view=${currentStatsView}`);
+    const data = await res.json();
+    
+    document.getElementById('statsIncome').textContent = '¥' + fmt(data.income);
+    document.getElementById('statsExpense').textContent = '¥' + fmt(data.expense);
+    document.getElementById('statsBalance').textContent = '¥' + fmt(data.balance);
+    document.getElementById('statsTopCategory').textContent = data.category_breakdown[0]?.name || '-';
+    document.getElementById('statsDonutTotal').textContent = '¥' + fmt(data.expense);
+    
+    renderDonut('statsDonut', data.category_breakdown, data.expense);
+    renderRank('statsRank', data.category_breakdown);
+    
+    // Toggle donut empty state
+    const hasData = data.category_breakdown && data.category_breakdown.length > 0 && data.expense > 0;
+    document.getElementById('statsDonutWrap').style.display = hasData ? 'grid' : 'none';
+    document.getElementById('statsDonutEmpty').style.display = hasData ? 'none' : 'block';
+    
+    const alerts = [];
+    if (data.category_breakdown[0]) {
+      const pct = data.expense > 0 ? ((data.category_breakdown[0].amount / data.expense) * 100).toFixed(0) : 0;
+      alerts.push({
+        icon: '💡',
+        title: '支出最高分类',
+        desc: `${data.category_breakdown[0].name} 占比 ${pct}%`
+      });
+    }
+    if (data.expense > 5000) {
+      alerts.push({
+        icon: '⚠️',
+        title: '支出较高',
+        desc: '本月支出已超过 ¥5000，请注意控制'
+      });
+    }
+    
+    const alertsEl = document.getElementById('statsAlerts');
+    if (alerts.length) {
+      alertsEl.innerHTML = alerts.map(a => `
+        <div class="record">
+          <div class="record-icon expense">${a.icon}</div>
+          <div class="record-info">
+            <strong>${a.title}</strong>
+            <small>${a.desc}</small>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      alertsEl.innerHTML = '<div class="small-empty">暂无提醒</div>';
+    }
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initApp().then(async () => {
+    highlightNav();
+    await checkBindStatus();
+    loadStats();
+  });
+});
+</script>
+{% endblock %}

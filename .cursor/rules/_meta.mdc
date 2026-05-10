@@ -1,0 +1,149 @@
+---
+description: CopyEZ Flask 多项目工作台 - 项目元规则
+globs: ["**/*.py", "**/*.html", "**/*.md"]
+alwaysApply: true
+---
+
+# CopyEZ 项目规则
+
+CopyEZ 是一个正在渐进式模块化重构的 Flask 多项目工作台。
+
+## 技术栈
+
+- **Web 框架**: Flask 3.x
+- **ORM**: SQLAlchemy (经典模式)
+- **数据库**: SQLite
+- **模板**: Jinja2
+- **重构进度**: 进行中
+
+## 项目模块边界
+
+| 模块 | 路径 | 负责功能 |
+|------|------|---------|
+| **CopyEZ** | `app/modules/copyez/` | 核心笔记、Memo、分类、搜索、Dashboard |
+| **LedgerEZ** | `app/modules/ledger/` | 账本功能 |
+| **Portal** | `app/modules/portal/` | 首页入口 |
+| **ORC_documents** | `app/modules/orc_documents/` | 文档扫描 landing |
+| **Models** | `app/models/` | 数据库模型定义 |
+| **Extensions** | `app/extensions.py` | Flask 扩展统一入口 |
+| **Utils** | `app/utils/` | 工具函数 |
+| **Services** | `app/services/` | 业务逻辑服务 |
+
+## 快速命令模式
+
+| 命令 | 含义 |
+|------|------|
+| `1` | 分析所有情况 → 规划 → 执行一个阶段 → 验证 → 报告 |
+| `2` | 只验证当前项目健康状态 |
+| `3` | 只审计模块，不改代码 |
+| `0` | 停止并总结当前状态 |
+
+### 命令 1 详细流程
+
+```
+输入: 1
+
+执行:
+1. 扫描 app.py，找到下一个未迁移的模块/函数
+2. 分析该模块的：
+   - 依赖关系（被谁引用、引用谁）
+   - 风险等级（高/中/低）
+   - 迁移方案（最小改动路径）
+   - 潜在问题（循环导入、路径冲突、测试覆盖）
+3. 如果风险可接受 → 执行迁移
+4. 如果风险太高 → 提出可行替代方案
+5. 验证所有基础路径
+6. 输出报告
+7. 停止
+```
+
+### 命令 2 详细流程
+
+```
+输入: 2
+
+执行:
+1. 测试所有基础 URL
+2. 测试所有 API 端点
+3. 检查导入规范
+4. 检查 app.py 行数
+5. 输出 PASS / FAIL / RISK
+```
+
+### 命令 3 详细流程
+
+```
+输入: 3
+
+执行:
+1. 扫描 app.py，找到下一个未审计的模块
+2. 输出：
+   - 模块依赖图
+   - 风险等级
+   - 迁移方案
+   - 潜在问题列表
+3. 不修改任何代码
+```
+
+## 重构约束
+
+### 基本约束
+
+1. 不改变现有 URL
+2. 不改变现有 endpoint
+3. 不改变数据库结构（除非用户明确指定）
+4. 不删除任何功能
+
+### 执行约束
+
+1. **一次只执行一个模块的迁移**
+2. **先分析，后执行**
+3. **如果发现问题，中断并报告**
+4. **验证通过后才能报告完成**
+
+## 强制导入规范
+
+```python
+# 正确
+from app.extensions import db
+
+# 错误
+from flask_sqlalchemy import SQLAlchemy
+db = SQLAlchemy(app)
+```
+
+## 当前阶段状态
+
+根据 `flask_auto_refactor.md`：
+
+### 已完成迁移
+
+- 1A 项目骨架
+- 1B 配置集中化
+- 2A db 统一
+- 3 模型迁移
+- 4A-4D 路由迁移
+- 5A-5E 模块拆分
+- 6A-6D CopyEZ API 迁移
+- 6E-1 统一图片扩展名
+- 6E-2 upload_image 迁移
+
+### 待迁移模块（app.py 中的未迁移代码）
+
+扫描 app.py，识别未迁移到 `app/modules/` 的代码：
+- Quote 相关函数
+- Notes 页面路由
+- Export/Word 导出
+- Scrape 抓取
+- 其他零散函数
+
+### 下一阶段
+
+输入 `1` 后，自动识别并执行下一个最小可迁移模块。
+
+## 与 flask_auto_refactor.md 的关系
+
+- **rules 文件** (.cursor/rules/): 定义项目规范和命令
+- **skills 文件** (.cursor/skills/): 定义执行流程
+
+两者协同工作，输入 `1` 即执行完整流程。

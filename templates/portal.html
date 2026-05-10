@@ -17,6 +17,8 @@
         --color-brand-blue: #3b82f6;
         --color-brand-blue-dark: #2563eb;
         --color-brand-purple: #8b5cf6;
+        --color-brand-green: #10b981;
+        --color-brand-green-dark: #059669;
         --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.04);
       }
 
@@ -181,6 +183,20 @@
 
       .btn-primary-purple:hover {
         box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+      }
+
+      .btn-primary-green {
+        background: linear-gradient(135deg, var(--color-brand-green) 0%, var(--color-brand-green-dark) 100%);
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+      }
+
+      .btn-primary-green:hover {
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+      }
+
+      .card-tag-green {
+        color: var(--color-brand-green);
+        background: rgba(16, 185, 129, 0.1);
       }
 
       /* 右侧卡片：与当行左侧区块对齐 */
@@ -365,6 +381,49 @@
           </div>
         </div>
       </div>
+
+      <!-- 第三行：LedgerEZ 个人记账本入口（左侧卡片 + 右侧介绍） -->
+      <div class="hero-row">
+        <a href="{{ url_for('ledger.ledger_home') }}" class="floating-card">
+          <div class="card-header">
+            <span class="card-title">LedgerEZ</span>
+            <span class="card-tag card-tag-green">个人记账本</span>
+          </div>
+          <p class="card-headline">清晰记录每一笔收支</p>
+          <p class="card-desc">
+            用于日常消费、收入、账户和月度统计管理，帮助形成稳定的财务复盘习惯。
+          </p>
+          <div class="card-meta">
+            <span>收入支出记录 · 分类统计 · 月度复盘</span>
+            <span>本地数据存储 →</span>
+          </div>
+        </a>
+        <div class="hero-block">
+          <div class="hero-status">
+            <span class="hero-status-dot" style="background: var(--color-brand-green);"></span>
+            <span>LedgerEZ 个人记账本</span>
+          </div>
+          <h2 class="hero-title">
+            <span class="brand">清晰记录</span> <span style="color: var(--color-brand-green);">每一笔收支</span>
+          </h2>
+          <p class="hero-desc">
+            用于日常消费、收入、账户和月度统计管理，帮助形成稳定的财务复盘习惯。
+          </p>
+          <div class="hero-features">
+            <span class="hero-feature">收入支出记录</span>
+            <span class="hero-feature">分类统计</span>
+            <span class="hero-feature">月度复盘</span>
+            <span class="hero-feature">本地数据存储</span>
+          </div>
+          <div class="hero-actions">
+            <a href="{{ url_for('ledger.ledger_home') }}" class="btn-primary btn-primary-green">
+              <i data-lucide="wallet" style="width: 18px; height: 18px;"></i>
+              进入记账本
+            </a>
+            <a href="{{ url_for('ledger.ledger_home') }}" class="btn-ghost">进入记账</a>
+          </div>
+        </div>
+      </div>
     </div>
 
     <footer class="portal-footer">
@@ -376,3 +435,4 @@
     </script>
   </body>
 </html>
+

@@ -1,0 +1,331 @@
+---
+description: SQLAlchemy 数据库操作规范（适配当前经典模式）
+globs: ["**/*.py"]
+---
+
+# SQLAlchemy 规范
+
+本规则定义了 CopyEZ 项目中 SQLAlchemy 的使用规范。
+
+## 1. 数据库导入规范
+
+### 正确导入方式
+
+```python
+# 所有代码必须使用统一入口
+from app.extensions import db
+```
+
+### 禁止的导入方式
+
+```python
+# 禁止：直接创建新的 db 实例
+from flask_sqlalchemy import SQLAlchemy
+db = SQLAlchemy(app)
+
+# 禁止：从 flask_sqlalchemy 导入 db.Model
+from flask_sqlalchemy import db.Model
+
+# 禁止：使用 app.extensions 以外的 db
+```
+
+## 2. 模型定义规范
+
+### 标准模型模板
+
+```python
+# app/models/note.py
+from app.extensions import db
+
+class Note(db.Model):
+    """笔记模型"""
+    __tablename__ = 'notes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(50), default='default')
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
+
+    # 关联关系
+    tags = db.relationship('Tag', backref='note', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<Note {self.id}: {self.title}>'
+```
+
+### 模型命名规范
+
+| 规范 | 示例 |
+|------|------|
+| 类名 | `Note`, `Memo`, `CustomCategory` (PascalCase) |
+| 表名 | `notes`, `memos`, `custom_categories` (snake_case, 复数) |
+| 字段名 | `created_at`, `user_id`, `is_active` (snake_case) |
+| 主键 | `id` (Integer, 自增) |
+| 外键 | `<related_table>_id` (如 `note_id`) |
+
+## 3. 查询规范
+
+### 使用 filter 而非 filter_by
+
+```python
+# 推荐
+notes = Note.query.filter(Note.category == 'work').all()
+
+# 可接受（简单查询）
+notes = Note.query.filter_by(category='work').all()
+```
+
+### 常见查询模式
+
+```python
+# 根据 ID 获取单个记录
+note = Note.query.get(note_id)
+note = db.session.get(Note, note_id)  # 首选
+
+# 过滤查询
+active_notes = Note.query.filter(
+    Note.is_deleted == False,
+    Note.category.in_(['work', 'personal'])
+).all()
+
+# 排序查询
+recent_notes = Note.query.order_by(Note.created_at.desc()).limit(10).all()
+
+# 计数
+count = Note.query.filter(Note.category == 'work').count()
+
+# 分页
+page = Note.query.paginate(page=1, per_page=20)
+```
+
+### N+1 查询防护
+
+```python
+# 预加载关联关系
+from sqlalchemy.orm import joinedload
+
+notes = Note.query.options(joinedload(Note.tags)).all()
+
+# 使用 selectinload 加载集合
+from sqlalchemy.orm import selectinload
+notes = Note.query.options(selectinload(Note.tags)).all()
+```
+
+## 4. 事务管理规范
+
+### 标准增删改
+
+```python
+# 创建
+def create_note(title, content):
+    note = Note(title=title, content=content)
+    db.session.add(note)
+    db.session.commit()
+    return note
+
+# 更新
+def update_note(note_id, **kwargs):
+    note = db.session.get(Note, note_id)
+    if not note:
+        return None
+    for key, value in kwargs.items():
+        setattr(note, key, value)
+    db.session.commit()
+    return note
+
+# 删除
+def delete_note(note_id):
+    note = db.session.get(Note, note_id)
+    if note:
+        db.session.delete(note)
+        db.session.commit()
+    return note
+```
+
+### 事务回滚
+
+```python
+from app.extensions import db
+
+def risky_operation():
+    try:
+        note = Note(title='test')
+        db.session.add(note)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()  # 必须回滚
+        raise e
+```
+
+### 使用上下文管理器（Flask 应用上下文）
+
+```python
+from flask import current_app
+from app.extensions import db
+
+def operation_in_context():
+    with current_app.app_context():
+        notes = Note.query.all()
+        return notes
+```
+
+## 5. 关联关系规范
+
+### 一对多关系
+
+```python
+# 一个 Note 可以有多个 Tag
+class Note(db.Model):
+    __tablename__ = 'notes'
+    id = db.Column(db.Integer, primary_key=True)
+    # ...
+
+    tags = db.relationship('Tag', backref='note', lazy='dynamic')
+
+class Tag(db.Model):
+    __tablename__ = 'tags'
+    id = db.Column(db.Integer, primary_key=True)
+    note_id = db.Column(db.Integer, db.ForeignKey('notes.id'), nullable=False)
+    name = db.Column(db.String(50), nullable=False)
+```
+
+### 多对多关系
+
+```python
+# 笔记和分类的多对多关系
+note_categories = db.Table('note_categories',
+    db.Column('note_id', db.Integer, db.ForeignKey('notes.id'), primary_key=True),
+    db.Column('category_id', db.Integer, db.ForeignKey('categories.id'), primary_key=True)
+)
+
+class Note(db.Model):
+    # ...
+    categories = db.relationship('Category', secondary=note_categories, backref='notes')
+
+class Category(db.Model):
+    __tablename__ = 'categories'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+```
+
+## 6. 索引与约束
+
+### 添加索引
+
+```python
+class Note(db.Model):
+    __tablename__ = 'notes'
+    __table_args__ = (
+        db.Index('idx_category_created', 'category', 'created_at'),
+        db.UniqueConstraint('user_id', 'title', name='uq_user_title'),
+    )
+```
+
+### 外键约束
+
+```python
+# 级联删除
+note_id = db.Column(db.Integer, db.ForeignKey('notes.id', ondelete='CASCADE'))
+
+# 设置空约束
+note_id = db.Column(db.Integer, db.ForeignKey('notes.id', nullable=True))
+```
+
+## 7. 迁移注意事项
+
+### 当前阶段限制
+
+- **禁止**直接修改数据库结构（除非用户明确指定）
+- **禁止**使用 Alembic 迁移（当前阶段）
+- **禁止**迁移到 SQLAlchemy 2.x Mapped 模式
+
+### 未来迁移计划
+
+迁移到 SQLAlchemy 2.x 时，模型将更新为：
+
+```python
+# 未来版本（当前禁用）
+from sqlalchemy.orm import Mapped, mapped_column
+
+class Note(Base):
+    __tablename__ = 'notes'
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200))
+```
+
+## 8. 常见错误避免
+
+### 禁止裸 except
+
+```python
+# 错误
+try:
+    db.session.commit()
+except:
+    db.session.rollback()
+
+# 正确
+try:
+    db.session.commit()
+except Exception as e:
+    db.session.rollback()
+    raise
+```
+
+### 禁止在查询后直接修改对象
+
+```python
+# 错误
+note = Note.query.get(1)
+db.session.delete(note)  # 不要在查询后直接删除
+
+# 正确
+note = db.session.get(Note, 1)
+if note:
+    db.session.delete(note)
+    db.session.commit()
+```
+
+### 避免长事务
+
+```python
+# 错误：长时间持有事务
+def long_operation():
+    notes = Note.query.all()
+    for note in notes:
+        note.process()  # 可能很慢
+        db.session.commit()  # 频繁提交
+
+# 正确：批量操作
+def batch_operation():
+    notes = Note.query.all()
+    for note in notes:
+        note.process()
+    db.session.commit()  # 一次提交
+```
+
+## 9. SQL 注入防护
+
+### 使用参数化查询
+
+```python
+# 安全
+query = Note.query.filter(Note.title.like(f'%{search_term}%'))
+
+# 更安全：使用 bindparams
+from sqlalchemy import text
+db.session.execute(text("SELECT * FROM notes WHERE title LIKE :term"), {"term": f"%{search_term}%"})
+```
+
+### 禁止原始 SQL 拼接
+
+```python
+# 禁止
+db.session.execute(f"SELECT * FROM notes WHERE id = {user_id}")
+
+# 必须
+db.session.execute(text("SELECT * FROM notes WHERE id = :id"), {"id": user_id})
+```

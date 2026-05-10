@@ -1,0 +1,234 @@
+{% extends "ledger/base.html" %}
+
+{% block title %}首页 - LedgerEZ{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>本月总览</h1>
+    <p id="homeSubtitle">-</p>
+  </div>
+  <div class="page-header-actions">
+    <button class="btn btn-green pc-only" onclick="openQuickAdd()">
+      + 快速记账
+    </button>
+  </div>
+</div>
+
+<!-- My Stats -->
+<div class="home-stats-grid">
+  <div class="card stat-card">
+    <div class="stat-label">我的本月收入</div>
+    <div class="stat-money income" id="myIncome">¥0.00</div>
+    <div class="stat-sub" id="myIncomeSub">-</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">我的本月支出</div>
+    <div class="stat-money expense" id="myExpense">¥0.00</div>
+    <div class="stat-sub" id="myExpenseSub">-</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-label">我的本月结余</div>
+    <div class="stat-money neutral" id="myBalance">¥0.00</div>
+    <div class="stat-sub">收入 - 支出</div>
+  </div>
+</div>
+
+<!-- Partner & Combined (shown only when bound) -->
+<div id="partnerSection" style="display:none">
+  <div class="section partner-grid">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:16px">👩</span>
+        <span class="card-title" style="margin:0">对方账本</span>
+      </div>
+      <p class="muted" style="margin-bottom:8px;font-size:12px">只读查看，不可修改</p>
+      <div style="display:flex;gap:16px">
+        <div>
+          <div class="stat-label">收入</div>
+          <div class="stat-money income" id="partnerIncome" style="font-size:16px">¥0.00</div>
+        </div>
+        <div>
+          <div class="stat-label">支出</div>
+          <div class="stat-money expense" id="partnerExpense" style="font-size:16px">¥0.00</div>
+        </div>
+      </div>
+      <a href="/ledger/bills?view=partner" class="btn btn-outline" style="margin-top:12px;font-size:12px;padding:8px 14px;width:100%;justify-content:center">查看明细</a>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:16px">💑</span>
+        <span class="card-title" style="margin:0">共同账本</span>
+      </div>
+      <p class="muted" style="margin-bottom:8px;font-size:12px">双方本月总收支</p>
+      <div style="display:flex;gap:16px">
+        <div>
+          <div class="stat-label">收入</div>
+          <div class="stat-money income" id="combinedIncome" style="font-size:16px">¥0.00</div>
+        </div>
+        <div>
+          <div class="stat-label">支出</div>
+          <div class="stat-money expense" id="combinedExpense" style="font-size:16px">¥0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:16px">📅</span>
+        <span class="card-title" style="margin:0">今日支出</span>
+      </div>
+      <p class="muted" style="margin-bottom:8px;font-size:12px">今天已经花了</p>
+      <div class="stat-money expense" id="todayExpense" style="font-size:24px">¥0.00</div>
+      <button class="btn btn-green" onclick="openQuickAdd()" style="margin-top:12px;font-size:12px;padding:8px 14px;width:100%;justify-content:center">+ 快速记账</button>
+    </div>
+  </div>
+</div>
+
+<!-- Not bound tip - compact strip -->
+<div id="notBoundTip" class="not-bound-strip">
+  <span>🔗 绑定对方账本后可查看共同收支</span>
+  <a href="/ledger/settings" class="btn btn-sm btn-outline">去绑定</a>
+</div>
+
+<!-- Chart & Recent -->
+<div class="section chart-layout">
+  <div class="card">
+    <div class="section-header">
+      <h3>支出分类图</h3>
+      <span class="muted">我的账本</span>
+    </div>
+    <div class="donut-wrap" id="donutWrap">
+      <div class="donut" id="homeDonut">
+        <div class="donut-center">
+          <div class="donut-center-amount" id="donutTotal">¥0</div>
+          <div class="donut-center-label">总支出</div>
+        </div>
+      </div>
+      <div class="rank" id="homeRank"></div>
+    </div>
+    <!-- Empty state for donut -->
+    <div class="donut-empty" id="donutEmpty" style="display:none">
+      <span>暂无支出数据</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-header">
+      <h3>最近记录</h3>
+      <a href="/ledger/bills" class="btn btn-text" style="font-size:12px">查看全部</a>
+    </div>
+    <div class="record-list" id="recentRecords"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let isBound = false;
+
+async function loadHome() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  
+  // Check bind status
+  try {
+    const bindRes = await fetch('/ledger/api/bind-status');
+    const bindData = await bindRes.json();
+    isBound = bindData.bound;
+    
+    if (isBound) {
+      document.getElementById('partnerSection').style.display = 'block';
+      document.getElementById('notBoundTip').style.display = 'none';
+    } else {
+      document.getElementById('partnerSection').style.display = 'none';
+      document.getElementById('notBoundTip').style.display = 'flex';
+    }
+  } catch(e) {
+    document.getElementById('partnerSection').style.display = 'none';
+    document.getElementById('notBoundTip').style.display = 'flex';
+  }
+  
+  // My stats
+  try {
+    const myRes = await fetch(`/ledger/api/stats/monthly?year=${year}&month=${month}&view=me`);
+    const my = await myRes.json();
+    
+    document.getElementById('myIncome').textContent = '¥' + fmt(my.income);
+    document.getElementById('myExpense').textContent = '¥' + fmt(my.expense);
+    document.getElementById('myBalance').textContent = '¥' + fmt(my.balance);
+    document.getElementById('myIncomeSub').textContent = my.income > 0 ? '有收入进账' : '暂无收入';
+    document.getElementById('myExpenseSub').textContent = my.expense > 0 ? '已有支出' : '暂无支出';
+    document.getElementById('homeSubtitle').textContent = `${year}年${month}月 · ${currentUser?.nickname || ''}`;
+    document.getElementById('todayExpense').textContent = '¥' + fmt(my.expense);
+    
+    renderDonut('homeDonut', my.category_breakdown, my.expense);
+    renderRank('homeRank', my.category_breakdown);
+    
+    // Toggle donut empty state
+    const hasData = my.category_breakdown && my.category_breakdown.length > 0 && my.expense > 0;
+    document.getElementById('donutWrap').style.display = hasData ? 'grid' : 'none';
+    document.getElementById('donutEmpty').style.display = hasData ? 'none' : 'block';
+  } catch(e) { console.error(e); }
+  
+  // Partner stats
+  if (isBound) {
+    try {
+      const partnerRes = await fetch(`/ledger/api/stats/monthly?year=${year}&month=${month}&view=partner`);
+      const partner = await partnerRes.json();
+      document.getElementById('partnerIncome').textContent = '¥' + fmt(partner.income);
+      document.getElementById('partnerExpense').textContent = '¥' + fmt(partner.expense);
+    } catch(e) { console.error(e); }
+    
+    try {
+      const combRes = await fetch(`/ledger/api/stats/monthly?year=${year}&month=${month}&view=combined`);
+      const comb = await combRes.json();
+      document.getElementById('combinedIncome').textContent = '¥' + fmt(comb.income);
+      document.getElementById('combinedExpense').textContent = '¥' + fmt(comb.expense);
+    } catch(e) { console.error(e); }
+  }
+  
+  await loadRecentRecords();
+}
+
+async function loadRecentRecords() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  
+  try {
+    const res = await fetch(`/ledger/api/transactions?year=${year}&month=${month}&view=me`);
+    const txs = await res.json();
+    
+    const el = document.getElementById('recentRecords');
+    if (!txs.length) {
+      el.innerHTML = '<div class="small-empty">暂无记录<br><span style="font-size:12px;margin-top:4px;display:inline-block">点击右下角 + 开始记账</span></div>';
+      return;
+    }
+    
+    el.innerHTML = txs.slice(0, 5).map(t => `
+      <div class="record">
+        <div class="record-icon ${t.transaction_type}">${getCategoryEmoji(t.category_icon)}</div>
+        <div class="record-info">
+          <strong>${t.category_name}</strong>
+          <small>${t.remark || t.transaction_date}</small>
+        </div>
+        <div class="record-amount ${t.transaction_type}">
+          ${t.transaction_type === 'income' ? '+' : '-'}¥${fmt(t.amount)}
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+window.onTransactionSaved = function() {
+  loadHome();
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  initApp().then(() => {
+    highlightNav();
+    loadHome();
+  });
+});
+</script>
+{% endblock %}

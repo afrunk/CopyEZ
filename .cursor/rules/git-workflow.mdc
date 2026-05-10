@@ -1,0 +1,350 @@
+---
+description: Git 提交规范与重构分支管理策略
+globs: ["**/*"]
+---
+
+# Git 工作流规范
+
+本规则定义了 CopyEZ 项目的 Git 提交规范和分支管理策略。
+
+## 1. 提交信息格式
+
+### 标准格式
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+### 类型 (type)
+
+| 类型 | 说明 | 示例 |
+|------|------|------|
+| `feat` | 新功能 | `feat(memo): 添加 Memo 置顶功能` |
+| `fix` | 修复 bug | `fix(upload): 修复图片扩展名校验` |
+| `refactor` | 代码重构 | `refactor(ledger): 迁移 LedgerEZ 蓝图` |
+| `docs` | 文档更新 | `docs: 更新 README` |
+| `style` | 代码格式（不影响功能） | `style: 格式化 app.py` |
+| `perf` | 性能优化 | `perf: 优化笔记查询` |
+| `test` | 测试相关 | `test: 添加 Memo API 测试` |
+| `chore` | 构建/工具变更 | `chore: 更新 requirements.txt` |
+| `audit` | 代码审计 | `audit: 审计 Quote 模块` |
+
+### 作用域 (scope)
+
+使用模块名称作为作用域：
+
+| 模块 | 作用域 | 示例 |
+|------|--------|------|
+| 随心记/Memo | `memo` | `feat(memo): 添加标签功能` |
+| 笔记/Notes | `notes` | `fix(notes): 修复搜索排序` |
+| 账本/Ledger | `ledger` | `refactor(ledger): 迁移路由` |
+| 入口/Portal | `portal` | `feat(portal): 添加快捷入口` |
+| 搜索/Search | `search` | `perf(search): 优化搜索索引` |
+| 上传/Upload | `upload` | `fix(upload): 统一图片校验` |
+| 配置/Config | `config` | `refactor(config): 拆分配置类` |
+| 模型/Models | `models` | `refactor(models): 统一 db 导入` |
+
+### 示例提交信息
+
+```
+feat(memo): 添加 Memo 置顶功能
+
+实现笔记置顶功能，支持：
+- 点击置顶按钮切换状态
+- 置顶笔记显示在列表顶部
+- 持久化存储置顶状态
+
+Closes #123
+```
+
+```
+refactor(app): 迁移 CopyEZ API 到模块
+
+Phase 6A 执行结果：
+- 迁移 api_memos 到 app/modules/copyez/memo.py
+- 迁移 api_memo_pin 到 app/modules/copyez/memo.py
+- 统一 db 导入为 from app.extensions import db
+
+验证结果: PASS
+```
+
+```
+fix(upload): 修复图片上传扩展名校验
+
+问题：允许上传 .exe 等危险文件
+修复：统一使用 config.ALLOWED_IMAGE_EXTENSIONS
+
+验证：curl -X POST /api/upload_image -F "file=test.exe"
+结果：返回 400 错误，正确拒绝
+```
+
+## 2. 分支管理
+
+### 分支命名规范
+
+```
+<type>/<phase>-<description>
+<type>/<module>-<description>
+```
+
+### 常用分支类型
+
+```bash
+# 功能分支
+feat/memo-tags
+feat/search-history
+
+# 重构分支
+refactor/6E-2-upload-migration
+refactor/6F-audit-quote
+refactor/app-factory
+
+# 修复分支
+fix/upload-extension-validation
+fix/search-performance
+
+# 审计分支
+audit/quote-module
+audit/export-module
+```
+
+### 重构分支生命周期
+
+```bash
+# 1. 从 main 创建重构分支
+git checkout -b refactor/6E-2-upload-migration
+
+# 2. 执行重构
+# ... 修改代码 ...
+
+# 3. 提交重构结果
+git commit -m "refactor(upload): 迁移 upload 到 CopyEZ 模块
+
+Phase 6E-2 执行结果：
+- 新增 app/modules/copyez/upload_utils.py
+- 迁移 /api/upload_image 到 copyez 模块
+- 统一 allowed_image 函数
+
+验证结果: PASS"
+
+# 4. 合并回 main
+git checkout main
+git merge --no-ff refactor/6E-2-upload-migration -m "Merge refactor/6E-2"
+
+# 5. 删除分支
+git branch -d refactor/6E-2-upload-migration
+```
+
+## 3. 重构提交记录规范
+
+### 必须在提交信息中包含
+
+每个重构提交必须包含：
+
+1. **阶段编号** - 如 `Phase 6E-2`
+2. **执行内容** - 具体的迁移/修改
+3. **验证结果** - PASS / FAIL / RISK
+4. **相关文件** - 修改/新增/删除的文件列表
+
+### 重构提交模板
+
+```
+refactor(<module>): <简短描述>
+
+Phase <阶段编号> 执行结果：
+- <修改1>
+- <修改2>
+- <修改3>
+
+验证结果: PASS
+涉及文件：
+- 修改: app/modules/xxx.py
+- 新增: app/modules/xxx/yyy.py
+- 删除: app/routes/xxx.py
+```
+
+### 示例
+
+```
+refactor(ledger): 迁移 LedgerEZ 蓝图
+
+Phase 4B 执行结果：
+- 创建 app/modules/ledger/__init__.py
+- 创建 app/modules/ledger/routes.py
+- 迁移 ledger_bp 到 ledger 模块
+- 更新 app.py 导入
+
+验证结果: PASS
+URL 测试：
+- GET /ledger/ ✅
+- GET /ledger/overview ✅
+```
+
+## 4. 代码审查清单
+
+### 提交前检查
+
+- [ ] 运行 `python app.py` 无报错
+- [ ] 基础 URL 可访问（GET /, /notes, /search）
+- [ ] 相关 API 可访问（如 /api/memos）
+- [ ] 没有引入新的 `__pycache__` 或 `.pyc` 文件
+- [ ] 提交信息符合规范
+
+### 重构提交额外检查
+
+- [ ] 阶段编号正确
+- [ ] 包含验证结果
+- [ ] 列出所有修改文件
+- [ ] 旧代码已删除（如有）
+- [ ] 没有破坏现有功能
+
+## 5. .gitignore 规范
+
+### 必须忽略
+
+```gitignore
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cursor
+.cursor/agents/
+.cursor/rules/*.mdc
+```
+
+### 可以追踪
+
+```gitignore
+# 这些文件应该被追踪
+templates/
+static/
+```
+
+## 6. 常用 Git 命令速查
+
+```bash
+# 查看状态
+git status
+
+# 查看差异
+git diff
+
+# 查看提交历史
+git log --oneline -10
+
+# 暂存文件
+git add app/modules/copyez/memo.py
+git add -p  # 交互式暂存
+
+# 提交
+git commit -m "feat(memo): 添加标签功能"
+
+# 查看分支
+git branch
+
+# 创建并切换
+git checkout -b refactor/6E-2
+
+# 合并（快进）
+git merge refactor/6E-2
+
+# 合并（保留历史）
+git merge --no-ff refactor/6E-2
+
+# 变基（整理提交）
+git rebase -i HEAD~3
+
+# 暂存工作区
+git stash
+git stash pop
+
+# 撤销暂存
+git reset HEAD file.py
+
+# 撤销提交（保留修改）
+git reset --soft HEAD~1
+
+# 撤销提交（丢弃修改）
+git reset --hard HEAD~1
+```
+
+## 7. 与 Cursor Rules 的协同
+
+### 提交信息自动生成
+
+当 Cursor 完成重构后，可以用以下命令查看变更：
+
+```bash
+git status
+git diff --stat
+```
+
+然后根据变更生成规范的提交信息。
+
+### 重构前检查
+
+```bash
+# 确保没有未提交的变更
+git status
+
+# 确保在正确的分支
+git branch
+
+# 查看与 main 的差异
+git log --oneline main..HEAD
+```
+
+### 重构后验证
+
+```bash
+# 运行应用
+python app.py
+
+# 测试基础 URL
+curl http://localhost:5000/
+curl http://localhost:5000/notes
+curl http://localhost:5000/api/memos
+
+# 提交变更
+git add .
+git commit -m "refactor(<module>): <描述>"
+```

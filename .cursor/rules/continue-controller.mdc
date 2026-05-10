@@ -1,0 +1,163 @@
+---
+description: Continue controller for staged Flask refactor. Interprets simple user commands like "1" as refactor commands.
+alwaysApply: true
+---
+
+# Continue Controller Rule
+
+## Purpose
+
+This rule defines short command aliases for the CopyEZ refactoring workflow.
+
+The user types a single digit to trigger a complete refactor workflow.
+
+## Command Definitions
+
+### 1 → Analyze + Plan + Execute One Stage
+
+When the user types exactly:
+
+```text
+1
+```
+
+Interpret as:
+
+```text
+Execute the Flask Auto Refactor workflow:
+1. Scan app.py to find the next unmigrated module
+2. Analyze all dependencies, risks, and migration paths
+3. Execute the migration (even if high-risk, if user approves)
+4. Verify all basic paths work
+5. Output report
+6. Stop
+```
+
+### 2 → Verify Only (No Code Changes)
+
+When the user types exactly:
+
+```text
+2
+```
+
+Interpret as:
+
+```text
+Run health check only:
+- Test all basic URLs
+- Test all API endpoints
+- Check import standards
+- Output PASS / FAIL / RISK
+Do not modify any code.
+```
+
+### 3 → Audit Only (No Code Changes)
+
+When the user types exactly:
+
+```text
+3
+```
+
+Interpret as:
+
+```text
+Audit the next module:
+- Output dependency map
+- Output risk level
+- Output migration plan
+- Output potential issues
+Do not modify any code.
+```
+
+### 0 → Stop and Summarize
+
+When the user types exactly:
+
+```text
+0
+```
+
+Interpret as:
+
+```text
+Stop and summarize:
+- Output current refactor status
+- Output completed stages
+- Output next recommended stage
+- Output potential issues
+Do not modify any code.
+```
+
+## Hard Stop Rule
+
+After completing one stage (command "1"):
+
+1. Report results
+2. Stop immediately
+3. Do NOT continue to the next stage
+
+## Migration Priority
+
+When scanning app.py, prioritize migration in this order:
+
+1. **Orphan functions** - Functions without complex dependencies
+2. **Helper utilities** - Pure functions with no external dependencies
+3. **Low-risk pages** - Static pages with no API calls
+4. **Medium-risk APIs** - APIs with simple dependencies
+5. **High-risk modules** - Quote, Notes, Export, Scrape (last)
+
+## High-Risk Module Handling
+
+High-risk modules are NOT forbidden to migrate.
+
+When encountering a high-risk module:
+
+1. **Analyze** - List all dependencies
+2. **Plan** - Create minimal migration path
+3. **Execute** - Migrate if path exists
+4. **Verify** - Test thoroughly
+5. **Report** - Document any issues
+
+## Required Report Format
+
+After command "1", output:
+
+```text
+阶段：[阶段编号或模块名]
+执行内容：[具体做了什么]
+分析过程：
+  - 依赖：[列出依赖]
+  - 风险：[高/中/低]
+  - 方案：[简述迁移方案]
+修改文件：[列表]
+新增文件：[列表]
+删除文件：[列表]
+URL 是否变化：是 / 否
+endpoint 是否变化：是 / 否
+JSON 是否变化：是 / 否
+模板是否修改：是 / 否
+前端 JS 是否修改：是 / 否
+数据库是否修改：是 / 否
+验证结果：[PASS / FAIL / RISK]
+下一阶段建议：[建议]
+
+已停止，等待用户输入 1 继续。
+```
+
+## If Validation Fails
+
+Output:
+
+```text
+STOP: 验证失败
+
+失败项：[列出失败的 URL/API]
+原因：[分析]
+建议：[最小修复方案]
+
+已停止，等待用户输入 1 继续。
+```
+
+Do not continue automatically.

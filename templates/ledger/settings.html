@@ -1,0 +1,289 @@
+{% extends "ledger/base.html" %}
+
+{% block title %}设置 - LedgerEZ{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>设置</h1>
+    <p>保持简单，只保留必要配置</p>
+  </div>
+  <div class="page-header-actions">
+    <button class="btn btn-outline" onclick="doLogout()">退出登录</button>
+  </div>
+</div>
+
+<!-- Personal Info -->
+<div class="settings-card">
+  <div class="settings-group-title">👤 个人信息</div>
+  <div class="settings-row">
+    <span class="settings-row-label">昵称</span>
+    <span class="settings-row-value" id="settingNickname">-</span>
+  </div>
+  <div class="settings-row">
+    <span class="settings-row-label">手机号</span>
+    <span class="settings-row-value" id="settingPhone">-</span>
+  </div>
+</div>
+
+<!-- Bind Partner - Dynamic content loaded by JS -->
+<div class="settings-card" style="margin-top:12px" id="bindCard">
+  <div class="settings-group-title">🔗 账本绑定</div>
+  <div id="bindContent">
+    <p class="muted" style="padding:12px 0;text-align:center">加载中...</p>
+  </div>
+</div>
+
+<!-- About -->
+<div class="settings-card" style="margin-top:12px">
+  <div class="settings-group-title">ℹ️ 关于</div>
+  <div class="settings-row">
+    <span class="settings-row-label">应用名称</span>
+    <span class="settings-row-value">LedgerEZ</span>
+  </div>
+  <div class="settings-row">
+    <span class="settings-row-label">版本</span>
+    <span class="settings-row-value">v1.0</span>
+  </div>
+</div>
+
+<!-- Bind Form Modal -->
+<div class="modal-mask" id="bindModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>绑定对方账本</h3>
+      <button class="modal-close" onclick="closeBindModal()">×</button>
+    </div>
+    <div class="modal-form">
+      <div style="margin-bottom:14px">
+        <button class="btn btn-outline" onclick="generateBindCode()" id="generateCodeBtn" style="width:100%">
+          🔑 生成我的绑定码
+        </button>
+      </div>
+      
+      <div id="myCodeArea" style="display:none;margin-bottom:14px;padding:14px;background:#f0fdf4;border-radius:12px;text-align:center">
+        <div class="muted" style="margin-bottom:6px">我的绑定码（5分钟内有效）</div>
+        <div id="myBindCode" style="font-size:28px;font-weight:800;letter-spacing:8px;color:#16a34a">------</div>
+        <div class="muted" style="margin-top:6px;font-size:12px">请让对方输入此码进行绑定</div>
+      </div>
+      
+      <div style="margin-bottom:14px">
+        <div class="modal-label">对方手机号</div>
+        <input type="tel" id="partnerPhone" class="modal-input" placeholder="请输入对方手机号" maxlength="11" />
+      </div>
+      
+      <div style="margin-bottom:14px">
+        <div class="modal-label">对方绑定码</div>
+        <input type="text" id="partnerCode" class="modal-input" placeholder="请输入对方提供的绑定码" maxlength="6" />
+      </div>
+      
+      <button class="btn btn-green" onclick="doBind()" id="bindBtn" style="width:100%;padding:14px;font-size:15px">
+        绑定对方账本
+      </button>
+      
+      <div id="bindError" class="error-msg" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadSettings() {
+  if (!currentUser) return;
+  
+  document.getElementById('settingNickname').textContent = currentUser.nickname;
+  document.getElementById('settingPhone').textContent = currentUser.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+  
+  await loadBindStatus();
+}
+
+async function loadBindStatus() {
+  const container = document.getElementById('bindContent');
+  
+  try {
+    const res = await fetch('/ledger/api/bind-status');
+    const data = await res.json();
+    
+    if (data.bound) {
+      // Already bound - show partner info
+      container.innerHTML = `
+        <div class="settings-row">
+          <span class="settings-row-label">对方昵称</span>
+          <span class="settings-row-value">${data.partner.nickname}</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-label">对方手机</span>
+          <span class="settings-row-value">${data.partner.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-label">权限</span>
+          <span class="settings-row-value" style="color:#9ca3af">互相只读查看</span>
+        </div>
+        <div class="settings-row" style="justify-content:flex-end">
+          <button class="btn btn-outline" onclick="doUnbind()" style="color:#dc2626;border-color:#fca5a5">解除绑定</button>
+        </div>
+      `;
+    } else {
+      // Not bound - show compact card
+      container.innerHTML = `
+        <div class="bind-unbound">
+          <div class="bind-unbound-info">
+            <div class="bind-unbound-title">绑定后可查看共同收支</div>
+            <div class="bind-unbound-desc">绑定对方账号后，双方可以互相查看账本</div>
+          </div>
+          <button class="btn btn-green btn-sm" onclick="openBindModal()">去绑定</button>
+        </div>
+      `;
+    }
+  } catch(e) {
+    container.innerHTML = '<p class="muted" style="padding:12px 0;text-align:center">加载失败，请刷新重试</p>';
+  }
+}
+
+function openBindModal() {
+  // Reset modal state
+  document.getElementById('partnerPhone').value = '';
+  document.getElementById('partnerCode').value = '';
+  document.getElementById('bindError').classList.remove('show');
+  document.getElementById('myCodeArea').style.display = 'none';
+  document.getElementById('generateCodeBtn').textContent = '🔑 生成我的绑定码';
+  document.getElementById('generateCodeBtn').disabled = false;
+  document.getElementById('bindBtn').disabled = false;
+  document.getElementById('bindBtn').textContent = '绑定对方账本';
+  document.getElementById('bindModal').classList.add('show');
+}
+
+function closeBindModal() {
+  document.getElementById('bindModal').classList.remove('show');
+}
+
+async function generateBindCode() {
+  const btn = document.getElementById('generateCodeBtn');
+  const codeArea = document.getElementById('myCodeArea');
+  const codeEl = document.getElementById('myBindCode');
+  
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+  
+  try {
+    const res = await fetch('/ledger/api/generate-bind-code', {method:'POST'});
+    const data = await res.json();
+    
+    if (!res.ok) {
+      alert(data.error || '生成失败');
+      btn.disabled = false;
+      btn.textContent = '🔑 生成我的绑定码';
+      return;
+    }
+    
+    codeArea.style.display = 'block';
+    codeEl.textContent = data.code;
+    btn.textContent = '已生成 ✓';
+    
+  } catch(e) {
+    alert('生成失败，请稍后重试');
+    btn.disabled = false;
+    btn.textContent = '🔑 生成我的绑定码';
+  }
+}
+
+async function doBind() {
+  const partnerPhone = document.getElementById('partnerPhone').value.trim();
+  const partnerCode = document.getElementById('partnerCode').value.trim();
+  const errEl = document.getElementById('bindError');
+  const btn = document.getElementById('bindBtn');
+  
+  errEl.classList.remove('show');
+  
+  if (!partnerPhone || partnerPhone.length !== 11) {
+    errEl.textContent = '请输入正确的11位手机号';
+    errEl.classList.add('show');
+    return;
+  }
+  
+  if (!partnerCode || partnerCode.length !== 6) {
+    errEl.textContent = '请输入6位绑定码';
+    errEl.classList.add('show');
+    return;
+  }
+  
+  btn.disabled = true;
+  btn.textContent = '绑定中...';
+  
+  try {
+    const res = await fetch('/ledger/api/bind-partner', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({partner_phone: partnerPhone, partner_code: partnerCode})
+    });
+    const data = await res.json();
+    
+    if (!res.ok) {
+      errEl.textContent = data.error || '绑定失败';
+      errEl.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = '绑定对方账本';
+      return;
+    }
+    
+    alert('绑定成功！');
+    closeBindModal();
+    await loadBindStatus();
+    
+  } catch(e) {
+    errEl.textContent = '绑定失败，请稍后重试';
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = '绑定对方账本';
+  }
+}
+
+async function doUnbind() {
+  if (!confirm('确定解除绑定？解除后双方将无法查看对方账本。')) return;
+  
+  try {
+    const res = await fetch('/ledger/api/unbind-partner', {method:'POST'});
+    const data = await res.json();
+    
+    if (!res.ok) {
+      alert(data.error || '解除失败');
+      return;
+    }
+    
+    alert('已解除绑定');
+    await loadBindStatus();
+    
+  } catch(e) {
+    alert('解除失败，请稍后重试');
+  }
+}
+
+async function doLogout() {
+  if (!confirm('确定退出登录？')) return;
+  try {
+    await fetch('/ledger/logout', {method:'POST'});
+    window.location.href = '/ledger/login';
+  } catch(e) {
+    window.location.href = '/ledger/login';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initApp().then(() => {
+    highlightNav();
+    loadSettings();
+    
+    const fabBtn = document.getElementById('fabBtn');
+    if (fabBtn) fabBtn.style.display = 'none';
+  });
+});
+
+// Close bind modal on overlay click
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-mask') && e.target.id === 'bindModal') {
+    closeBindModal();
+  }
+});
+</script>
+{% endblock %}

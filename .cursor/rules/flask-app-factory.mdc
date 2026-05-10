@@ -1,0 +1,283 @@
+---
+description: Flask 应用工厂模式与蓝图组织最佳实践
+globs: ["**/*.py"]
+---
+
+# Flask 应用工厂与蓝图组织规范
+
+本规则定义了 Flask 应用的模块化组织方式，适用于 CopyEZ 项目的渐进式重构。
+
+## 1. 蓝图创建规范
+
+### 标准 Blueprint 模板
+
+每个业务模块必须遵循以下结构：
+
+```
+app/modules/<module_name>/
+├── __init__.py           # Blueprint 定义
+├── routes.py             # 路由处理
+├── models.py             # 模块专属模型（可选）
+└── services.py           # 业务逻辑（可选）
+```
+
+### Blueprint 定义模板
+
+```python
+# app/modules/example/__init__.py
+from flask import Blueprint
+
+example_bp = Blueprint('example', __name__, template_folder='templates')
+
+# 路由必须在底部导入，避免循环导入
+from . import routes
+```
+
+```python
+# app/modules/example/routes.py
+from flask import render_template, jsonify, request
+from . import example_bp
+
+@example_bp.route('/example')
+def index():
+    return render_template('example/index.html')
+
+@example_bp.route('/api/example', methods=['GET'])
+def api_list():
+    return jsonify({'items': []})
+```
+
+### Blueprint 注册
+
+在 `app.py` 中注册蓝图：
+
+```python
+from app.modules.example import example_bp
+
+app.register_blueprint(example_bp, url_prefix='/example')
+```
+
+## 2. 路由迁移规则
+
+### 迁移前（禁止）
+
+```python
+# app.py - 禁止在新代码中使用
+@app.route('/notes')
+def notes():
+    return render_template('notes.html')
+```
+
+### 迁移后（必须）
+
+```python
+# app/modules/notes/__init__.py
+from flask import Blueprint
+notes_bp = Blueprint('notes', __name__, template_folder='templates')
+from . import routes
+
+# app/modules/notes/routes.py
+from flask import render_template
+from . import notes_bp
+
+@notes_bp.route('/notes')
+def index():
+    return render_template('notes/index.html')
+
+# app.py
+from app.modules.notes import notes_bp
+app.register_blueprint(notes_bp)
+```
+
+## 3. 模板路径规范
+
+### 目录结构
+
+```
+templates/
+├── notes/
+│   ├── index.html
+│   └── edit.html
+├── ledger/
+│   └── index.html
+└── portal/
+    └── index.html
+```
+
+### 模板渲染
+
+在 Blueprint 中渲染模板时，使用相对于 `templates/` 的路径：
+
+```python
+# 在 notes/routes.py 中
+return render_template('notes/index.html')
+
+# 不使用完整路径 render_template('app/templates/notes/index.html')
+```
+
+## 4. 静态文件规范
+
+Blueprint 的静态文件目录结构：
+
+```
+app/modules/notes/
+├── static/
+│   └── css/
+│       └── notes.css
+└── templates/
+    └── notes/
+        └── index.html
+```
+
+在模板中引用：
+
+```html
+<link rel="stylesheet" href="{{ url_for('notes.static', filename='css/notes.css') }}">
+```
+
+## 5. URL 构建
+
+### 使用 Blueprint 名称空间
+
+```python
+# 重定向到其他 Blueprint 的路由
+return redirect(url_for('copyez.index'))
+
+# 在模板中
+<a href="{{ url_for('ledger.index') }}">账本</a>
+```
+
+### 禁止硬编码 URL
+
+```python
+# 禁止
+return redirect('/notes')
+
+# 必须
+return redirect(url_for('notes.index'))
+```
+
+## 6. 应用工厂模式（未来目标）
+
+当前项目保持 `python app.py` 启动方式，但所有新代码必须为未来迁移做准备。
+
+### 准备就绪的模块结构
+
+```python
+# app/modules/copyez/__init__.py
+from flask import Blueprint
+
+def create_copyez_module():
+    """未来 create_app() 将调用此函数"""
+    copyez_bp = Blueprint('copyez', __name__)
+    from . import routes
+    return copyez_bp
+```
+
+### 迁移完成后的工厂模式
+
+```python
+# app/__init__.py
+from flask import Flask
+
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object('config.DevelopmentConfig')
+    
+    from app.extensions import db
+    db.init_app(app)
+    
+    from app.modules.copyez import create_copyez_module
+    app.register_blueprint(create_copyez_module())
+    
+    return app
+```
+
+## 7. 常见错误避免
+
+### 循环导入
+
+```python
+# app/modules/example/__init__.py
+
+# 错误：在模块顶部导入 routes
+from . import routes  # ❌ 可能导致循环导入
+
+# 正确：在 Blueprint 定义之后导入
+example_bp = Blueprint('example', __name__)
+from . import routes  # ✅ 在底部导入
+```
+
+### 全局 Blueprint 实例
+
+```python
+# app/modules/example/__init__.py
+
+# 错误：在函数内创建 Blueprint
+def register():
+    bp = Blueprint('example', __name__)  # ❌
+    return bp
+
+# 正确：模块级实例
+example_bp = Blueprint('example', __name__)  # ✅
+
+def register(app):
+    app.register_blueprint(example_bp)
+```
+
+## 8. 模块间通信
+
+### 跨模块导入
+
+当一个模块需要使用另一个模块的功能时：
+
+```python
+# app/modules/ledger/routes.py 需要访问 CopyEZ 的 Note 模型
+from app.models import Note  # ✅ 从 app.models 导入
+from app.modules.copyez.services import note_service  # ⚠️ 谨慎使用
+```
+
+### 避免跨模块直接导入路由
+
+```python
+# 禁止
+from app.modules.copyez.routes import copyez_bp
+
+# 允许：通过 app 上下文
+def get_copyez_notes():
+    from app.models import Note
+    return Note.query.filter_by(category='copyez').all()
+```
+
+## 9. 模板继承规范
+
+### 基础模板
+
+```html
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}CopyEZ{% endblock %}</title>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% block content %}{% endblock %}
+</body>
+</html>
+```
+
+### 子模板
+
+```html
+<!-- templates/notes/index.html -->
+{% extends "base.html" %}
+
+{% block title %}笔记 - CopyEZ{% endblock %}
+
+{% block content %}
+<div class="notes-container">
+    {% block notes_content %}{% endblock %}
+</div>
+{% endblock %}
+```

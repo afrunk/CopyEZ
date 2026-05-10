@@ -1,0 +1,220 @@
+{% extends "ledger/base.html" %}
+
+{% block title %}账单列表 - LedgerEZ{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>账单列表</h1>
+    <p id="billsSubtitle">支持查看自己、对方账本、共同账本</p>
+  </div>
+  <div class="page-header-actions">
+    <button class="btn btn-green pc-only" onclick="openQuickAdd()">
+      + 快速记账
+    </button>
+  </div>
+</div>
+
+<!-- Compact tabs (no card wrapper on mobile) -->
+<div class="chip-row" id="viewChips">
+  <button class="chip view-me active" onclick="setView('me', this)">我的账本</button>
+  <button class="chip view-wife" id="partnerChip" onclick="setView('partner', this)" style="display:none">对方账本</button>
+  <button class="chip view-combined" id="combinedChip" onclick="setView('combined', this)" style="display:none">共同账本</button>
+</div>
+<div class="readonly-tip" id="readonlyTip">
+  当前正在查看对方账本：只允许查看，不允许编辑、删除、新增。
+</div>
+<div class="readonly-tip" id="combinedTip" style="background:#dbeafe;color:#1e40af">
+  当前正在查看共同账本：只用于汇总展示，不能编辑或删除。
+</div>
+
+<!-- PC Table (hidden on mobile) -->
+<div class="table-wrap pc-table">
+  <table>
+    <thead>
+      <tr>
+        <th>日期</th>
+        <th>归属人</th>
+        <th>类型</th>
+        <th>分类</th>
+        <th>备注</th>
+        <th>金额</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="billsTableBody">
+      <tr><td colspan="7" class="table-empty">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Mobile Cards (hidden on PC) -->
+<div class="mobile-bills" id="mobileBills"></div>
+
+<!-- Not bound tip - compact strip -->
+<div id="notBoundTip" class="not-bound-strip" style="display:none;margin-top:16px">
+  <span>🔗 绑定对方账本后可查看更多账单</span>
+  <a href="/ledger/settings" class="btn btn-sm btn-outline">去绑定</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentView = 'me';
+let isBound = false;
+
+async function checkBindStatus() {
+  try {
+    const res = await fetch('/ledger/api/bind-status');
+    const data = await res.json();
+    isBound = data.bound;
+    
+    if (isBound) {
+      document.getElementById('partnerChip').style.display = '';
+      document.getElementById('combinedChip').style.display = '';
+      document.getElementById('notBoundTip').style.display = 'none';
+    } else {
+      document.getElementById('notBoundTip').style.display = 'flex';
+    }
+  } catch(e) {
+    document.getElementById('notBoundTip').style.display = 'flex';
+  }
+}
+
+function setView(view, btn) {
+  document.querySelectorAll('.chip-row .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  
+  currentView = view;
+  document.getElementById('readonlyTip').classList.toggle('show', view === 'partner');
+  document.getElementById('combinedTip').classList.toggle('show', view === 'combined');
+  
+  loadBills();
+}
+
+async function loadBills() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  
+  try {
+    const res = await fetch(`/ledger/api/transactions?year=${year}&month=${month}&view=${currentView}`);
+    const txs = await res.json();
+    
+    renderPCTable(txs);
+    renderMobileCards(txs);
+  } catch(e) {
+    console.error(e);
+    document.getElementById('billsTableBody').innerHTML = '<tr><td colspan="7" class="table-empty">加载失败</td></tr>';
+    document.getElementById('mobileBills').innerHTML = '<div class="small-empty">加载失败</div>';
+  }
+}
+
+function renderPCTable(txs) {
+  const tbody = document.getElementById('billsTableBody');
+  if (!txs.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">暂无记录</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = txs.map(t => {
+    let actions = '';
+    if (currentView === 'me') {
+      actions = `<span class="action-link" onclick="deleteTx(${t.id})">删除</span>`;
+    } else if (currentView === 'partner') {
+      actions = '<span style="color:#9ca3af;font-size:13px">只读</span>';
+    } else {
+      actions = '<span style="color:#9ca3af;font-size:13px">汇总</span>';
+    }
+    
+    const ownerClass = t.owner_name === currentUser?.nickname ? 'me' : 'wife';
+    
+    return `<tr>
+      <td>${t.transaction_date}</td>
+      <td><span class="tag ${ownerClass}">${t.owner_name}</span></td>
+      <td><span class="tag ${t.transaction_type === 'income' ? 'in' : 'out'}">${t.transaction_type === 'income' ? '收入' : '支出'}</span></td>
+      <td>${t.category_name}</td>
+      <td>${t.remark || '-'}</td>
+      <td><span class="record-amount ${t.transaction_type}">${t.transaction_type === 'income' ? '+' : '-'}¥${fmt(t.amount)}</span></td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderMobileCards(txs) {
+  const container = document.getElementById('mobileBills');
+  if (!txs.length) {
+    container.innerHTML = '<div class="small-empty">暂无账单，点击右下角 + 记一笔</div>';
+    return;
+  }
+  
+  container.innerHTML = txs.map(t => {
+    const ownerClass = t.owner_name === currentUser?.nickname ? 'me' : 'wife';
+    let actionHtml = '';
+    if (currentView === 'me') {
+      actionHtml = `<span class="bills-card-action" onclick="deleteTx(${t.id})">删除</span>`;
+    } else if (currentView === 'partner') {
+      actionHtml = `<span class="bills-card-action disabled">只读</span>`;
+    } else {
+      actionHtml = `<span class="bills-card-action disabled">汇总</span>`;
+    }
+    
+    const date = new Date(t.transaction_date);
+    const dateStr = `${date.getMonth()+1}月${date.getDate()}日`;
+    
+    return `<div class="bills-card">
+      <div class="bills-card-header">
+        <div class="bills-card-icon ${t.transaction_type}">${getCategoryEmoji(t.category_icon)}</div>
+        <div class="bills-card-info">
+          <strong>${t.category_name}</strong>
+          <small>${dateStr} · ${t.owner_name}</small>
+        </div>
+        <div class="bills-card-amount ${t.transaction_type}">
+          ${t.transaction_type === 'income' ? '+' : '-'}¥${fmt(t.amount)}
+        </div>
+      </div>
+      <div class="bills-card-meta">
+        ${t.remark ? `<span class="bills-card-tag">${t.remark}</span>` : ''}
+        <span class="bills-card-tag">${ownerClass === 'me' ? '我的' : '对方'}</span>
+        ${actionHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function deleteTx(id) {
+  if (!confirm('确定删除这笔记录？')) return;
+  try {
+    await fetch(`/ledger/api/transactions/${id}`, {method:'DELETE'});
+    loadBills();
+  } catch(e) { 
+    alert('删除失败'); 
+  }
+}
+
+window.onTransactionSaved = function() {
+  loadBills();
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  initApp().then(async () => {
+    highlightNav();
+    await checkBindStatus();
+    
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view');
+    
+    // Only allow partner view if bound
+    if (viewParam === 'partner' && isBound) {
+      const btn = document.getElementById('partnerChip');
+      if (btn) setView('partner', btn);
+    } else if (viewParam === 'combined' && isBound) {
+      const btn = document.getElementById('combinedChip');
+      if (btn) setView('combined', btn);
+    } else {
+      loadBills();
+    }
+  });
+});
+</script>
+{% endblock %}

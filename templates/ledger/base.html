@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#22c55e" />
+<title>{% block title %}LedgerEZ{% endblock %}</title>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",Arial,sans-serif;
+  background:#f5f7f6;
+  color:#111827;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* ── App Shell Layout ── */
+.app-shell{
+  display:grid;
+  grid-template-columns:220px 1fr;
+  min-height:100vh;
+}
+
+/* ── Sidebar (PC) ── */
+.sidebar{
+  width:220px;
+  height:100vh;
+  position:sticky;
+  top:0;
+  background:rgba(255,255,255,0.98);
+  border-right:1px solid #e5e7eb;
+  display:flex;
+  flex-direction:column;
+  padding:24px 12px;
+}
+.sidebar-brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:0 8px 24px;
+}
+.sidebar-logo{
+  width:36px;height:36px;
+  border-radius:10px;
+  background:linear-gradient(135deg,#22c55e,#16a34a);
+  display:grid;place-items:center;
+  color:#fff;font-size:16px;font-weight:700;
+  flex-shrink:0;
+}
+.sidebar-brand h1{font-size:16px;font-weight:700}
+.sidebar-brand p{font-size:12px;color:#9ca3af}
+
+/* Navigation */
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  height:48px;
+  padding:0 12px;
+  border-radius:12px;
+  color:#6b7280;
+  text-decoration:none;
+  font-size:14px;
+  font-weight:500;
+  transition:all .15s;
+}
+.nav a:hover{background:#f3f4f6;color:#374151}
+.nav a.active{background:#dcfce7;color:#16a34a;font-weight:600}
+.nav a span:first-child{font-size:18px;width:24px;text-align:center}
+.nav-divider{height:1px;background:#e5e7eb;margin:8px 0}
+
+/* User Info */
+.sidebar-user{margin-top:auto;padding-top:16px}
+.sidebar-user-info{display:flex;align-items:center;gap:10px}
+.sidebar-user-avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:linear-gradient(135deg,#22c55e,#16a34a);
+  display:grid;place-items:center;
+  color:#fff;font-weight:700;font-size:13px;
+  flex-shrink:0;
+}
+.sidebar-user-name{font-size:13px;font-weight:600}
+.sidebar-user-role{font-size:11px;color:#9ca3af}
+
+/* ── Main Wrap ── */
+.main-wrap{width:100%;min-width:0}
+.main{
+  max-width:1360px;
+  margin:0 auto;
+  padding:32px;
+}
+
+/* ── Page Header ── */
+.page-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+  margin-bottom:20px;
+}
+.page-header h1{margin:0;font-size:24px;font-weight:700}
+.page-header p{margin:5px 0 0;color:#9ca3af;font-size:13px}
+.page-header-actions{display:flex;gap:8px;align-items:center}
+
+/* ── Cards ── */
+.card{
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 12px rgba(0,0,0,0.04);
+  border:1px solid rgba(0,0,0,0.04);
+  padding:16px;
+}
+.card-title{font-size:14px;font-weight:700;margin-bottom:14px;color:#111827}
+.card-title small{font-weight:400;color:#9ca3af;font-size:12px;margin-left:6px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g1{grid-template-columns:1fr}
+
+/* ── Home Stats Grid ── */
+.home-stats-grid{
+  display:grid;
+  gap:12px;
+  grid-template-columns:repeat(3,1fr);
+}
+
+/* ── Partner Grid ── */
+.partner-grid{
+  display:grid;
+  gap:12px;
+  grid-template-columns:repeat(3,1fr);
+}
+
+/* ── Stats ── */
+.stat-card{min-height:70px;padding:14px 16px}
+.stat-label{color:#9ca3af;font-size:12px;margin-bottom:5px}
+.stat-money{font-size:22px;font-weight:800;letter-spacing:-0.5px;line-height:1.1}
+.stat-money.income{color:#16a34a}
+.stat-money.expense{color:#ea580c}
+.stat-money.neutral{color:#111827}
+.stat-sub{color:#b0b7c0;font-size:11px;margin-top:4px}
+
+/* ── Section ── */
+.section{margin-top:16px}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.section-header h3{margin:0;font-size:14px;font-weight:700}
+
+/* ── Not Bound Strip ── */
+.not-bound-strip{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 16px;
+  background:#fff;
+  border-radius:16px;
+  border:1px solid rgba(0,0,0,0.04);
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  margin-top:12px;
+  font-size:13px;
+  color:#374151;
+  gap:12px;
+}
+.not-bound-strip span{flex:1}
+
+/* ── Chips ── */
+.chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.chip{
+  border:1px solid #e5e7eb;
+  background:#fff;
+  border-radius:999px;
+  padding:7px 16px;
+  cursor:pointer;
+  font-size:13px;
+  font-weight:500;
+  transition:all .15s;
+  font-family:inherit;
+}
+.chip:hover{border-color:#d1d5db}
+.chip.active{border-color:#22c55e;background:#dcfce7;color:#16a34a;font-weight:600}
+.chip.view-me.active{background:#dcfce7;color:#16a34a}
+.chip.view-wife.active{background:#fce7f3;color:#be185d}
+.chip.view-combined.active{background:#dbeafe;color:#1d4ed8}
+
+/* ── Record List ── */
+.record-list{display:grid;gap:8px}
+.record{
+  display:grid;
+  grid-template-columns:40px 1fr auto;
+  gap:10px;
+  align-items:center;
+  padding:12px 14px;
+  border-radius:14px;
+  background:#f9fafb;
+}
+.record-icon{
+  width:40px;height:40px;
+  border-radius:12px;
+  display:grid;place-items:center;
+  font-size:18px;
+}
+.record-icon.expense{background:#fff1e6;color:#ea580c}
+.record-icon.income{background:#e6f9ed;color:#16a34a}
+.record-info strong{display:block;font-size:13px;font-weight:600;margin-bottom:2px}
+.record-info small{color:#b0b7c0;font-size:11px}
+.record-amount{font-size:15px;font-weight:800;white-space:nowrap}
+.record-amount.income{color:#16a34a}
+.record-amount.expense{color:#ea580c}
+
+/* ── Table (PC only) ── */
+.table-wrap{
+  display:block;
+  overflow-x:auto;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 12px rgba(0,0,0,0.04);
+  border:1px solid rgba(0,0,0,0.04);
+  margin-top:14px;
+}
+table{border-collapse:collapse;width:100%;min-width:500px;font-size:14px}
+th,td{padding:13px 16px;border-bottom:1px solid #f3f4f6;text-align:left;white-space:nowrap}
+th{background:#fafafa;color:#9ca3af;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+td{color:#374151}
+.table-empty{text-align:center;color:#9ca3af;padding:40px !important}
+.tag{padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.tag.in{color:#16a34a;background:#e6f9ed}
+.tag.out{color:#ea580c;background:#fff1e6}
+.tag.me{color:#1d4ed8;background:#dbeafe}
+.tag.wife{color:#be185d;background:#fce7f3}
+.action-link{color:#9ca3af;font-size:13px;cursor:pointer;text-decoration:none;padding:4px 8px;border-radius:6px}
+.action-link:hover{color:#111827;background:#f3f4f6}
+.action-link.disabled{color:#d1d5db;cursor:not-allowed}
+
+/* ── Buttons ── */
+.btn{
+  border:0;
+  border-radius:12px;
+  padding:10px 18px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:14px;
+  font-family:inherit;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  text-decoration:none;
+  transition:all .15s;
+}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.btn-green{background:#22c55e;color:#fff}
+.btn-green:hover:not(:disabled){background:#16a34a}
+.btn-outline{background:#fff;color:#374151;border:1px solid #e5e7eb}
+.btn-outline:hover:not(:disabled){background:#f9fafb}
+.btn-orange{background:#f97316;color:#fff}
+.btn-orange:hover:not(:disabled){background:#ea580c}
+.btn-text{background:transparent;color:#9ca3af;border:0;padding:8px 12px}
+.btn-text:hover:not(:disabled){color:#374151}
+.btn-sm{padding:7px 14px;font-size:12px;border-radius:10px}
+
+/* ── Charts ── */
+.chart-layout{display:grid;grid-template-columns:1.1fr 1fr;gap:14px}
+.donut-wrap{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center}
+.donut-empty{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px 16px;
+  color:#94a3b8;
+  font-size:14px;
+  text-align:center;
+}
+.donut{
+  width:140px;height:140px;
+  border-radius:50%;
+  position:relative;
+  background:#f3f4f6;
+  flex-shrink:0;
+}
+.donut-center{
+  position:absolute;inset:16px;
+  border-radius:50%;
+  background:#fff;
+  display:grid;place-items:center;
+  text-align:center;
+}
+.donut-center-amount{font-size:13px;font-weight:800;color:#111827}
+.donut-center-label{font-size:10px;color:#9ca3af;font-weight:400}
+.rank{display:grid;gap:8px}
+.rank-row{display:grid;grid-template-columns:56px 1fr 36px;gap:8px;align-items:center;font-size:12px}
+.rank-bar{height:5px;background:#f1f5f9;border-radius:999px;overflow:hidden}
+.rank-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#f97316,#fb923c)}
+
+/* ── Settings ── */
+.settings-card{
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 12px rgba(0,0,0,0.04);
+  border:1px solid rgba(0,0,0,0.04);
+  padding:0;
+  overflow:hidden;
+}
+.settings-group-title{
+  padding:12px 18px;
+  background:#fafafa;
+  border-bottom:1px solid #f3f4f6;
+  font-size:13px;font-weight:600;color:#374151;
+}
+.settings-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:13px 18px;
+  border-bottom:1px solid #f9fafb;
+  font-size:14px;
+}
+.settings-row:last-child{border-bottom:0}
+.settings-row-label{color:#6b7280}
+.settings-row-value{font-weight:600;color:#111827}
+.settings-row a{color:#22c55e;text-decoration:none}
+
+/* ── Bind Unbound Compact Card ── */
+.bind-unbound{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 18px;
+  gap:12px;
+}
+.bind-unbound-info{flex:1}
+.bind-unbound-title{font-size:13px;font-weight:600;color:#374151;margin-bottom:2px}
+.bind-unbound-desc{font-size:12px;color:#9ca3af}
+
+/* ── Modal ── */
+.modal-mask{
+  position:fixed;inset:0;
+  background:rgba(15,23,42,.45);
+  display:none;
+  place-items:center;
+  padding:24px;
+  z-index:100;
+  backdrop-filter:blur(4px);
+}
+.modal-mask.show{display:grid}
+.modal{
+  width:min(440px,100%);
+  background:#fff;
+  border-radius:24px;
+  padding:24px;
+  max-height:88vh;
+  overflow:auto;
+  animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-head h3{margin:0;font-size:18px;font-weight:700}
+.modal-close{
+  border:0;background:#f3f4f6;
+  width:34px;height:34px;
+  border-radius:50%;
+  font-size:16px;
+  cursor:pointer;
+  display:grid;place-items:center;
+}
+.modal-close:hover{background:#e5e7eb}
+.modal-form{display:grid;gap:14px}
+.modal-label{font-size:13px;font-weight:600;color:#374151;margin-bottom:6px}
+.modal-input{
+  width:100%;
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  padding:11px 14px;
+  font-size:15px;
+  font-family:inherit;
+}
+.modal-input:focus{outline:none;border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.1)}
+.modal-textarea{
+  width:100%;
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  padding:11px 14px;
+  font-size:14px;font-family:inherit;
+  resize:none;height:60px;
+}
+.type-toggle{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  background:#f3f4f6;
+  padding:6px;
+  border-radius:14px;
+}
+.type-toggle button{
+  height:40px;
+  border-radius:12px;
+  border:0;
+  font-weight:700;
+  cursor:pointer;
+  background:transparent;
+  font-size:14px;
+  font-family:inherit;
+}
+.type-toggle button.active.out{background:#f97316;color:#fff}
+.type-toggle button.active.in{background:#22c55e;color:#fff}
+.category-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.category{
+  border:1px solid #e5e7eb;
+  background:#fff;
+  border-radius:12px;
+  padding:10px 6px;
+  text-align:center;
+  cursor:pointer;
+  font-weight:600;
+  font-size:12px;
+  transition:all .15s;
+  font-family:inherit;
+}
+.category:hover{border-color:#d1d5db}
+.category.active{border-color:#f97316;background:#fff1e6;color:#ea580c}
+.category.active.in{border-color:#22c55e;background:#e6f9ed;color:#16a34a}
+.category-icon{font-size:18px;margin-bottom:4px}
+.category-name{font-size:11px}
+
+.error-msg{color:#dc2626;font-size:13px;padding:10px 12px;background:#fef2f2;border-radius:8px;display:none}
+.error-msg.show{display:block}
+.muted{color:#9ca3af;font-size:13px}
+.readonly-tip{
+  display:none;
+  padding:11px 14px;
+  background:#fef3c7;
+  border-radius:12px;
+  color:#92400e;
+  font-size:13px;
+  margin-bottom:10px;
+}
+.readonly-tip.show{display:block}
+
+/* ── Bottom Nav (Mobile) ── */
+.bottom-nav{display:none}
+.fab{display:none}
+
+/* ── Mobile Bills Cards ── */
+.mobile-bills{display:none}
+
+/* ── Small Empty State ── */
+.small-empty{
+  padding:28px 16px;
+  text-align:center;
+  color:#94a3b8;
+  font-size:14px;
+  line-height:1.6;
+}
+
+/* ── PC only ── */
+.pc-only{display:inline-flex;align-items:center;gap:6px}
+
+/* ── Responsive ── */
+@media(max-width:860px){
+  .app-shell{display:block}
+  .sidebar{display:none}
+  
+  .main{padding:14px 14px 80px}
+  
+  .page-header{flex-direction:column;gap:10px}
+  .page-header h1{font-size:18px}
+  .page-header p{display:none}
+  .page-header-actions{width:100%}
+  
+  /* Mobile home stats: 2-col grid, last item full */
+  .home-stats-grid{
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .home-stats-grid .stat-card:nth-child(3){
+    grid-column:1 / -1;
+  }
+  
+  /* Partner grid: 1 col on mobile */
+  .partner-grid{
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+  
+  /* Stat card compact */
+  .stat-card{min-height:0;padding:12px 14px}
+  .stat-money{font-size:18px}
+  
+  /* Grid collapses to 1 col */
+  .grid.g4,.grid.g3,.grid.g2,.chart-layout{grid-template-columns:1fr}
+  .donut-wrap{grid-template-columns:1fr;text-align:center}
+  .donut{width:120px;height:120px;margin:0 auto}
+  
+  /* Bills chip row */
+  .chip{padding:6px 14px;font-size:12px}
+  
+  /* Mobile Bills Cards */
+  .mobile-bills{display:grid;gap:8px;margin-top:4px}
+  .pc-table{display:none}
+  .bills-card{
+    background:#fff;
+    border-radius:14px;
+    padding:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+    border:1px solid rgba(0,0,0,0.04);
+  }
+  .bills-card-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:8px;
+  }
+  .bills-card-icon{
+    width:36px;height:36px;
+    border-radius:10px;
+    display:grid;place-items:center;
+    font-size:16px;
+  }
+  .bills-card-icon.expense{background:#fff1e6;color:#ea580c}
+  .bills-card-icon.income{background:#e6f9ed;color:#16a34a}
+  .bills-card-info{flex:1;margin-left:10px}
+  .bills-card-info strong{font-size:14px;font-weight:600}
+  .bills-card-info small{display:block;color:#9ca3af;font-size:11px;margin-top:1px}
+  .bills-card-amount{font-size:16px;font-weight:800}
+  .bills-card-amount.income{color:#16a34a}
+  .bills-card-amount.expense{color:#ea580c}
+  .bills-card-meta{
+    display:flex;
+    gap:6px;
+    margin-top:6px;
+    flex-wrap:wrap;
+  }
+  .bills-card-tag{
+    font-size:11px;
+    padding:3px 7px;
+    border-radius:999px;
+    background:#f3f4f6;
+    color:#6b7280;
+  }
+  .bills-card-action{
+    font-size:12px;
+    color:#9ca3af;
+    padding:3px 7px;
+    border-radius:6px;
+    cursor:pointer;
+    margin-left:auto;
+  }
+  .bills-card-action:hover{background:#f3f4f6;color:#374151}
+  .bills-card-action.disabled{color:#d1d5db;cursor:not-allowed}
+  
+  /* Bottom Nav */
+  .bottom-nav{
+    display:flex;
+    position:fixed;
+    left:12px;right:12px;
+    bottom:10px;
+    height:58px;
+    background:rgba(255,255,255,0.97);
+    border:1px solid #f3f4f6;
+    border-radius:18px;
+    box-shadow:0 8px 24px rgba(15,23,42,.08);
+    z-index:50;
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+  }
+  .bottom-nav a{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    color:#9ca3af;
+    text-decoration:none;
+    font-size:11px;
+    transition:all .15s;
+  }
+  .bottom-nav a span:first-child{font-size:20px}
+  .bottom-nav a.active{color:#16a34a;font-weight:600}
+  
+  /* FAB */
+  .fab{
+    display:grid;
+    place-items:center;
+    position:fixed;
+    right:18px;
+    bottom:80px;
+    width:50px;height:50px;
+    border-radius:50%;
+    border:0;
+    background:linear-gradient(135deg,#22c55e,#16a34a);
+    color:#fff;
+    font-size:24px;
+    box-shadow:0 6px 20px rgba(34,197,94,.35);
+    cursor:pointer;
+    z-index:50;
+  }
+  .fab:hover{transform:scale(1.05)}
+  
+  /* Not bound strip mobile */
+  .not-bound-strip{
+    padding:10px 14px;
+    font-size:12px;
+    border-radius:14px;
+  }
+  .not-bound-strip span{flex:1}
+  
+  /* Settings bind */
+  .bind-unbound{
+    padding:12px 16px;
+  }
+  .bind-unbound-title{font-size:13px}
+  .bind-unbound-desc{font-size:12px}
+  
+  /* Small empty */
+  .small-empty{
+    padding:20px 12px;
+    font-size:13px;
+  }
+  
+  /* Donut empty */
+  .donut-empty{
+    padding:16px;
+    font-size:13px;
+  }
+  
+  /* Hide PC-only on mobile */
+  .pc-only{display:none}
+}
+
+@media(max-width:480px){
+  /* Even tighter on small phones */
+  .home-stats-grid{grid-template-columns:1fr 1fr}
+  .stat-card{padding:10px 12px}
+  .stat-money{font-size:16px}
+  .stat-label{font-size:11px}
+  .card{padding:14px}
+  .main{padding:12px 12px 76px}
+}
+</style>
+</head>
+<body>
+
+<!-- App Shell -->
+<div class="app-shell">
+  <!-- Sidebar (PC) -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">L</div>
+      <div>
+        <h1>LedgerEZ</h1>
+        <p>双人记账</p>
+      </div>
+    </div>
+    
+    <nav class="nav">
+      <a href="/ledger/" id="nav-home">
+        <span>🏠</span>首页
+      </a>
+      <a href="/ledger/bills" id="nav-bills">
+        <span>📋</span>账单
+      </a>
+      <a href="/ledger/stats" id="nav-stats">
+        <span>📊</span>统计
+      </a>
+      <div class="nav-divider"></div>
+      <a href="/ledger/settings" id="nav-settings">
+        <span>⚙️</span>设置
+      </a>
+    </nav>
+    
+    <div class="sidebar-user">
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">-</div>
+        <div>
+          <div class="sidebar-user-name" id="sidebarName">-</div>
+          <div class="sidebar-user-role" id="sidebarRole">-</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Wrap -->
+  <div class="main-wrap">
+    <main class="main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<!-- FAB (Mobile) -->
+<button class="fab" id="fabBtn" onclick="openQuickAdd()">+</button>
+
+<!-- Bottom Nav (Mobile) -->
+<nav class="bottom-nav">
+  <a href="/ledger/" id="mobile-nav-home"><span>🏠</span><span>首页</span></a>
+  <a href="/ledger/bills" id="mobile-nav-bills"><span>📋</span><span>账单</span></a>
+  <a href="/ledger/stats" id="mobile-nav-stats"><span>📊</span><span>统计</span></a>
+  <a href="/ledger/settings" id="mobile-nav-settings"><span>⚙️</span><span>设置</span></a>
+</nav>
+
+<!-- Quick Add Modal -->
+<div class="modal-mask" id="quickAddModal">
+<div class="modal">
+<div class="modal-head">
+<h3>快速记账</h3>
+<button class="modal-close" onclick="closeQuickAdd()">×</button>
+</div>
+<div class="modal-form">
+<div class="type-toggle">
+<button id="expenseBtn" class="active out" onclick="setType('expense')">支出</button>
+<button id="incomeBtn" onclick="setType('income')">收入</button>
+</div>
+<div>
+<div class="modal-label">金额</div>
+<input type="number" id="addAmount" class="modal-input" placeholder="0.00" step="0.01" min="0" style="font-size:22px;font-weight:700;text-align:center">
+</div>
+<div>
+<div class="modal-label">分类</div>
+<div class="category-grid" id="categoryGrid"></div>
+</div>
+<div>
+<div class="modal-label">备注</div>
+<textarea id="addRemark" class="modal-textarea" placeholder="简要描述..."></textarea>
+</div>
+<div>
+<div class="modal-label">日期</div>
+<input type="date" id="addDate" class="modal-input">
+</div>
+<div id="addError" class="error-msg"></div>
+<button id="saveBtn" class="btn btn-orange" onclick="saveTransaction()" style="width:100%;padding:13px;font-size:15px;margin-top:2px">保存</button>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+// ── State ──
+let currentUser = null;
+let currentType = 'expense';
+let categories = [];
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('addDate').value = new Date().toISOString().slice(0, 10);
+  await initApp();
+});
+
+// ── Init App ──
+async function initApp() {
+  try {
+    const res = await fetch('/ledger/auth/check');
+    const data = await res.json();
+    if (data.logged_in) {
+      currentUser = data.user;
+      updateUserInfo();
+      await loadCategories();
+    } else {
+      window.location.href = '/ledger/login';
+    }
+  } catch(e) {
+    window.location.href = '/ledger/login';
+  }
+}
+
+function updateUserInfo() {
+  if (!currentUser) return;
+  const name = currentUser.nickname;
+  const role = currentUser.role === 'wife' ? '老婆' : '我';
+  const avatar = name.charAt(0).toUpperCase();
+  
+  document.getElementById('sidebarAvatar').textContent = avatar;
+  document.getElementById('sidebarName').textContent = name;
+  document.getElementById('sidebarRole').textContent = role;
+  
+  highlightNav();
+}
+
+// ── Navigation ──
+function highlightNav() {
+  const path = window.location.pathname;
+  const page = path.replace('/ledger/', '').replace('/', '') || 'home';
+  
+  document.querySelectorAll('.nav a, .bottom-nav a').forEach(a => a.classList.remove('active'));
+  
+  const pcNav = document.getElementById('nav-' + page);
+  const mobileNav = document.getElementById('mobile-nav-' + page);
+  if (pcNav) pcNav.classList.add('active');
+  if (mobileNav) mobileNav.classList.add('active');
+  
+  const fabBtn = document.getElementById('fabBtn');
+  if (fabBtn) {
+    fabBtn.style.display = (page === 'home' || page === 'bills') ? 'grid' : 'none';
+  }
+}
+
+// ── Categories ──
+async function loadCategories() {
+  try {
+    const res = await fetch('/ledger/api/categories');
+    categories = await res.json();
+    renderCategoryGrid();
+  } catch(e) { console.error(e); }
+}
+
+// ── Quick Add Modal ──
+function openQuickAdd() {
+  document.getElementById('quickAddModal').classList.add('show');
+  document.getElementById('addAmount').focus();
+}
+
+function closeQuickAdd() {
+  document.getElementById('quickAddModal').classList.remove('show');
+  document.getElementById('addAmount').value = '';
+  document.getElementById('addRemark').value = '';
+  document.getElementById('addError').classList.remove('show');
+}
+
+function setType(type) {
+  currentType = type;
+  document.getElementById('expenseBtn').className = type === 'expense' ? 'active out' : '';
+  document.getElementById('incomeBtn').className = type === 'income' ? 'active in' : '';
+  document.getElementById('saveBtn').className = type === 'expense' ? 'btn btn-orange' : 'btn btn-green';
+  renderCategoryGrid();
+}
+
+function renderCategoryGrid() {
+  const filtered = categories.filter(c => c.category_type === currentType);
+  const grid = document.getElementById('categoryGrid');
+  grid.innerHTML = filtered.map((c, i) => `
+    <button class="category ${i === 0 ? 'active' : ''}" data-id="${c.id}" onclick="selectCategory(this)">
+      <div class="category-icon">${getCategoryEmoji(c.icon)}</div>
+      <div class="category-name">${c.name}</div>
+    </button>
+  `).join('');
+  
+  if (filtered.length > 0) {
+    grid.dataset.selected = filtered[0].id;
+  }
+}
+
+function selectCategory(btn) {
+  btn.parentElement.querySelectorAll('.category').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  btn.parentElement.dataset.selected = btn.dataset.id;
+}
+
+async function saveTransaction() {
+  const amount = parseFloat(document.getElementById('addAmount').value);
+  const categoryId = parseInt(document.getElementById('categoryGrid').dataset.selected);
+  const remark = document.getElementById('addRemark').value;
+  const date = document.getElementById('addDate').value;
+  const err = document.getElementById('addError');
+  
+  if (!amount || amount <= 0) {
+    err.textContent = '请输入有效金额'; err.classList.add('show'); return;
+  }
+  if (!categoryId) {
+    err.textContent = '请选择分类'; err.classList.add('show'); return;
+  }
+  
+  try {
+    let accountId;
+    const accRes = await fetch('/ledger/api/accounts');
+    let accs = await accRes.json();
+    if (!accs.length) {
+      const createRes = await fetch('/ledger/api/accounts', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name: '默认账户', account_type: 'cash'})
+      });
+      const newAcc = await createRes.json();
+      accountId = newAcc.id;
+    } else {
+      accountId = accs[0].id;
+    }
+    
+    const res = await fetch('/ledger/api/transactions', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        amount, category_id: categoryId, account_id: accountId,
+        transaction_type: currentType, remark, transaction_date: date
+      })
+    });
+    
+    if (!res.ok) {
+      const data = await res.json();
+      err.textContent = data.error || '保存失败'; err.classList.add('show'); return;
+    }
+    
+    closeQuickAdd();
+    if (typeof onTransactionSaved === 'function') onTransactionSaved();
+  } catch(e) {
+    err.textContent = '保存失败'; err.classList.add('show');
+  }
+}
+
+// ── Utils ──
+function fmt(n) {
+  return (typeof n === 'number' ? n.toFixed(2) : '0.00').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function getCategoryEmoji(icon) {
+  const map = {
+    'shopping-bag': '🛍️', 'trending-up': '💰', 'plus-circle': '💵', 'utensils': '🍜',
+    'home': '🏠', 'users': '👥', 'smartphone': '📱', 'shopping-cart': '🛒',
+    'credit-card': '💳', 'more-horizontal': '📝', 'bar-chart': '📊', 'gift': '🎁'
+  };
+  return map[icon] || '📋';
+}
+
+function renderDonut(id, breakdown, total) {
+  const el = document.getElementById(id);
+  if (!breakdown || !breakdown.length || !total) {
+    el.style.background = '#f3f4f6';
+    return;
+  }
+  const colors = ['#f97316','#fb923c','#8b5cf6','#3b82f6','#22c55e','#f59e0b','#94a3b8'];
+  let gradient = '';
+  let current = 0;
+  breakdown.forEach((c, i) => {
+    const pct = (c.amount / total) * 100;
+    gradient += `${colors[i % colors.length]} ${current}% ${current + pct}%`;
+    if (i < breakdown.length - 1) gradient += ',';
+    current += pct;
+  });
+  el.style.background = `conic-gradient(${gradient})`;
+}
+
+function renderRank(id, breakdown) {
+  const el = document.getElementById(id);
+  if (!breakdown || !breakdown.length) {
+    el.innerHTML = '<div class="small-empty">暂无分类数据</div>';
+    return;
+  }
+  const total = breakdown.reduce((s, c) => s + c.amount, 0);
+  el.innerHTML = breakdown.slice(0, 5).map(c => `
+    <div class="rank-row">
+      <span>${c.name}</span>
+      <div class="rank-bar"><div class="rank-bar-fill" style="width:${(c.amount/total)*100}%"></div></div>
+      <strong>${((c.amount/total)*100).toFixed(0)}%</strong>
+    </div>
+  `).join('');
+}
+
+// Close modal on overlay click
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-mask')) closeQuickAdd();
+});
+
+// Keyboard shortcut
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeQuickAdd();
+});
+
+// Page-level callback
+window.onTransactionSaved = function() {};
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

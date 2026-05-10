@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#22c55e" />
+<title>{% block title %}登录 - LedgerEZ{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'IBM Plex Sans','Segoe UI','Microsoft YaHei',sans-serif;background:#f5f7f6;color:#111827;min-height:100vh}
+
+/* ── Auth Screen ── */
+.auth{min-height:100vh;display:grid;place-items:center;padding:24px}
+.auth-card{width:min(420px,100%);background:#fff;border-radius:24px;box-shadow:0 12px 30px rgba(15,23,42,.08);border:1px solid #e5e7eb;padding:32px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.logo{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#22c55e,#16a34a);display:grid;place-items:center;color:#fff;font-size:22px;font-weight:700}
+.brand h1{margin:0;font-size:22px}
+.brand p{color:#6b7280;font-size:14px;margin-top:2px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f3f4f6;padding:6px;border-radius:16px;margin-bottom:20px}
+.tabs button{height:42px;border-radius:12px;border:0;background:transparent;font-weight:600;cursor:pointer;font-size:14px}
+.tabs button.active{background:#fff;color:#16a34a}
+.form{display:grid;gap:14px}
+label{font-size:13px;font-weight:600;color:#374151}
+input,select{width:100%;border:1px solid #e5e7eb;border-radius:12px;padding:0 14px;height:48px;font-size:15px;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.1)}
+.btn{border:0;border-radius:12px;padding:14px 16px;cursor:pointer;font-weight:700;font-size:15px;font-family:inherit;width:100%}
+.btn-green{background:#22c55e;color:#fff}
+.btn-green:hover{background:#16a34a}
+.muted{color:#6b7280;font-size:13px;text-align:center;margin-top:8px}
+.error-msg{color:#dc2626;font-size:13px;padding:10px 12px;background:#fef2f2;border-radius:8px;display:none}
+.error-msg.show{display:block}
+.demo-hint{text-align:center;padding:16px;background:#f0fdf4;border-radius:12px;color:#166534;font-size:13px;margin-top:12px}
+.demo-hint strong{display:block;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+<section class="auth">
+<div class="auth-card">
+  <div class="brand">
+    <div class="logo">L</div>
+    <div>
+      <h1>LedgerEZ</h1>
+      <p>双人极简记账本</p>
+    </div>
+  </div>
+  
+  <div class="tabs">
+    <button class="active" onclick="switchAuth('login',this)">登录</button>
+    <button onclick="switchAuth('register',this)">注册</button>
+  </div>
+  
+  <!-- Login Form -->
+  <div id="loginForm" class="form">
+    <div>
+      <label>手机号</label>
+      <input type="tel" id="loginPhone" placeholder="请输入手机号" maxlength="11" />
+    </div>
+    <div>
+      <label>密码</label>
+      <input type="password" id="loginPassword" placeholder="请输入密码" />
+    </div>
+    <div id="loginError" class="error-msg"></div>
+    <button class="btn btn-green" onclick="doLogin()">登录</button>
+  </div>
+  
+  <!-- Register Form -->
+  <div id="registerForm" class="form" style="display:none">
+    <div>
+      <label>昵称</label>
+      <input type="text" id="regNickname" placeholder="例如：阿峰 / 朋友" />
+    </div>
+    <div>
+      <label>手机号</label>
+      <input type="tel" id="regPhone" placeholder="请输入手机号" maxlength="11" />
+    </div>
+    <div>
+      <label>密码</label>
+      <input type="password" id="regPassword" placeholder="至少6位" />
+    </div>
+    <div>
+      <label>身份</label>
+      <select id="regRole">
+        <option value="me">我</option>
+        <option value="partner">他人</option>
+      </select>
+    </div>
+    <div id="regError" class="error-msg"></div>
+    <button class="btn btn-green" onclick="doRegister()">注册并登录</button>
+  </div>
+  
+  <div class="demo-hint">
+    <strong>演示账号</strong>
+    手机号：13800000001<br/>
+    密码：123456
+  </div>
+</div>
+</section>
+
+<script>
+function switchAuth(tab, btn) {
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('loginForm').style.display = tab === 'login' ? 'grid' : 'none';
+  document.getElementById('registerForm').style.display = tab === 'register' ? 'grid' : 'none';
+}
+
+async function doLogin() {
+  const phone = document.getElementById('loginPhone').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const err = document.getElementById('loginError');
+  
+  if (!phone || !password) { 
+    err.textContent = '请输入手机号和密码'; 
+    err.classList.add('show'); 
+    return; 
+  }
+  
+  try {
+    const res = await fetch('/ledger/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({phone, password})
+    });
+    const data = await res.json();
+    if (!res.ok) { 
+      err.textContent = data.error || '登录失败'; 
+      err.classList.add('show'); 
+      return; 
+    }
+    // Redirect to home
+    window.location.href = '/ledger/';
+  } catch(e) { 
+    err.textContent = '登录失败，请稍后重试'; 
+    err.classList.add('show'); 
+  }
+}
+
+async function doRegister() {
+  const nickname = document.getElementById('regNickname').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const role = document.getElementById('regRole').value;
+  const err = document.getElementById('regError');
+  
+  if (!nickname) { 
+    err.textContent = '请输入昵称'; 
+    err.classList.add('show'); 
+    return; 
+  }
+  if (!phone || phone.length < 11) { 
+    err.textContent = '请输入正确的手机号'; 
+    err.classList.add('show'); 
+    return; 
+  }
+  if (!password || password.length < 6) { 
+    err.textContent = '密码至少6位'; 
+    err.classList.add('show'); 
+    return; 
+  }
+  
+  try {
+    const res = await fetch('/ledger/auth/register', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({nickname, phone, password, role})
+    });
+    const data = await res.json();
+    if (!res.ok) { 
+      err.textContent = data.error || '注册失败'; 
+      err.classList.add('show'); 
+      return; 
+    }
+    // Redirect to home
+    window.location.href = '/ledger/';
+  } catch(e) { 
+    err.textContent = '注册失败，请稍后重试'; 
+    err.classList.add('show'); 
+  }
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const loginVisible = document.getElementById('loginForm').style.display !== 'none';
+    if (loginVisible) doLogin();
+    else doRegister();
+  }
+});
+</script>
+
+</body>
+</html>
