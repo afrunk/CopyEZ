@@ -74,6 +74,7 @@ from app.modules.copyez import (
     note_relations_bp,
     note_pages_bp,
 )
+from app.modules.renovamate import renovamate_bp
 
 # ── 路由注册区 ──────────────────────────────────────────────────────────────
 # 低风险页面路由（通过 add_url_rule 保持原 endpoint 不变）
@@ -134,6 +135,9 @@ app.register_blueprint(note_relations_bp)
 # 注册 /notes 为 standalone（bare endpoint name，供 templates 的 url_for 使用）
 app.add_url_rule("/notes", endpoint="notes", view_func=notes_page)
 app.register_blueprint(note_pages_bp)
+
+# RenovaMate Blueprint
+app.register_blueprint(renovamate_bp)
 
 # ── 模板过滤器 ───────────────────────────────────────────────────────────────
 from app.utils.filters import register_filters, urlquote_filter

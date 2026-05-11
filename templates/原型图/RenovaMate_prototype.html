@@ -1,0 +1,1904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenovaMate 装修助手原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RenovaMate Design System — All CSS Inlined
+   ============================================================ */
+:root {
+  --bg-primary: #FAF8F5;
+  --bg-secondary: #F2EDE8;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #1C1917;
+  --text-primary: #1C1917;
+  --text-secondary: #57534E;
+  --text-muted: #A8A29E;
+  --text-on-dark: #FAF8F5;
+  --text-on-dark-muted: #A8A29E;
+  --accent-orange: #EA580C;
+  --accent-orange-light: #FB923C;
+  --accent-green: #16A34A;
+  --accent-green-light: #86EFAC;
+  --accent-red: #DC2626;
+  --accent-red-light: #FCA5A5;
+  --accent-yellow: #CA8A04;
+  --accent-yellow-light: #FDE047;
+  --accent-blue: #2563EB;
+  --accent-blue-light: #93C5FD;
+  --accent-purple: #7C3AED;
+  --border-light: #E7E5E4;
+  --border-medium: #D6D3D1;
+  --shadow-sm: 0 1px 3px rgba(28,25,23,.06),0 1px 2px rgba(28,25,23,.04);
+  --shadow-md: 0 4px 12px rgba(28,25,23,.08),0 2px 4px rgba(28,25,23,.04);
+  --shadow-lg: 0 12px 32px rgba(28,25,23,.12),0 4px 8px rgba(28,25,23,.06);
+  --shadow-hover: 0 8px 24px rgba(28,25,23,.12),0 3px 6px rgba(28,25,23,.06);
+  --sidebar-width: 240px;
+  --sidebar-collapsed: 68px;
+  --topbar-height: 64px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body { font-family: 'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+h1,h2,h3,h4,h5,h6 { font-weight: 600; line-height: 1.3; letter-spacing: -0.02em; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+a { color: var(--accent-orange); text-decoration: none; transition: color var(--transition-fast); }
+a:hover { color: var(--accent-orange-light); }
+
+/* ── Layout ── */
+.app-layout { display: flex; min-height: 100vh; }
+.sidebar { width: var(--sidebar-width); background: var(--bg-sidebar); color: var(--text-on-dark); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; transition: width var(--transition-base); overflow: hidden; }
+.sidebar-brand { padding: 20px 20px 16px; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: 12px; min-height: var(--topbar-height); }
+.sidebar-brand-icon { width: 36px; height: 36px; background: var(--accent-orange); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sidebar-brand-icon svg { width: 20px; height: 20px; color: white; }
+.sidebar-brand-text { display: flex; flex-direction: column; gap: 1px; overflow: hidden; }
+.sidebar-brand-name { font-size: .9375rem; font-weight: 700; color: white; letter-spacing: -0.01em; white-space: nowrap; }
+.sidebar-brand-sub { font-size: .6875rem; color: var(--text-on-dark-muted); white-space: nowrap; }
+.sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; overflow-x: hidden; }
+.sidebar-section-label { font-size: .625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-on-dark-muted); padding: 12px 10px 6px; white-space: nowrap; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-md); color: var(--text-on-dark-muted); font-size: .875rem; font-weight: 500; cursor: pointer; transition: all var(--transition-fast); white-space: nowrap; position: relative; user-select: none; border: none; background: transparent; width: 100%; text-align: left; }
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; transition: color var(--transition-fast); }
+.nav-item:hover { background: rgba(255,255,255,.06); color: white; }
+.nav-item.active { background: rgba(234,88,12,.15); color: var(--accent-orange-light); }
+.nav-item.active svg { color: var(--accent-orange-light); }
+.nav-item-badge { margin-left: auto; background: var(--accent-orange); color: white; font-size: .625rem; font-weight: 700; padding: 2px 7px; border-radius: var(--radius-full); min-width: 20px; text-align: center; }
+.nav-item-badge.green { background: var(--accent-green); }
+.nav-item-badge.red { background: var(--accent-red); }
+.nav-item-badge.blue { background: var(--accent-blue); }
+.nav-item-badge.yellow { background: var(--accent-yellow); color: #1C1917; }
+.sidebar-footer { padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.06); }
+.sidebar-project-card { background: rgba(255,255,255,.05); border-radius: var(--radius-md); padding: 12px; margin-bottom: 8px; }
+.sidebar-project-name { font-size: .8125rem; font-weight: 600; color: white; margin-bottom: 2px; }
+.sidebar-project-meta { font-size: .6875rem; color: var(--text-on-dark-muted); }
+.main-content { flex: 1; margin-left: var(--sidebar-width); display: flex; flex-direction: column; min-height: 100vh; transition: margin-left var(--transition-base); }
+
+/* ── Topbar ── */
+.topbar { height: var(--topbar-height); background: var(--bg-card); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; padding: 0 28px; gap: 16px; position: sticky; top: 0; z-index: 50; }
+.topbar-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: .875rem; color: var(--text-muted); }
+.topbar-breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+.topbar-breadcrumb svg { width: 14px; height: 14px; }
+.topbar-spacer { flex: 1; }
+.topbar-budget-chip { display: flex; align-items: center; gap: 8px; background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: var(--radius-full); padding: 6px 14px; font-size: .8125rem; }
+.topbar-budget-chip .label { color: var(--text-muted); }
+.topbar-budget-chip .value { font-weight: 600; color: var(--text-primary); }
+.topbar-budget-chip .value.over { color: var(--accent-red); }
+.topbar-budget-chip .value.saved { color: var(--accent-green); }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.topbar-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-orange); color: white; display: flex; align-items: center; justify-content: center; font-size: .8125rem; font-weight: 600; cursor: pointer; }
+.mobile-sidebar-toggle { display: none; }
+
+/* ── Page Container ── */
+.page-container { padding: 28px; flex: 1; }
+.page-header { margin-bottom: 28px; }
+.page-title { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.03em; margin-bottom: 4px; }
+.page-subtitle { font-size: .9375rem; color: var(--text-muted); }
+.page-section { margin-bottom: 32px; }
+.page-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.page-section-title { font-size: 1.0625rem; font-weight: 600; color: var(--text-primary); }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 18px; border-radius: var(--radius-md); font-size: .875rem; font-weight: 500; font-family: inherit; cursor: pointer; transition: all var(--transition-fast); border: 1px solid transparent; white-space: nowrap; user-select: none; line-height: 1; }
+.btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.btn-primary { background: var(--accent-orange); color: white; border-color: var(--accent-orange); }
+.btn-primary:hover { background: #C2410C; border-color: #C2410C; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-secondary { background: var(--bg-card); color: var(--text-primary); border-color: var(--border-medium); }
+.btn-secondary:hover { background: var(--bg-secondary); border-color: var(--text-muted); }
+.btn-ghost { background: transparent; color: var(--text-secondary); border-color: transparent; }
+.btn-ghost:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.btn-sm { padding: 6px 12px; font-size: .8125rem; border-radius: var(--radius-sm); }
+.btn-lg { padding: 12px 24px; font-size: 1rem; }
+.btn-icon { width: 36px; height: 36px; padding: 0; border-radius: var(--radius-md); }
+.btn-icon svg { width: 18px; height: 18px; }
+
+/* ── Cards ── */
+.card { background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-sm); overflow: hidden; transition: box-shadow var(--transition-base),transform var(--transition-base); }
+.card:hover { box-shadow: var(--shadow-hover); }
+.card-clickable { cursor: pointer; }
+.card-clickable:hover { transform: translateY(-2px); }
+.card-header { padding: 20px 20px 0; }
+.card-body { padding: 16px 20px 20px; }
+
+/* ── Stat Cards ── */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.stat-card { background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-light); box-shadow: var(--shadow-sm); padding: 20px; transition: all var(--transition-base); cursor: pointer; position: relative; overflow: hidden; }
+.stat-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); border-color: var(--border-medium); }
+.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent-orange); opacity: 0; transition: opacity var(--transition-fast); }
+.stat-card:hover::before { opacity: 1; }
+.stat-card.green::before { background: var(--accent-green); }
+.stat-card.red::before { background: var(--accent-red); }
+.stat-card.blue::before { background: var(--accent-blue); }
+.stat-card.yellow::before { background: var(--accent-yellow); }
+.stat-card.orange::before { background: var(--accent-orange); }
+.stat-card-accent { position: absolute; top: -20px; right: -20px; width: 80px; height: 80px; border-radius: 50%; opacity: 0.05; }
+.stat-card.green .stat-card-accent { background: var(--accent-green); }
+.stat-card.red .stat-card-accent { background: var(--accent-red); }
+.stat-card.blue .stat-card-accent { background: var(--accent-blue); }
+.stat-card.yellow .stat-card-accent { background: var(--accent-yellow); }
+.stat-card.orange .stat-card-accent { background: var(--accent-orange); }
+.stat-label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.stat-label svg { width: 14px; height: 14px; }
+.stat-value { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.03em; line-height: 1; margin-bottom: 6px; }
+.stat-value.green { color: var(--accent-green); }
+.stat-value.red { color: var(--accent-red); }
+.stat-value.yellow { color: var(--accent-yellow); }
+.stat-value.blue { color: var(--accent-blue); }
+.stat-value.orange { color: var(--accent-orange); }
+.stat-meta { font-size: .75rem; color: var(--text-muted); }
+
+/* ── Category Cards ── */
+.category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.category-card { background: var(--bg-card); border-radius: var(--radius-md); border: 1px solid var(--border-light); padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all var(--transition-base); position: relative; }
+.category-card:hover { border-color: var(--accent-orange); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.category-icon { width: 40px; height: 40px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.25rem; }
+.category-info { flex: 1; min-width: 0; }
+.category-name { font-size: .875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.category-desc { font-size: .75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.category-budget { font-size: .75rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+.category-status-tag { position: absolute; top: 8px; right: 10px; font-size: .625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: var(--radius-full); }
+.status-tag { font-size: .6875rem; font-weight: 600; padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.status-tag::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.7; }
+.status-tag.status-selected { background: rgba(22,163,74,.1); color: var(--accent-green); }
+.status-tag.status-comparing { background: rgba(37,99,235,.1); color: var(--accent-blue); }
+.status-tag.status-pending { background: rgba(202,138,4,.1); color: var(--accent-yellow); }
+.status-tag.status-ongoing { background: rgba(234,88,12,.1); color: var(--accent-orange); }
+.status-tag.status-not-started { background: rgba(168,162,158,.12); color: var(--text-muted); }
+.status-tag.status-over { background: rgba(220,38,38,.1); color: var(--accent-red); }
+.status-tag.status-confirmed { background: rgba(124,58,237,.1); color: var(--accent-purple); }
+
+/* ── Category Group Cards ── */
+.category-group-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.category-group-card { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 18px; cursor: pointer; transition: all var(--transition-base); text-align: center; }
+.category-group-card:hover { border-color: var(--accent-orange); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.category-group-icon { width: 52px; height: 52px; border-radius: var(--radius-md); margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+.category-group-name { font-size: .9375rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.category-group-count { font-size: .75rem; color: var(--text-muted); }
+
+/* ── Todo List ── */
+.todo-list { display: flex; flex-direction: column; gap: 8px; }
+.todo-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-md); cursor: pointer; transition: all var(--transition-fast); }
+.todo-item:hover { border-color: var(--accent-orange); background: rgba(234,88,12,.02); }
+.todo-item.done .todo-checkbox { background: var(--accent-green); border-color: var(--accent-green); }
+.todo-item.done .todo-checkbox svg { color: white; }
+.todo-item.done .todo-text { text-decoration: line-through; color: var(--text-muted); }
+.todo-checkbox { width: 18px; height: 18px; border: 2px solid var(--border-medium); border-radius: 4px; flex-shrink: 0; margin-top: 1px; cursor: pointer; transition: all var(--transition-fast); display: flex; align-items: center; justify-content: center; }
+.todo-text { font-size: .875rem; color: var(--text-primary); line-height: 1.5; }
+.todo-tag { margin-left: auto; flex-shrink: 0; font-size: .6875rem; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-full); background: rgba(234,88,12,.08); color: var(--accent-orange); white-space: nowrap; }
+
+/* ── Tables ── */
+.table-wrapper { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border-light); background: var(--bg-card); box-shadow: var(--shadow-sm); }
+.table-wrapper table { width: 100%; border-collapse: collapse; min-width: 800px; }
+.table-wrapper thead { background: var(--bg-secondary); position: sticky; top: 0; z-index: 10; }
+.table-wrapper th { padding: 12px 16px; font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); text-align: left; border-bottom: 1px solid var(--border-light); white-space: nowrap; }
+.table-wrapper td { padding: 14px 16px; font-size: .875rem; color: var(--text-primary); border-bottom: 1px solid var(--border-light); vertical-align: middle; }
+.table-wrapper tr:last-child td { border-bottom: none; }
+.table-wrapper tbody tr { transition: background var(--transition-fast); cursor: pointer; }
+.table-wrapper tbody tr:hover { background: rgba(234,88,12,.03); }
+.table-wrapper tbody tr.selected { background: rgba(22,163,74,.06); border-left: 3px solid var(--accent-green); }
+.table-wrapper tbody tr.selected td:first-child { padding-left: 13px; }
+.comparison-table th:first-child,.comparison-table td:first-child { text-align: center; width: 60px; }
+.comparison-table th:last-child,.comparison-table td:last-child { text-align: center; }
+.select-radio { display: flex; align-items: center; gap: 8px; }
+.radio-circle { width: 18px; height: 18px; border: 2px solid var(--border-medium); border-radius: 50%; flex-shrink: 0; cursor: pointer; transition: all var(--transition-fast); display: flex; align-items: center; justify-content: center; }
+.radio-circle.checked { border-color: var(--accent-green); background: var(--accent-green); }
+.radio-circle.checked::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: white; }
+.star-rating { display: flex; align-items: center; gap: 2px; }
+.star { color: var(--accent-yellow); font-size: 14px; }
+.star.empty { color: var(--border-medium); }
+.star-value { font-size: .75rem; color: var(--text-muted); margin-left: 4px; }
+.img-cell { width: 48px; height: 48px; border-radius: var(--radius-sm); object-fit: cover; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: .6875rem; overflow: hidden; }
+
+/* ── Kanban Board ── */
+.kanban-board { display: flex; flex-direction: column; gap: 20px; }
+.kanban-group { border-radius: var(--radius-lg); padding: 16px; }
+.kanban-group-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,.06); }
+.kanban-group-icon { width: 28px; height: 28px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: .875rem; }
+.kanban-group-title { font-size: .875rem; font-weight: 700; color: var(--text-primary); }
+.kanban-group-count { font-size: .6875rem; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-full); margin-left: auto; }
+.kanban-group-pending { background: #F3F4F6; border: 1px solid #E5E7EB; }
+.kanban-group-pending .kanban-group-icon { background: rgba(107,114,128,.15); }
+.kanban-group-pending .kanban-group-count { background: rgba(107,114,128,.1); color: #6B7280; }
+.kanban-group-ongoing { background: #FFF7ED; border: 1px solid #FED7AA; }
+.kanban-group-ongoing .kanban-group-icon { background: rgba(234,88,12,.15); }
+.kanban-group-ongoing .kanban-group-count { background: rgba(234,88,12,.1); color: var(--accent-orange); }
+.kanban-group-review { background: #FFFBEB; border: 1px solid #FDE68A; }
+.kanban-group-review .kanban-group-icon { background: rgba(202,138,4,.15); }
+.kanban-group-review .kanban-group-count { background: rgba(202,138,4,.1); color: var(--accent-yellow); }
+.kanban-group-done { background: #F0FDF4; border: 1px solid #BBF7D0; }
+.kanban-group-done .kanban-group-icon { background: rgba(22,163,74,.15); }
+.kanban-group-done .kanban-group-count { background: rgba(22,163,74,.1); color: var(--accent-green); }
+.kanban-columns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 900px) { .kanban-columns { grid-template-columns: 1fr; } }
+.kanban-column { min-height: 200px; }
+.kanban-col-header { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 0 2px; }
+.kanban-col-title { font-size: .75rem; font-weight: 600; color: var(--text-secondary); }
+.kanban-col-count { font-size: .625rem; font-weight: 700; padding: 1px 6px; border-radius: var(--radius-full); background: rgba(0,0,0,.05); color: var(--text-muted); }
+.kanban-col-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.col-pending .kanban-col-dot { background: #9CA3AF; }
+.col-ongoing .kanban-col-dot { background: var(--accent-orange); }
+.col-review .kanban-col-dot { background: var(--accent-yellow); }
+.col-done .kanban-col-dot { background: var(--accent-green); }
+.kanban-cards { display: flex; flex-direction: column; gap: 8px; }
+.kanban-card { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 12px; cursor: pointer; transition: all var(--transition-base); box-shadow: var(--shadow-sm); }
+.kanban-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); border-color: var(--accent-orange); }
+.kanban-card-title { font-size: .8125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; line-height: 1.4; }
+.kanban-card-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.kanban-chip { font-size: .625rem; font-weight: 500; padding: 2px 6px; border-radius: var(--radius-full); background: var(--bg-secondary); color: var(--text-secondary); }
+.kanban-card-footer { display: flex; align-items: center; justify-content: space-between; font-size: .6875rem; color: var(--text-muted); padding-top: 6px; border-top: 1px solid var(--border-light); gap: 8px; }
+.kanban-budget { font-weight: 600; color: var(--text-secondary); }
+.kanban-card-link { display: inline-flex; align-items: center; gap: 3px; font-size: .625rem; color: var(--accent-orange); font-weight: 500; padding: 2px 6px; background: rgba(234,88,12,.08); border-radius: var(--radius-sm); transition: all var(--transition-fast); }
+.kanban-card-link:hover { background: rgba(234,88,12,.15); text-decoration: underline; }
+.kanban-add-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border: 2px dashed var(--border-medium); border-radius: var(--radius-md); background: none; color: var(--text-muted); font-size: .75rem; font-weight: 500; cursor: pointer; transition: all var(--transition-fast); margin-top: 8px; }
+.kanban-add-btn:hover { border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(234,88,12,.04); }
+
+/* ── Notes Grid ── */
+.notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+.note-card { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-lg); overflow: hidden; cursor: pointer; transition: all var(--transition-base); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.note-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); border-color: var(--accent-orange); }
+.note-card-cover { width: 100%; height: 160px; background: linear-gradient(135deg, var(--bg-secondary) 0%, #E8E0D8 100%); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+.note-card-cover:nth-child(3n+1) { background: linear-gradient(135deg, #E0DCD7 0%, #C8C0B8 50%, #B0A898 100%); }
+.note-card-cover:nth-child(5n) { background: linear-gradient(135deg, #DDD5CC 0%, #C4B8A8 50%, #AFA090 100%); }
+.note-card-cover img { width: 100%; height: 100%; object-fit: cover; }
+.note-card-cover .placeholder-img { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text-muted); }
+.note-card-cover .placeholder-img svg { width: 28px; height: 28px; opacity: 0.4; }
+.img-count-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,.6); color: white; font-size: .625rem; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-full); backdrop-filter: blur(4px); }
+.note-card-body { padding: 14px 16px 16px; flex: 1; display: flex; flex-direction: column; }
+.note-card-source { font-size: .6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-orange); margin-bottom: 6px; }
+.note-card-title { font-size: .9375rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.note-card-summary { font-size: .8125rem; color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex: 1; margin-bottom: 10px; }
+.note-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.note-tag { font-size: .6875rem; font-weight: 500; padding: 2px 8px; border-radius: var(--radius-full); background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-light); }
+.note-card-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 14px; border-top: 1px solid var(--border-light); font-size: .75rem; color: var(--text-muted); }
+.note-favorite { color: var(--text-muted); cursor: pointer; transition: color var(--transition-fast); }
+.note-favorite:hover,.note-favorite.active { color: var(--accent-orange); }
+
+/* ── 装修手册 (Manual) ── */
+.manual-layout { display: grid; grid-template-columns: 240px 1fr; gap: 28px; align-items: start; }
+@media (max-width: 900px) { .manual-layout { grid-template-columns: 1fr; } }
+
+.manual-toc { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px; position: sticky; top: 88px; box-shadow: var(--shadow-sm); }
+.manual-toc-header { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; margin-bottom: 8px; border-bottom: 1px solid var(--border-light); }
+.manual-toc-title { font-size: .8125rem; font-weight: 700; color: var(--text-primary); }
+.manual-toc-section { margin-bottom: 4px; }
+.manual-toc-btn { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; background: none; font-size: .8125rem; font-weight: 500; color: var(--text-secondary); cursor: pointer; border-radius: var(--radius-sm); transition: all var(--transition-fast); text-align: left; }
+.manual-toc-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.manual-toc-btn.active { background: rgba(234,88,12,.1); color: var(--accent-orange); font-weight: 600; }
+.manual-toc-icon { width: 20px; height: 20px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: .75rem; flex-shrink: 0; }
+.manual-toc-text { flex: 1; }
+.manual-toc-count { font-size: .625rem; font-weight: 700; background: var(--bg-secondary); padding: 1px 6px; border-radius: var(--radius-full); color: var(--text-muted); }
+.manual-toc-btn.active .manual-toc-count { background: var(--accent-orange); color: white; }
+.manual-toc-sub { padding-left: 36px; display: none; }
+.manual-toc-section.open .manual-toc-sub { display: block; }
+.manual-toc-sub-item { padding: 6px 10px; font-size: .75rem; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); transition: all var(--transition-fast); display: flex; align-items: center; gap: 6px; }
+.manual-toc-sub-item:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.manual-toc-sub-item::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--border-medium); flex-shrink: 0; }
+.manual-toc-sub-item.active { color: var(--accent-orange); font-weight: 500; }
+.manual-toc-sub-item.active::before { background: var(--accent-orange); }
+
+.manual-content { flex: 1; display: flex; flex-direction: column; }
+.manual-chapter { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-lg); margin-bottom: 20px; overflow: hidden; box-shadow: var(--shadow-sm); flex-shrink: 0; }
+.manual-chapter-header { padding: 20px 24px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--border-light); cursor: pointer; transition: background var(--transition-fast); }
+.manual-chapter-header:hover { background: var(--bg-secondary); }
+.manual-chapter-icon { width: 44px; height: 44px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+.manual-chapter-info { flex: 1; }
+.manual-chapter-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.manual-chapter-meta { font-size: .75rem; color: var(--text-muted); display: flex; gap: 16px; }
+.manual-chapter-toggle { width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: all var(--transition-fast); }
+.manual-chapter.open .manual-chapter-toggle { transform: rotate(180deg); background: var(--accent-orange); color: white; }
+.manual-chapter-body { display: none; padding: 20px 24px; }
+.manual-chapter.open .manual-chapter-body { display: block; }
+.manual-entry { padding: 16px 0; border-bottom: 1px solid var(--border-light); }
+.manual-entry:last-child { border-bottom: none; padding-bottom: 0; }
+.manual-entry-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.manual-entry-date { font-size: .6875rem; font-weight: 600; color: var(--accent-orange); background: rgba(234,88,12,.08); padding: 2px 10px; border-radius: var(--radius-full); }
+.manual-entry-title { font-size: .9375rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+.manual-entry-content { font-size: .875rem; color: var(--text-secondary); line-height: 1.7; }
+.manual-entry-images { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.manual-entry-img { width: 100px; height: 75px; border-radius: var(--radius-md); background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: .6875rem; overflow: hidden; }
+.manual-entry-tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.manual-add-btn { width: 100%; padding: 12px; border: 2px dashed var(--border-medium); border-radius: var(--radius-md); background: none; color: var(--text-muted); font-size: .8125rem; font-weight: 500; cursor: pointer; transition: all var(--transition-fast); display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; }
+.manual-add-btn:hover { border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(234,88,12,.04); }
+
+/* 装修手册双链 */
+.manual-link { color: var(--accent-orange) !important; font-weight: 500 !important; }
+.manual-link:hover { text-decoration: underline; }
+.manual-chapter-link { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: rgba(234,88,12,.06); border: 1px solid rgba(234,88,12,.15); border-radius: var(--radius-md); color: var(--accent-orange); font-size: .8125rem; font-weight: 500; cursor: pointer; transition: all var(--transition-fast); margin: 16px 0; }
+.manual-chapter-link:hover { background: rgba(234,88,12,.1); border-color: var(--accent-orange); }
+.manual-entry-empty { text-align: center; padding: 24px 20px; color: var(--text-muted); }
+.manual-entry-empty p { margin-top: 8px; font-size: .875rem; }
+
+/* ── Budget ── */
+.budget-summary-row { display: flex; gap: 14px; margin-bottom: 24px; }
+.budget-summary-item { flex: 1; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 18px 20px; box-shadow: var(--shadow-sm); }
+.budget-summary-item .label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 6px; }
+.budget-summary-item .value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text-primary); }
+.budget-summary-item .value.over { color: var(--accent-red); }
+.budget-summary-item .value.saved { color: var(--accent-green); }
+.budget-summary-item .sub { font-size: .75rem; color: var(--text-muted); margin-top: 4px; }
+.diff-tag { display: inline-flex; align-items: center; gap: 3px; font-size: .8125rem; font-weight: 600; padding: 3px 10px; border-radius: var(--radius-full); }
+.diff-tag.over { background: rgba(220,38,38,.1); color: var(--accent-red); }
+.diff-tag.saved { background: rgba(22,163,74,.1); color: var(--accent-green); }
+.diff-tag.equal { background: rgba(168,162,158,.12); color: var(--text-muted); }
+.expense-list { display: flex; flex-direction: column; gap: 8px; }
+.expense-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-md); transition: all var(--transition-fast); }
+.expense-item:hover { border-color: var(--border-medium); background: var(--bg-secondary); }
+.expense-date { font-size: .75rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; width: 80px; }
+.expense-category { font-size: .75rem; font-weight: 600; padding: 2px 10px; border-radius: var(--radius-full); background: rgba(234,88,12,.08); color: var(--accent-orange); white-space: nowrap; }
+.expense-name { flex: 1; font-size: .875rem; color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.expense-amount { font-size: .9375rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+.expense-method { font-size: .75rem; color: var(--text-muted); padding: 2px 10px; background: var(--bg-secondary); border-radius: var(--radius-full); white-space: nowrap; }
+tr.budget-row.over td { background: rgba(220,38,38,.03); }
+tr.budget-row.saved td { background: rgba(22,163,74,.03); }
+.budget-delta { font-size: .8125rem; font-weight: 600; }
+
+/* ── Filter & Search ── */
+.filter-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.search-input-wrapper { position: relative; flex: 1; min-width: 200px; max-width: 400px; }
+.search-input-wrapper svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
+.search-input { width: 100%; padding: 9px 12px 9px 38px; border: 1px solid var(--border-medium); border-radius: var(--radius-md); font-size: .875rem; font-family: inherit; background: var(--bg-card); color: var(--text-primary); transition: all var(--transition-fast); }
+.search-input:focus { outline: none; border-color: var(--accent-orange); box-shadow: 0 0 0 3px rgba(234,88,12,.1); }
+.search-input::placeholder { color: var(--text-muted); }
+.filter-chip { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid var(--border-medium); border-radius: var(--radius-full); font-size: .8125rem; font-weight: 500; color: var(--text-secondary); background: var(--bg-card); cursor: pointer; transition: all var(--transition-fast); user-select: none; }
+.filter-chip:hover { border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(234,88,12,.04); }
+.filter-chip.active { background: var(--accent-orange); border-color: var(--accent-orange); color: white; }
+.filter-chip svg { width: 14px; height: 14px; }
+.sub-category-pills { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 20px; border-bottom: 1px solid var(--border-light); background: var(--bg-card); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.sub-cat-pill { padding: 5px 14px; border-radius: var(--radius-full); font-size: .8125rem; font-weight: 500; cursor: pointer; transition: all var(--transition-fast); border: 1px solid var(--border-light); background: var(--bg-card); color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.sub-cat-pill:hover { border-color: var(--accent-orange); color: var(--accent-orange); }
+.sub-cat-pill.active { background: var(--accent-orange); border-color: var(--accent-orange); color: white; }
+.sub-cat-pill .count { font-size: .625rem; font-weight: 700; background: rgba(255,255,255,.2); padding: 1px 6px; border-radius: var(--radius-full); }
+.sub-cat-pill:not(.active) .count { background: var(--bg-secondary); color: var(--text-muted); }
+
+/* ── View Tabs ── */
+.view-tabs { display: flex; gap: 4px; background: var(--bg-secondary); padding: 4px; border-radius: var(--radius-md); border: 1px solid var(--border-light); }
+.view-tab { padding: 7px 16px; font-size: .8125rem; font-weight: 500; color: var(--text-muted); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition-fast); border: none; background: transparent; display: flex; align-items: center; gap: 6px; }
+.view-tab svg { width: 14px; height: 14px; }
+.view-tab.active { background: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+
+/* ── Detail Header ── */
+.detail-header { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm); }
+.detail-header-icon { width: 48px; height: 48px; border-radius: var(--radius-md); background: rgba(234,88,12,.1); color: var(--accent-orange); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.detail-header-icon svg { width: 24px; height: 24px; }
+.detail-header-info { flex: 1; }
+.detail-header-title { font-size: 1.125rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.detail-header-meta { font-size: .8125rem; color: var(--text-muted); display: flex; gap: 16px; flex-wrap: wrap; }
+.detail-header-meta span { display: flex; align-items: center; gap: 4px; }
+.detail-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── Progress Overview ── */
+.progress-overview { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 24px; }
+.progress-overview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.progress-overview-title { font-size: .875rem; font-weight: 600; color: var(--text-primary); }
+.progress-overview-value { font-size: .875rem; font-weight: 700; color: var(--accent-orange); }
+.progress-bar-track { height: 8px; background: var(--bg-secondary); border-radius: var(--radius-full); overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent-orange) 0%, var(--accent-orange-light) 100%); border-radius: var(--radius-full); transition: width 0.6s ease; }
+.progress-bar-fill.done { background: linear-gradient(90deg, var(--accent-green) 0%, #22C55E 100%); }
+
+/* ── Hero Card ── */
+.hero-project-card { background: linear-gradient(135deg, #1C1917 0%, #44403C 100%); border-radius: var(--radius-xl); padding: 28px 32px; color: white; margin-bottom: 28px; position: relative; overflow: hidden; }
+.hero-project-card::after { content: ''; position: absolute; right: -40px; top: -40px; width: 200px; height: 200px; border-radius: 50%; background: rgba(234,88,12,.15); }
+.hero-project-card::before { content: ''; position: absolute; right: 60px; bottom: -60px; width: 160px; height: 160px; border-radius: 50%; background: rgba(255,255,255,.03); }
+.hero-project-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 20px; margin-top: 18px; position: relative; z-index: 1; }
+.hero-project-item .label { font-size: .6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,.45); margin-bottom: 4px; }
+.hero-project-item .value { font-size: .9375rem; font-weight: 600; color: white; }
+.hero-project-item .value.highlight { color: var(--accent-orange-light); font-size: 1.125rem; font-weight: 700; }
+
+/* ── Two Column Layout ── */
+.two-col-layout { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
+@media (max-width: 1100px) { .two-col-layout { grid-template-columns: 1fr; } }
+
+/* ── Modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(28,25,23,.5); backdrop-filter: blur(4px); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity var(--transition-base); }
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+.modal { background: var(--bg-card); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto; transform: scale(.95) translateY(10px); transition: transform var(--transition-base); }
+.modal-overlay.active .modal { transform: scale(1) translateY(0); }
+.modal-header { padding: 20px 24px 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.modal-title { font-size: 1.125rem; font-weight: 700; color: var(--text-primary); }
+.modal-subtitle { font-size: .875rem; color: var(--text-muted); margin-top: 2px; }
+.modal-close { width: 32px; height: 32px; border-radius: var(--radius-md); border: none; background: var(--bg-secondary); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all var(--transition-fast); flex-shrink: 0; }
+.modal-close:hover { background: var(--border-light); color: var(--text-primary); }
+.modal-close svg { width: 16px; height: 16px; }
+.modal-body { padding: 20px 24px; }
+.modal-footer { padding: 0 24px 20px; display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ── Form ── */
+.form-group { margin-bottom: 18px; }
+.form-label { display: block; font-size: .8125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+.form-input,.form-select,.form-textarea { width: 100%; padding: 10px 14px; border: 1px solid var(--border-medium); border-radius: var(--radius-md); font-size: .875rem; font-family: inherit; color: var(--text-primary); background: var(--bg-card); transition: all var(--transition-fast); }
+.form-input:focus,.form-select:focus,.form-textarea:focus { outline: none; border-color: var(--accent-orange); box-shadow: 0 0 0 3px rgba(234,88,12,.1); }
+.form-textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+.form-hint { font-size: .75rem; color: var(--text-muted); margin-top: 4px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.img-upload-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.img-upload-item { aspect-ratio: 4/3; border: 2px dashed var(--border-medium); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: all var(--transition-fast); background: var(--bg-secondary); overflow: hidden; position: relative; }
+.img-upload-item:hover { border-color: var(--accent-orange); background: rgba(234,88,12,.04); }
+.img-upload-item svg { width: 20px; height: 20px; color: var(--text-muted); }
+.img-upload-item span { font-size: .6875rem; color: var(--text-muted); }
+
+/* ── Info Chips ── */
+.info-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.info-chip { display: flex; align-items: center; gap: 5px; font-size: .8125rem; color: var(--text-secondary); background: var(--bg-secondary); padding: 4px 12px; border-radius: var(--radius-full); border: 1px solid var(--border-light); }
+.info-chip svg { width: 13px; height: 13px; color: var(--text-muted); }
+.info-chip strong { font-weight: 600; color: var(--text-primary); }
+
+/* ── Related Notes Strip ── */
+.related-notes-strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; }
+.related-note-item { flex-shrink: 0; width: 180px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-md); overflow: hidden; cursor: pointer; transition: all var(--transition-base); }
+.related-note-item:hover { border-color: var(--accent-orange); box-shadow: var(--shadow-md); }
+.related-note-img { width: 100%; height: 80px; object-fit: cover; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; }
+.related-note-img svg { width: 20px; height: 20px; color: var(--text-muted); opacity: 0.5; }
+.related-note-title { font-size: .75rem; font-weight: 600; color: var(--text-primary); padding: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Param Field List ── */
+.param-field-list { display: flex; flex-direction: column; gap: 12px; }
+.param-field-item { display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: center; padding: 10px 14px; background: var(--bg-secondary); border-radius: var(--radius-md); }
+.param-field-name { font-size: .8125rem; font-weight: 600; color: var(--text-primary); }
+.param-field-type { font-size: .6875rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.param-field-preview { font-size: .8125rem; color: var(--text-secondary); }
+
+/* ── Page Visibility ── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Animations ── */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.animate-in { animation: fadeInUp 0.4s ease forwards; }
+.animate-in:nth-child(1) { animation-delay: .05s; }
+.animate-in:nth-child(2) { animation-delay: .1s; }
+.animate-in:nth-child(3) { animation-delay: .15s; }
+.animate-in:nth-child(4) { animation-delay: .2s; }
+.animate-in:nth-child(5) { animation-delay: .25s; }
+.animate-in:nth-child(6) { animation-delay: .3s; }
+.animate-in:nth-child(7) { animation-delay: .35s; }
+.animate-in:nth-child(8) { animation-delay: .4s; }
+.animate-in:nth-child(n+9) { animation-delay: .4s; }
+@media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* ── Responsive ── */
+@media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } .kanban-board { grid-template-columns: repeat(2, minmax(260px, 1fr)); } }
+@media (max-width: 1024px) { :root { --sidebar-width: 220px; } .page-container { padding: 20px; } .category-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); } }
+@media (max-width: 768px) {
+  :root { --sidebar-width: var(--sidebar-collapsed); }
+  .sidebar-brand-text,.nav-item span,.nav-item-badge,.sidebar-section-label,.sidebar-project-card { display: none; }
+  .sidebar { width: var(--sidebar-collapsed); align-items: center; padding: 0 12px; }
+  .sidebar-brand { padding: 16px 0; justify-content: center; }
+  .nav-item { padding: 12px; justify-content: center; }
+  .nav-item svg { width: 22px; height: 22px; }
+  .main-content { margin-left: var(--sidebar-collapsed); }
+  .topbar { padding: 0 16px; }
+  .page-container { padding: 16px; }
+  .page-title { font-size: 1.375rem; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .stat-value { font-size: 1.375rem; }
+  .category-grid { grid-template-columns: 1fr; }
+  .kanban-board { grid-template-columns: 1fr; overflow-x: auto; }
+  .notes-grid { grid-template-columns: 1fr; }
+  .budget-summary-row { flex-direction: column; gap: 10px; }
+  .filter-bar { gap: 8px; }
+  .search-input-wrapper { min-width: 100%; }
+  .form-row { grid-template-columns: 1fr; }
+  .img-upload-grid { grid-template-columns: repeat(2, 1fr); }
+  .mobile-sidebar-toggle { display: flex; }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 99; }
+  .sidebar-overlay.active { display: block; }
+}
+@media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr 1fr; } .topbar-budget-chip { display: none; } .btn span.btn-label { display: none; } .btn-primary { padding: 9px 12px; } .table-wrapper { font-size: .8125rem; } }
+</style>
+</head>
+<body>
+<div class="app-layout">
+<!-- Sidebar Overlay for mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileSidebar()"></div>
+
+<!-- Sidebar Navigation -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+    </div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">RenovaMate</span>
+      <span class="sidebar-brand-sub">装修助手</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">导航</div>
+    <button class="nav-item active" data-page="overview" onclick="showPage('overview')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+      <span>首页总览</span>
+    </button>
+    <button class="nav-item" data-page="compare" onclick="showPage('compare')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+      <span>分类比较</span>
+      <span class="nav-item-badge">5</span>
+    </button>
+    <button class="nav-item" data-page="budget" onclick="showPage('budget')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span>预算控制</span>
+      <span class="nav-item-badge red">2</span>
+    </button>
+    <button class="nav-item" data-page="progress" onclick="showPage('progress')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+      <span>装修进度</span>
+    </button>
+    <button class="nav-item" data-page="notes" onclick="showPage('notes')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+      <span>装修手册</span>
+      <span class="nav-item-badge green">12</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-project-card">
+      <div class="sidebar-project-name">新房装修</div>
+      <div class="sidebar-project-meta">120㎡ · 现代简约 · 水电阶段</div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<main class="main-content">
+
+<!-- Top Bar -->
+<header class="topbar">
+  <button class="btn btn-ghost btn-icon mobile-sidebar-toggle" onclick="toggleMobileSidebar()">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+  </button>
+  <div class="topbar-breadcrumb">
+    <span>RenovaMate</span>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+    <span class="current" id="topbarCurrentPage">首页总览</span>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-budget-chip"><span class="label">总预算</span><span class="value">200,000 元</span></div>
+  <div class="topbar-budget-chip"><span class="label">实际花费</span><span class="value saved">89,500 元</span></div>
+  <div class="topbar-budget-chip"><span class="label">剩余</span><span class="value saved">110,500 元</span></div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost btn-icon" title="设置">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    </button>
+    <div class="topbar-avatar">李</div>
+  </div>
+</header>
+
+<!-- PAGE 1: 首页总览 -->
+<div class="page active" id="page-overview">
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">首页总览</h1>
+    <p class="page-subtitle">查看装修项目整体情况，随时掌握进度与预算</p>
+  </div>
+
+  <!-- Hero Project Card -->
+  <div class="hero-project-card animate-in">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;position:relative;z-index:1;">
+      <div>
+        <div style="font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:8px;">当前装修项目</div>
+        <h2 style="font-size:1.75rem;font-weight:800;color:white;letter-spacing:-0.03em;margin-bottom:4px;">新房装修</h2>
+        <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;">
+          <span style="display:flex;align-items:center;gap:5px;font-size:.8125rem;color:rgba(255,255,255,.6);">
+            <svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+            120㎡
+          </span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:.8125rem;color:rgba(255,255,255,.6);">
+            <svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/></svg>
+            现代简约
+          </span>
+          <span class="status-tag status-ongoing" style="background:rgba(234,88,12,.2);color:#FB923C;">水电阶段</span>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.45);margin-bottom:6px;">总预算</div>
+        <div style="font-size:2rem;font-weight:800;color:white;letter-spacing:-0.03em;">200,000<span style="font-size:.875rem;font-weight:500;margin-left:2px;">元</span></div>
+      </div>
+    </div>
+    <div class="hero-project-grid">
+      <div class="hero-project-item"><div class="label">预计花费</div><div class="value">158,000 元</div></div>
+      <div class="hero-project-item"><div class="label">实际已花</div><div class="value highlight">89,500 元</div></div>
+      <div class="hero-project-item"><div class="label">剩余预算</div><div class="value" style="color:#86EFAC;">110,500 元</div></div>
+      <div class="hero-project-item"><div class="label">已选方案</div><div class="value">8 个</div></div>
+      <div class="hero-project-item"><div class="label">超支分类</div><div class="value" style="color:#FCA5A5;">2 个</div></div>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-overview animate-in">
+    <div class="progress-overview-header">
+      <span class="progress-overview-title">装修整体进度</span>
+      <span class="progress-overview-value">约 35% 完成</span>
+    </div>
+    <div class="progress-bar-track"><div class="progress-bar-fill" style="width:35%;"></div></div>
+  </div>
+
+  <!-- Two Column -->
+  <div class="two-col-layout">
+    <div>
+      <div class="page-section">
+        <div class="page-section-header"><h3 class="page-section-title">核心数据</h3></div>
+        <div class="stats-grid">
+          <div class="stat-card animate-in"><div class="stat-card-accent"></div><div class="stat-label"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>总预算</div><div class="stat-value">200,000</div><div class="stat-meta">元</div></div>
+          <div class="stat-card animate-in"><div class="stat-card-accent"></div><div class="stat-label"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>预计花费</div><div class="stat-value orange">158,000</div><div class="stat-meta">元（占预算 79%）</div></div>
+          <div class="stat-card green animate-in"><div class="stat-card-accent"></div><div class="stat-label"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>实际已花</div><div class="stat-value green">89,500</div><div class="stat-meta">元（占预算 44.8%）</div></div>
+          <div class="stat-card animate-in"><div class="stat-card-accent"></div><div class="stat-label"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5"/></svg>剩余预算</div><div class="stat-value green">110,500</div><div class="stat-meta">元</div></div>
+          <div class="stat-card blue animate-in"><div class="stat-card-accent"></div><div class="stat-label"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z"/></svg>已选方案</div><div class="stat-value blue">8</div><div class="stat-meta">个分类已确定</div></div>
+          <div class="stat-card red animate-in"><div class="stat-card-accent"></div><div class="stat-label"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>超支分类</div><div class="stat-value red">2</div><div class="stat-meta">个（中央空调、瓷砖）</div></div>
+        </div>
+      </div>
+
+      <div class="page-section">
+        <div class="page-section-header">
+          <h3 class="page-section-title">分类状态</h3>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('compare')">查看全部 →</button>
+        </div>
+        <div class="category-grid">
+          <div class="category-card animate-in" onclick="showPage('compare')"><span class="category-status-tag status-tag status-selected">已选方案</span><div class="category-icon" style="background:rgba(22,163,74,.1);color:#16A34A;"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg></div><div class="category-info"><div class="category-name">中央空调</div><div class="category-desc">大金 VRV-P 一拖五</div></div><div class="category-budget">¥28,000</div></div>
+          <div class="category-card animate-in" onclick="showPage('compare')"><span class="category-status-tag status-tag status-comparing">比价中</span><div class="category-icon" style="background:rgba(37,99,235,.1);color:#2563EB;"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg></div><div class="category-info"><div class="category-name">门窗</div><div class="category-desc">3 家报价待对比</div></div><div class="category-budget">¥25,000</div></div>
+          <div class="category-card animate-in" onclick="showPage('compare')"><span class="category-status-tag status-tag status-selected">已选方案</span><div class="category-icon" style="background:rgba(22,163,74,.1);color:#16A34A;"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/></svg></div><div class="category-info"><div class="category-name">瓷砖</div><div class="category-desc">马可波罗方案</div></div><div class="category-budget">¥18,000</div></div>
+          <div class="category-card animate-in" onclick="showPage('compare')"><span class="category-status-tag status-tag status-not-started">未开始</span><div class="category-icon" style="background:rgba(168,162,158,.12);color:#A8A29E;"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"/></svg></div><div class="category-info"><div class="category-name">地板</div><div class="category-desc">待开始</div></div><div class="category-budget">¥15,000</div></div>
+          <div class="category-card animate-in" onclick="showPage('compare')"><span class="category-status-tag status-tag status-ongoing">进行中</span><div class="category-icon" style="background:rgba(234,88,12,.1);color:#EA580C;"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z"/></svg></div><div class="category-info"><div class="category-name">水电</div><div class="category-desc">预计还需 5 天完成</div></div><div class="category-budget">¥20,000</div></div>
+          <div class="category-card animate-in" onclick="showPage('compare')"><span class="category-status-tag status-tag status-not-started">未开始</span><div class="category-icon" style="background:rgba(168,162,158,.12);color:#A8A29E;"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z"/></svg></div><div class="category-info"><div class="category-name">木工</div><div class="category-desc">待开始</div></div><div class="category-budget">¥18,000</div></div>
+          <div class="category-card animate-in" onclick="showPage('compare')"><span class="category-status-tag status-tag status-comparing">比价中</span><div class="category-icon" style="background:rgba(37,99,235,.1);color:#2563EB;"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6v12a2.25 2.25 0 002.25 2.25z"/></svg></div><div class="category-info"><div class="category-name">智能家居</div><div class="category-desc">米家 vs 绿米</div></div><div class="category-budget">¥12,000</div></div>
+          <div class="category-card animate-in" onclick="showPage('compare')"><span class="category-status-tag status-tag status-confirmed">待确认</span><div class="category-icon" style="background:rgba(124,58,237,.1);color:#7C3AED;"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/></svg></div><div class="category-info"><div class="category-name">全屋定制</div><div class="category-desc">欧派 / 索菲亚待定</div></div><div class="category-budget">¥35,000</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="page-section">
+        <div class="page-section-header"><h3 class="page-section-title">待办提醒</h3><span class="status-tag status-ongoing">4 项待处理</span></div>
+        <div class="todo-list">
+          <div class="todo-item animate-in"><div class="todo-checkbox"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><div class="todo-text">确认中央空调安装时间</div><span class="todo-tag">中央空调</span></div>
+          <div class="todo-item animate-in"><div class="todo-checkbox"></div><div class="todo-text">门窗报价还需要补充一份</div><span class="todo-tag">门窗</span></div>
+          <div class="todo-item animate-in"><div class="todo-checkbox"></div><div class="todo-text">水电阶段需要拍照留档</div><span class="todo-tag">水电</span></div>
+          <div class="todo-item animate-in"><div class="todo-checkbox"></div><div class="todo-text">瓷砖尾款待支付</div><span class="todo-tag">瓷砖</span></div>
+        </div>
+      </div>
+      <div class="page-section">
+        <div class="page-section-header"><h3 class="page-section-title">最近花费</h3><button class="btn btn-ghost btn-sm" onclick="showPage('budget')">全部</button></div>
+        <div class="expense-list">
+          <div class="expense-item animate-in"><div class="expense-date">05-10</div><div class="expense-category">水电</div><div class="expense-name">水电一期付款</div><div class="expense-amount">¥8,000</div><div class="expense-method">微信</div></div>
+          <div class="expense-item animate-in"><div class="expense-date">05-12</div><div class="expense-category">瓷砖</div><div class="expense-name">瓷砖订金</div><div class="expense-amount">¥5,000</div><div class="expense-method">支付宝</div></div>
+          <div class="expense-item animate-in"><div class="expense-date">05-15</div><div class="expense-category">空调</div><div class="expense-name">大金定金</div><div class="expense-amount">¥3,000</div><div class="expense-method">银行卡</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- PAGE 2: 分类比较 -->
+<div class="page" id="page-compare">
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">分类比较</h1>
+    <p class="page-subtitle">查看所有分类，横向对比不同方案，选定最终方案</p>
+  </div>
+
+  <div class="page-section">
+    <div class="page-section-header"><h3 class="page-section-title">分类大类</h3></div>
+    <div class="category-group-grid">
+      <div class="category-group-card animate-in" onclick="showPage('compare-detail')"><div class="category-group-icon" style="background:rgba(234,88,12,.1);color:#EA580C;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg></div><div class="category-group-name">设备系统</div><div class="category-group-count">6 个子分类</div></div>
+      <div class="category-group-card animate-in" onclick="showPage('compare-detail')"><div class="category-group-icon" style="background:rgba(37,99,235,.1);color:#2563EB;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6v12a2.25 2.25 0 002.25 2.25z"/></svg></div><div class="category-group-name">家电家具</div><div class="category-group-count">6 个子分类</div></div>
+      <div class="category-group-card animate-in" onclick="showPage('compare-detail')"><div class="category-group-icon" style="background:rgba(124,58,237,.1);color:#7C3AED;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/></svg></div><div class="category-group-name">主材选择</div><div class="category-group-count">7 个子分类</div></div>
+      <div class="category-group-card animate-in" onclick="showPage('compare-detail')"><div class="category-group-icon" style="background:rgba(22,163,74,.1);color:#16A34A;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z"/></svg></div><div class="category-group-name">施工项目</div><div class="category-group-count">7 个子分类</div></div>
+      <div class="category-group-card animate-in" onclick="showPage('compare-detail')"><div class="category-group-icon" style="background:rgba(202,138,4,.1);color:#CA8A04;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></svg></div><div class="category-group-name">软装搭配</div><div class="category-group-count">4 个子分类</div></div>
+    </div>
+  </div>
+
+  <div class="page-section">
+    <div class="page-section-header">
+      <h3 class="page-section-title">所有子分类</h3>
+      <div class="view-tabs">
+        <button class="view-tab active"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>卡片</button>
+        <button class="view-tab" onclick="showPage('compare-detail')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0118 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-3.75 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0118 7.125v-1.5m1.125 2.625c-.621 0-1.125.504-1.125 1.125v1.5m2.625-2.625c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25M7.125 12h9.75m-9.75 0A1.125 1.125 0 016 10.875M7.125 12C6.504 12 6 12.504 6 13.125m0-2.25C6 11.496 5.496 12 4.875 12M18 10.875c0 .621-.504 1.125-1.125 1.125M18 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m-12 5.25v-5.25m0 5.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125m-12 0v-1.5c0-.621-.504-1.125-1.125-1.125M18 18.375v-5.25m0 5.25v-1.5c0-.621.504-1.125 1.125-1.125M18 13.125v1.5c0 .621.504 1.125 1.125 1.125M18 13.125c0-.621.504-1.125 1.125-1.125M6 13.125v1.5c0 .621-.504 1.125-1.125 1.125M6 13.125C6 12.504 5.496 12 4.875 12m-1.5 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M19.125 12h1.5m0 0c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h1.5m14.25 0h1.5"/></svg>表格</button>
+      </div>
+    </div>
+
+    <div class="sub-category-pills" style="margin-bottom:16px;">
+      <div class="sub-cat-pill active">全部 <span class="count">26</span></div>
+      <div class="sub-cat-pill" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">设备系统 <span class="count">6</span></div>
+      <div class="sub-cat-pill" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">家电家具 <span class="count">6</span></div>
+      <div class="sub-cat-pill" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">主材选择 <span class="count">7</span></div>
+      <div class="sub-cat-pill" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">施工项目 <span class="count">7</span></div>
+      <div class="sub-cat-pill" onclick="this.parentElement.querySelector('.active').classList.remove('active');this.classList.add('active')">软装搭配 <span class="count">4</span></div>
+    </div>
+
+    <div class="category-grid">
+      <div class="category-card animate-in" onclick="showPage('compare-detail')"><span class="category-status-tag status-tag status-selected">已选方案</span><div class="category-icon" style="background:rgba(234,88,12,.1);color:#EA580C;"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg></div><div class="category-info"><div class="category-name">中央空调</div><div class="category-desc">大金 VRV-P 一拖五</div></div><div class="category-budget">¥28,000</div></div>
+      <div class="category-card animate-in" onclick="showPage('compare-detail')"><span class="category-status-tag status-tag status-pending">比价中</span><div class="category-icon" style="background:rgba(37,99,235,.1);color:#2563EB;"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z"/></svg></div><div class="category-info"><div class="category-name">新风系统</div><div class="category-desc">霍尼韦尔 / 松下待选</div></div><div class="category-budget">¥8,000</div></div>
+      <div class="category-card animate-in" onclick="showPage('compare-detail')"><span class="category-status-tag status-tag status-not-started">未开始</span><div class="category-icon" style="background:rgba(168,162,158,.12);color:#A8A29E;"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg></div><div class="category-info"><div class="category-name">地暖</div><div class="category-desc">待开始</div></div><div class="category-budget">¥15,000</div></div>
+      <div class="category-card animate-in" onclick="showPage('compare-detail')"><span class="category-status-tag status-tag status-pending">比价中</span><div class="category-icon" style="background:rgba(37,99,235,.1);color:#2563EB;"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6.878V6a2.25 2.25 0 012.25-2.25h7.5A2.25 2.25 0 0118 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 004.5 9v.878m13.5-3A2.25 2.25 0 0119.5 9v.878m0 0a2.246 2.246 0 00-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0121 12v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6c0-.98.626-1.813 1.5-2.122"/></svg></div><div class="category-info"><div class="category-name">热水器</div><div class="category-desc">燃气 vs 电热待选</div></div><div class="category-budget">¥4,000</div></div>
+      <div class="category-card animate-in" onclick="showPage('compare-detail')"><span class="category-status-tag status-tag status-comparing">比价中</span><div class="category-icon" style="background:rgba(37,99,235,.1);color:#2563EB;"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6v12a2.25 2.25 0 002.25 2.25z"/></svg></div><div class="category-info"><div class="category-name">智能家居</div><div class="category-desc">米家 / 绿米方案</div></div><div class="category-budget">¥12,000</div></div>
+      <div class="category-card animate-in" onclick="showPage('compare-detail')"><span class="category-status-tag status-tag status-comparing">比价中</span><div class="category-icon" style="background:rgba(37,99,235,.1);color:#2563EB;"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"/></svg></div><div class="category-info"><div class="category-name">门窗</div><div class="category-desc">3 家报价待对比</div></div><div class="category-budget">¥25,000</div></div>
+      <div class="category-card animate-in" onclick="showPage('compare-detail')"><span class="category-status-tag status-tag status-selected">已选方案</span><div class="category-icon" style="background:rgba(22,163,74,.1);color:#16A34A;"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/></svg></div><div class="category-info"><div class="category-name">瓷砖</div><div class="category-desc">马可波罗方案</div></div><div class="category-budget">¥18,000</div></div>
+      <div class="category-card animate-in" onclick="showPage('compare-detail')"><span class="category-status-tag status-tag status-not-started">未开始</span><div class="category-icon" style="background:rgba(168,162,158,.12);color:#A8A29E;"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"/></svg></div><div class="category-info"><div class="category-name">地板</div><div class="category-desc">待开始</div></div><div class="category-budget">¥15,000</div></div>
+      <div class="category-card animate-in" onclick="showPage('compare-detail')"><span class="category-status-tag status-tag status-ongoing">进行中</span><div class="category-icon" style="background:rgba(234,88,12,.1);color:#EA580C;"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z"/></svg></div><div class="category-info"><div class="category-name">水电</div><div class="category-desc">预计还需 5 天</div></div><div class="category-budget">¥20,000</div></div>
+      <div class="category-card animate-in" onclick="showPage('compare-detail')"><span class="category-status-tag status-tag status-not-started">未开始</span><div class="category-icon" style="background:rgba(168,162,158,.12);color:#A8A29E;"><svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z"/></svg></div><div class="category-info"><div class="category-name">木工</div><div class="category-desc">待开始</div></div><div class="category-budget">¥18,000</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- PAGE 3: 中央空调详情 -->
+<div class="page" id="page-compare-detail">
+<div class="page-container">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+    <button class="btn btn-ghost btn-sm" onclick="showPage('compare')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>返回</button>
+    <div class="topbar-breadcrumb"><span>分类比较</span><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg><span class="current">中央空调</span></div>
+  </div>
+
+  <div class="detail-header animate-in">
+    <div class="detail-header-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg></div>
+    <div class="detail-header-info">
+      <div class="detail-header-title">中央空调方案比较</div>
+      <div class="detail-header-meta">
+        <span><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> 分类预算：<strong>30,000 元</strong></span>
+        <span><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z"/></svg> 当前已选：<strong>大金 VRV-P 一拖五</strong></span>
+        <span><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg> 预计花费：<strong style="color:var(--accent-orange);">28,000 元</strong></span>
+        <span class="status-tag status-selected" style="font-size:.6875rem;padding:2px 10px;">已选方案</span>
+      </div>
+    </div>
+    <div class="detail-header-actions">
+      <button class="btn btn-secondary btn-sm" onclick="openModal('paramModal')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>参数设置</button>
+      <button class="btn btn-secondary btn-sm"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5"/></svg>切换视图</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('noteModal')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>相关笔记</button>
+    </div>
+  </div>
+
+  <!-- Comparison Table -->
+  <div class="table-wrapper animate-in" style="margin-bottom:28px;">
+    <table class="comparison-table">
+      <thead><tr><th>选择</th><th>品牌</th><th>型号</th><th>匹数</th><th>一拖几</th><th>总价</th><th>外机</th><th>内机</th><th>能效</th><th>保修</th><th>图片</th><th>备注</th><th>推荐</th></tr></thead>
+      <tbody>
+        <tr class="selected" onclick="selectRow(this)">
+          <td><div class="select-radio"><div class="radio-circle checked"></div></div></td>
+          <td><strong>大金</strong></td><td>VRV-P</td><td>6匹</td><td>一拖五</td>
+          <td><strong style="color:var(--accent-green);">¥28,000</strong></td>
+          <td>1台</td><td>5台</td>
+          <td><span class="status-tag" style="background:rgba(22,163,74,.1);color:var(--accent-green);padding:2px 8px;font-size:.6875rem;">一级能效</span></td>
+          <td>3年</td>
+          <td><div class="img-cell" style="width:40px;height:40px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></div></td>
+          <td style="max-width:150px;font-size:.8125rem;color:var(--text-secondary);">变频冷暖，噪音低，配件好找</td>
+          <td><div class="star-rating"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star-value">4.5</span></div></td>
+        </tr>
+        <tr onclick="selectRow(this)">
+          <td><div class="select-radio"><div class="radio-circle"></div></div></td>
+          <td><strong>约克</strong></td><td>YES-smart</td><td>6匹</td><td>一拖五</td>
+          <td><strong>¥24,500</strong></td>
+          <td>1台</td><td>5台</td>
+          <td><span class="status-tag" style="background:rgba(22,163,74,.1);color:var(--accent-green);padding:2px 8px;font-size:.6875rem;">一级能效</span></td>
+          <td>3年</td>
+          <td><div class="img-cell" style="width:40px;height:40px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></div></td>
+          <td style="max-width:150px;font-size:.8125rem;color:var(--text-secondary);">美系品牌，水系统舒适度高</td>
+          <td><div class="star-rating"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star empty">★</span><span class="star-value">4.0</span></div></td>
+        </tr>
+        <tr onclick="selectRow(this)">
+          <td><div class="select-radio"><div class="radio-circle"></div></div></td>
+          <td><strong>三菱</strong></td><td>Power Multi</td><td>6匹</td><td>一拖五</td>
+          <td><strong>¥31,000</strong></td>
+          <td>1台</td><td>5台</td>
+          <td><span class="status-tag" style="background:rgba(22,163,74,.1);color:var(--accent-green);padding:2px 8px;font-size:.6875rem;">一级能效</span></td>
+          <td>5年</td>
+          <td><div class="img-cell" style="width:40px;height:40px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></div></td>
+          <td style="max-width:150px;font-size:.8125rem;color:var(--text-secondary);">日产品牌，工艺精良，保修最长</td>
+          <td><div class="star-rating"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star-value">4.6</span></div></td>
+        </tr>
+        <tr onclick="selectRow(this)">
+          <td><div class="select-radio"><div class="radio-circle"></div></div></td>
+          <td><strong>格力</strong></td><td>Star 系列</td><td>6匹</td><td>一拖五</td>
+          <td><strong>¥22,000</strong></td>
+          <td>1台</td><td>5台</td>
+          <td><span class="status-tag" style="background:rgba(202,138,4,.1);color:var(--accent-yellow);padding:2px 8px;font-size:.6875rem;">二级能效</span></td>
+          <td>2年</td>
+          <td><div class="img-cell" style="width:40px;height:40px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></div></td>
+          <td style="max-width:150px;font-size:.8125rem;color:var(--text-secondary);">国产高性价比，售后网络广</td>
+          <td><div class="star-rating"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star empty">★</span><span class="star-value">3.8</span></div></td>
+        </tr>
+        <tr onclick="selectRow(this)">
+          <td><div class="select-radio"><div class="radio-circle"></div></div></td>
+          <td><strong>美的</strong></td><td>理想家Ⅲ</td><td>6匹</td><td>一拖五</td>
+          <td><strong>¥23,500</strong></td>
+          <td>1台</td><td>5台</td>
+          <td><span class="status-tag" style="background:rgba(22,163,74,.1);color:var(--accent-green);padding:2px 8px;font-size:.6875rem;">一级能效</span></td>
+          <td>3年</td>
+          <td><div class="img-cell" style="width:40px;height:40px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></div></td>
+          <td style="max-width:150px;font-size:.8125rem;color:var(--text-secondary);">价格适中，带冷媒环高温制冷</td>
+          <td><div class="star-rating"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star empty">★</span><span class="star-value">3.9</span></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:28px;">
+    <button class="btn btn-primary"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>新增方案</button>
+    <button class="btn btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>导出对比</button>
+  </div>
+
+  <!-- Related Notes Strip -->
+  <div class="page-section">
+    <div class="page-section-header"><h3 class="page-section-title">相关笔记</h3><button class="btn btn-ghost btn-sm" onclick="showPage('notes')">查看全部</button></div>
+    <div class="related-notes-strip">
+      <div class="related-note-item"><div class="related-note-img"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></div><div class="related-note-title">客厅中央空调隐藏风口参考</div></div>
+      <div class="related-note-item"><div class="related-note-img"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg></div><div class="related-note-title">大金报价单截图</div></div>
+      <div class="related-note-item"><div class="related-note-img"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg></div><div class="related-note-title">中央空调安装避坑</div></div>
+      <div class="related-note-item"><div class="related-note-img"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></div><div class="related-note-title">大金 vs 三菱横评</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- PAGE 4: 预算控制 -->
+<div class="page" id="page-budget">
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">预算控制</h1>
+    <p class="page-subtitle">查看所有已选方案的预算值与实际花费，追踪超支与节省</p>
+  </div>
+
+  <div class="budget-summary-row animate-in">
+    <div class="budget-summary-item"><div class="label">总预算目标</div><div class="value">200,000 元</div></div>
+    <div class="budget-summary-item"><div class="label">当前预计花费</div><div class="value" style="color:var(--accent-orange);">158,000 元</div><div class="sub">占预算 79%</div></div>
+    <div class="budget-summary-item"><div class="label">实际已花费</div><div class="value saved">89,500 元</div><div class="sub">占预算 44.8%</div></div>
+    <div class="budget-summary-item"><div class="label">预计剩余</div><div class="value saved">42,000 元</div><div class="sub">（理想状态）</div></div>
+    <div class="budget-summary-item"><div class="label">实际剩余</div><div class="value saved">110,500 元</div><div class="sub">（按已选方案）</div></div>
+  </div>
+
+  <div class="page-section">
+    <div class="page-section-header">
+      <h3 class="page-section-title">预算明细</h3>
+      <div class="filter-bar">
+        <div class="filter-chip active">全部</div>
+        <div class="filter-chip">超支</div>
+        <div class="filter-chip">节省</div>
+        <div class="filter-chip">持平</div>
+        <div class="filter-chip">未选方案</div>
+      </div>
+    </div>
+    <div class="table-wrapper animate-in">
+      <table>
+        <thead><tr><th>分类</th><th>最终方案</th><th>预算值</th><th>实际花费</th><th>差额</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr class="budget-row over"><td><strong>中央空调</strong></td><td style="color:var(--text-secondary);">大金 VRV-P 一拖五</td><td style="font-weight:600;">28,000</td><td style="font-weight:600;">30,000</td><td><span class="budget-delta" style="color:var(--accent-red);">-2,000</span></td><td><span class="status-tag status-over">超支</span></td><td><button class="btn btn-ghost btn-sm" onclick="showPage('compare-detail')">查看</button></td></tr>
+          <tr class="budget-row saved"><td><strong>冰箱</strong></td><td style="color:var(--text-secondary);">卡萨帝 500L</td><td style="font-weight:600;">9,000</td><td style="font-weight:600;">8,500</td><td><span class="budget-delta" style="color:var(--accent-green);">+500</span></td><td><span class="status-tag status-selected">节省</span></td><td><button class="btn btn-ghost btn-sm">查看</button></td></tr>
+          <tr><td><strong>洗衣机</strong></td><td style="color:var(--text-secondary);">小天鹅洗烘套装</td><td style="font-weight:600;">7,000</td><td style="font-weight:600;">7,000</td><td><span class="budget-delta" style="color:var(--text-muted);">0</span></td><td><span class="status-tag status-not-started">持平</span></td><td><button class="btn btn-ghost btn-sm">查看</button></td></tr>
+          <tr class="budget-row saved"><td><strong>门窗</strong></td><td style="color:var(--text-secondary);">断桥铝方案 A</td><td style="font-weight:600;">26,000</td><td style="font-weight:600;">24,000</td><td><span class="budget-delta" style="color:var(--accent-green);">+2,000</span></td><td><span class="status-tag status-selected">节省</span></td><td><button class="btn btn-ghost btn-sm">查看</button></td></tr>
+          <tr class="budget-row over"><td><strong>瓷砖</strong></td><td style="color:var(--text-secondary);">马可波罗方案</td><td style="font-weight:600;">18,000</td><td style="font-weight:600;">19,500</td><td><span class="budget-delta" style="color:var(--accent-red);">-1,500</span></td><td><span class="status-tag status-over">超支</span></td><td><button class="btn btn-ghost btn-sm">查看</button></td></tr>
+          <tr><td><strong>木门</strong></td><td style="color:var(--text-secondary);">梦天木门</td><td style="font-weight:600;">8,000</td><td style="font-weight:600;">8,000</td><td><span class="budget-delta" style="color:var(--text-muted);">0</span></td><td><span class="status-tag status-selected">节省</span></td><td><button class="btn btn-ghost btn-sm">查看</button></td></tr>
+          <tr><td><strong>地板</strong></td><td style="color:var(--text-muted);font-style:italic;">待选方案</td><td style="font-weight:600;">15,000</td><td style="font-weight:600;color:var(--text-muted);">-</td><td><span class="budget-delta" style="color:var(--text-muted);">-</span></td><td><span class="status-tag status-not-started">未开始</span></td><td><button class="btn btn-ghost btn-sm" onclick="showPage('compare')">去选方案</button></td></tr>
+          <tr><td><strong>水电</strong></td><td style="color:var(--text-secondary);">水电改造方案 A</td><td style="font-weight:600;">20,000</td><td style="font-weight:600;">15,600</td><td><span class="budget-delta" style="color:var(--accent-green);">+4,400</span></td><td><span class="status-tag status-ongoing">进行中</span></td><td><button class="btn btn-ghost btn-sm">查看</button></td></tr>
+          <tr><td><strong>木工</strong></td><td style="color:var(--text-muted);font-style:italic;">待选方案</td><td style="font-weight:600;">18,000</td><td style="font-weight:600;color:var(--text-muted);">-</td><td><span class="budget-delta" style="color:var(--text-muted);">-</span></td><td><span class="status-tag status-not-started">未开始</span></td><td><button class="btn btn-ghost btn-sm" onclick="showPage('compare')">去选方案</button></td></tr>
+          <tr><td><strong>全屋定制</strong></td><td style="color:var(--text-muted);font-style:italic;">待确认</td><td style="font-weight:600;">35,000</td><td style="font-weight:600;color:var(--text-muted);">-</td><td><span class="budget-delta" style="color:var(--text-muted);">-</span></td><td><span class="status-tag status-confirmed">待确认</span></td><td><button class="btn btn-ghost btn-sm">查看</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="page-section">
+    <div class="page-section-header">
+      <h3 class="page-section-title">实际花费记录</h3>
+      <button class="btn btn-primary btn-sm" onclick="openModal('expenseModal')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>新增花费</button>
+    </div>
+    <div class="expense-list">
+      <div class="expense-item animate-in"><div class="expense-date">05-15</div><div class="expense-category">中央空调</div><div class="expense-name">大金定金（已选方案）</div><div class="expense-amount">¥3,000</div><div class="expense-method">银行卡</div><div style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">已上传票据</div></div>
+      <div class="expense-item animate-in"><div class="expense-date">05-10</div><div class="expense-category">水电</div><div class="expense-name">水电一期付款</div><div class="expense-amount">¥8,000</div><div class="expense-method">微信</div><div style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">已上传票据</div></div>
+      <div class="expense-item animate-in"><div class="expense-date">05-12</div><div class="expense-category">瓷砖</div><div class="expense-name">瓷砖订金（马可波罗）</div><div class="expense-amount">¥5,000</div><div class="expense-method">支付宝</div><div style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">含送货</div></div>
+      <div class="expense-item animate-in"><div class="expense-date">04-28</div><div class="expense-category">冰箱</div><div class="expense-name">卡萨帝 500L 货款</div><div class="expense-amount">¥8,500</div><div class="expense-method">银行卡</div><div style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">已收货</div></div>
+      <div class="expense-item animate-in"><div class="expense-date">04-25</div><div class="expense-category">门窗</div><div class="expense-name">断桥铝门窗一期款</div><div class="expense-amount">¥12,000</div><div class="expense-method">转账</div><div style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">制作中</div></div>
+      <div class="expense-item animate-in"><div class="expense-date">04-20</div><div class="expense-category">洗衣机</div><div class="expense-name">小天鹅洗烘套装</div><div class="expense-amount">¥7,000</div><div class="expense-method">微信</div><div style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">已到货</div></div>
+      <div class="expense-item animate-in"><div class="expense-date">04-15</div><div class="expense-category">木门</div><div class="expense-name">梦天木门定金</div><div class="expense-amount">¥2,000</div><div class="expense-method">支付宝</div><div style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">待生产</div></div>
+      <div class="expense-item animate-in"><div class="expense-date">04-10</div><div class="expense-category">瓷砖</div><div class="expense-name">瓷砖量尺费</div><div class="expense-amount">¥500</div><div class="expense-method">微信</div><div style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">已完成</div></div>
+      <div class="expense-item animate-in"><div class="expense-date">03-28</div><div class="expense-category">水电</div><div class="expense-name">水电材料采购</div><div class="expense-amount">¥7,600</div><div class="expense-method">转账</div><div style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">已完成</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- PAGE 5: 装修进度看板 -->
+<div class="page" id="page-progress">
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">装修进度看板</h1>
+    <p class="page-subtitle">追踪所有装修任务的状态与进度，可关联装修手册中的记录</p>
+  </div>
+
+  <!-- 顶部操作栏 -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+    <div class="progress-overview" style="flex:1;min-width:200px;margin:0;">
+      <div class="progress-overview-header">
+        <div>
+          <div class="progress-overview-title">装修整体进度</div>
+          <div style="font-size:.75rem;color:var(--text-muted);margin-top:2px;">待开始 3 · 进行中 2 · 待验收 1 · 已完成 4</div>
+        </div>
+        <div class="progress-overview-value">约 35%</div>
+      </div>
+      <div class="progress-bar-track" style="margin-top:10px;"><div class="progress-bar-fill" style="width:35%;"></div></div>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('taskModal')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      新建任务
+    </button>
+  </div>
+
+  <div class="kanban-board">
+    <!-- 设计阶段 -->
+    <div class="kanban-group kanban-group-done">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">📋</div>
+        <div class="kanban-group-title">设计阶段</div>
+        <div class="kanban-group-count">3 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column" style="flex:1;">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-done"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count">3</div></div>
+          <div class="kanban-cards">
+            <div class="kanban-card" onclick="openModal('taskModal')">
+              <div class="kanban-card-title">量房设计</div>
+              <div class="kanban-card-meta"><span class="kanban-chip">设计</span></div>
+              <div style="font-size:.6875rem;color:var(--accent-green);margin-bottom:6px;">✓ 已完成</div>
+              <div class="kanban-card-footer">
+                <span>设计师</span>
+                <span class="kanban-card-link" onclick="event.stopPropagation();goToNotes()">📖 手册</span>
+              </div>
+            </div>
+            <div class="kanban-card" onclick="openModal('taskModal')">
+              <div class="kanban-card-title">方案确认</div>
+              <div class="kanban-card-meta"><span class="kanban-chip">设计</span></div>
+              <div style="font-size:.6875rem;color:var(--accent-green);margin-bottom:6px;">✓ 已完成</div>
+              <div class="kanban-card-footer">
+                <span>设计师</span>
+                <span class="kanban-card-link" onclick="event.stopPropagation();goToNotes()">📖 手册</span>
+              </div>
+            </div>
+            <div class="kanban-card" onclick="openModal('taskModal')">
+              <div class="kanban-card-title">预算规划</div>
+              <div class="kanban-card-meta"><span class="kanban-chip">设计</span><span class="kanban-chip">¥300,000</span></div>
+              <div style="font-size:.6875rem;color:var(--accent-green);margin-bottom:6px;">✓ 已完成</div>
+              <div class="kanban-card-footer">
+                <span>业主</span>
+                <span class="kanban-card-link" onclick="event.stopPropagation();goToNotes()">📖 手册</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 拆改阶段 -->
+    <div class="kanban-group kanban-group-done">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🔨</div>
+        <div class="kanban-group-title">拆改阶段</div>
+        <div class="kanban-group-count">1 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column" style="flex:1;">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-done"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count">1</div></div>
+          <div class="kanban-cards">
+            <div class="kanban-card" onclick="openModal('taskModal')">
+              <div class="kanban-card-title">墙体拆改</div>
+              <div class="kanban-card-meta"><span class="kanban-chip">拆改</span><span class="kanban-chip">¥5,000</span></div>
+              <div style="font-size:.6875rem;color:var(--accent-green);margin-bottom:6px;">✓ 已完成</div>
+              <div class="kanban-card-footer">
+                <span>施工队</span>
+                <span class="kanban-card-link" onclick="event.stopPropagation();goToNotes()">📖 手册</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 水电阶段 -->
+    <div class="kanban-group kanban-group-ongoing">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">⚡</div>
+        <div class="kanban-group-title">水电阶段</div>
+        <div class="kanban-group-count">3 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-pending"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-ongoing"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count">1</div></div>
+          <div class="kanban-cards">
+            <div class="kanban-card" onclick="openModal('taskModal')">
+              <div class="kanban-card-title">水电改造</div>
+              <div class="kanban-card-meta">
+                <span class="kanban-chip">水电</span>
+                <span class="kanban-chip">¥20,000</span>
+              </div>
+              <div style="margin-bottom:8px;"><div class="progress-bar-track" style="height:3px;"><div class="progress-bar-fill" style="width:78%;"></div></div></div>
+              <div class="kanban-card-footer">
+                <span>张师傅 · 78%</span>
+                <span class="kanban-card-link" onclick="event.stopPropagation();goToNotes()">📖 手册</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-review"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count">1</div></div>
+          <div class="kanban-cards">
+            <div class="kanban-card" onclick="openModal('taskModal')">
+              <div class="kanban-card-title">防水测试</div>
+              <div class="kanban-card-meta">
+                <span class="kanban-chip">水电</span>
+                <span class="kanban-chip">¥3,000</span>
+              </div>
+              <div style="font-size:.6875rem;color:var(--accent-yellow);margin-bottom:6px;">⚠️ 等待验收</div>
+              <div class="kanban-card-footer">
+                <span>张师傅</span>
+                <span class="kanban-card-link" onclick="event.stopPropagation();goToNotes()">📖 手册</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-done"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count">1</div></div>
+          <div class="kanban-cards">
+            <div class="kanban-card" onclick="openModal('taskModal')">
+              <div class="kanban-card-title">水电定位</div>
+              <div class="kanban-card-meta">
+                <span class="kanban-chip">水电</span>
+              </div>
+              <div style="font-size:.6875rem;color:var(--accent-green);margin-bottom:6px;">✓ 已完成 · ¥1,500</div>
+              <div class="kanban-card-footer">
+                <span>张师傅</span>
+                <span class="kanban-card-link" onclick="event.stopPropagation();goToNotes()">📖 手册</span>
+              </div>
+            </div>
+          </div>
+          <button class="kanban-add-btn" onclick="openModal('taskModal')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 泥工阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🧱</div>
+        <div class="kanban-group-title">泥工阶段</div>
+        <div class="kanban-group-count">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-pending"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-ongoing"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-review"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-done"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+          <button class="kanban-add-btn" onclick="openModal('taskModal')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 木工阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🪚</div>
+        <div class="kanban-group-title">木工阶段</div>
+        <div class="kanban-group-count">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-pending"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-ongoing"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-review"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-done"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+          <button class="kanban-add-btn" onclick="openModal('taskModal')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 油漆阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🎨</div>
+        <div class="kanban-group-title">油漆阶段</div>
+        <div class="kanban-group-count">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-pending"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-ongoing"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-review"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-done"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+          <button class="kanban-add-btn" onclick="openModal('taskModal')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 安装阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🔧</div>
+        <div class="kanban-group-title">安装阶段</div>
+        <div class="kanban-group-count">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-pending"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-ongoing"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-review"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-done"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+          <button class="kanban-add-btn" onclick="openModal('taskModal')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 软装阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🛋️</div>
+        <div class="kanban-group-title">软装阶段</div>
+        <div class="kanban-group-count">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-pending"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-ongoing"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-review"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot dot-done"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count">0</div></div>
+          <div class="kanban-cards"></div>
+          <button class="kanban-add-btn" onclick="openModal('taskModal')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 6: 装修手册 -->
+<div class="page" id="page-notes">
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">装修手册</h1>
+    <p class="page-subtitle">按施工阶段整理，记录每个阶段的决策、灵感和注意事项</p>
+  </div>
+
+  <div class="manual-layout">
+    <!-- 左侧目录 -->
+    <div class="manual-toc">
+      <div class="manual-toc-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+        <span class="manual-toc-title">目录</span>
+      </div>
+
+      <!-- 设计阶段 -->
+      <div class="manual-toc-section open">
+        <button class="manual-toc-btn active" onclick="toggleTocSection(this)">
+          <div class="manual-toc-icon" style="background:rgba(234,88,12,.12);color:var(--accent-orange);">📋</div>
+          <span class="manual-toc-text">设计阶段</span>
+          <span class="manual-toc-count">2</span>
+        </button>
+        <div class="manual-toc-sub">
+          <div class="manual-toc-sub-item active">量房设计</div>
+          <div class="manual-toc-sub-item">预算规划</div>
+          <div class="manual-toc-sub-item manual-link" onclick="goToProgress()">→ 查看进度</div>
+        </div>
+      </div>
+
+      <!-- 拆改阶段 -->
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="toggleTocSection(this)">
+          <div class="manual-toc-icon" style="background:rgba(168,85,247,.12);color:#A855F7;">🔨</div>
+          <span class="manual-toc-text">拆改阶段</span>
+          <span class="manual-toc-count">0</span>
+        </button>
+        <div class="manual-toc-sub">
+          <div class="manual-toc-sub-item" style="color:var(--text-muted);font-style:italic;">暂无记录</div>
+          <div class="manual-toc-sub-item manual-link" onclick="goToProgress()">→ 查看进度</div>
+        </div>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="toggleTocSection(this)">
+          <div class="manual-toc-icon" style="background:rgba(37,99,235,.12);color:var(--accent-blue);">⚡</div>
+          <span class="manual-toc-text">水电阶段</span>
+          <span class="manual-toc-count">4</span>
+        </button>
+        <div class="manual-toc-sub">
+          <div class="manual-toc-sub-item">定位交底</div>
+          <div class="manual-toc-sub-item">材料验收</div>
+          <div class="manual-toc-sub-item">施工中</div>
+          <div class="manual-toc-sub-item">验收完成</div>
+          <div class="manual-toc-sub-item manual-link" onclick="goToProgress()">→ 查看进度</div>
+        </div>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="toggleTocSection(this)">
+          <div class="manual-toc-icon" style="background:rgba(202,138,4,.12);color:var(--accent-yellow);">🧱</div>
+          <span class="manual-toc-text">泥工阶段</span>
+          <span class="manual-toc-count">0</span>
+        </button>
+        <div class="manual-toc-sub">
+          <div class="manual-toc-sub-item" style="color:var(--text-muted);font-style:italic;">暂无记录</div>
+          <div class="manual-toc-sub-item manual-link" onclick="goToProgress()">→ 查看进度</div>
+        </div>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="toggleTocSection(this)">
+          <div class="manual-toc-icon" style="background:rgba(124,58,237,.12);color:var(--accent-purple);">🪚</div>
+          <span class="manual-toc-text">木工阶段</span>
+          <span class="manual-toc-count">0</span>
+        </button>
+        <div class="manual-toc-sub">
+          <div class="manual-toc-sub-item" style="color:var(--text-muted);font-style:italic;">暂无记录</div>
+          <div class="manual-toc-sub-item manual-link" onclick="goToProgress()">→ 查看进度</div>
+        </div>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="toggleTocSection(this)">
+          <div class="manual-toc-icon" style="background:rgba(22,163,74,.12);color:var(--accent-green);">🎨</div>
+          <span class="manual-toc-text">油漆阶段</span>
+          <span class="manual-toc-count">0</span>
+        </button>
+        <div class="manual-toc-sub">
+          <div class="manual-toc-sub-item" style="color:var(--text-muted);font-style:italic;">暂无记录</div>
+          <div class="manual-toc-sub-item manual-link" onclick="goToProgress()">→ 查看进度</div>
+        </div>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="toggleTocSection(this)">
+          <div class="manual-toc-icon" style="background:rgba(220,38,38,.12);color:var(--accent-red);">🔧</div>
+          <span class="manual-toc-text">安装阶段</span>
+          <span class="manual-toc-count">0</span>
+        </button>
+        <div class="manual-toc-sub">
+          <div class="manual-toc-sub-item" style="color:var(--text-muted);font-style:italic;">暂无记录</div>
+          <div class="manual-toc-sub-item manual-link" onclick="goToProgress()">→ 查看进度</div>
+        </div>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="toggleTocSection(this)">
+          <div class="manual-toc-icon" style="background:rgba(168,162,158,.12);color:var(--text-muted);">🛋️</div>
+          <span class="manual-toc-text">软装阶段</span>
+          <span class="manual-toc-count">0</span>
+        </button>
+        <div class="manual-toc-sub">
+          <div class="manual-toc-sub-item" style="color:var(--text-muted);font-style:italic;">暂无记录</div>
+          <div class="manual-toc-sub-item manual-link" onclick="goToProgress()">→ 查看进度</div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--border-light);margin-top:12px;padding-top:12px;">
+        <div class="manual-toc-section">
+          <button class="manual-toc-btn" onclick="toggleTocSection(this)">
+            <div class="manual-toc-icon" style="background:rgba(168,162,158,.12);color:var(--text-muted);">📁</div>
+            <span class="manual-toc-text">知识库</span>
+            <span class="manual-toc-count">5</span>
+          </button>
+          <div class="manual-toc-sub">
+            <div class="manual-toc-sub-item">工艺标准</div>
+            <div class="manual-toc-sub-item">品牌对比</div>
+            <div class="manual-toc-sub-item">避坑指南</div>
+            <div class="manual-toc-sub-item">商家信息</div>
+            <div class="manual-toc-sub-item">参考资料</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧内容 -->
+    <div class="manual-content">
+      <!-- 设计阶段 -->
+      <div class="manual-chapter open">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(234,88,12,.12);">🏠</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">设计阶段</div>
+            <div class="manual-chapter-meta">
+              <span>3 条记录</span>
+              <span>2026-03-15</span>
+            </div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="manual-entry">
+            <div class="manual-entry-header">
+              <span class="manual-entry-date">2026-03-15</span>
+            </div>
+            <div class="manual-entry-title">确定设计风格：现代简约</div>
+            <div class="manual-entry-content">今天和设计师讨论后，确定了整体风格为现代简约。以"少即是多"为核心理念，追求空间的纯粹与宁静。整体色调以暖白为主，搭配原木色和墨绿作为点缀。</div>
+            <div class="manual-entry-tags">
+              <span class="note-tag">设计风格</span>
+              <span class="note-tag">现代简约</span>
+              <span class="note-tag">决策</span>
+            </div>
+          </div>
+          <div class="manual-entry">
+            <div class="manual-entry-header">
+              <span class="manual-entry-date">2026-03-20</span>
+            </div>
+            <div class="manual-entry-title">色彩方案确定</div>
+            <div class="manual-entry-content">确定了主色调：暖白 #F5F0E8（60%）、原木色 #C4A87C（25%）、墨绿 #2D5A4A（10%）、亚麻灰 #E8DFD4（5%）。客厅和主卧以暖白为主，厨房和卫生间可用深色瓷砖点缀。</div>
+            <div class="manual-entry-tags">
+              <span class="note-tag">色彩方案</span>
+              <span class="note-tag">决策</span>
+            </div>
+          </div>
+          <div class="manual-entry">
+            <div class="manual-entry-header">
+              <span class="manual-entry-date">2026-04-28</span>
+            </div>
+            <div class="manual-entry-title">客厅效果图参考</div>
+            <div class="manual-entry-content">收集了一些客厅效果图作为参考。重点：无主灯设计 + 悬浮吊顶 + 隐藏式中央空调风口。电视背景墙考虑做储物柜 + 隐形门设计。</div>
+            <div class="manual-entry-images">
+              <div class="manual-entry-img">效果图1</div>
+              <div class="manual-entry-img">效果图2</div>
+              <div class="manual-entry-img">效果图3</div>
+            </div>
+            <div class="manual-entry-tags">
+              <span class="note-tag">效果图</span>
+              <span class="note-tag">客厅</span>
+              <span class="note-tag">参考</span>
+            </div>
+          </div>
+          <button class="manual-add-btn" onclick="openModal('noteModal')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            添加内容
+          </button>
+        </div>
+      </div>
+
+      <!-- 前期准备 -->
+      <div class="manual-chapter">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(234,88,12,.12);">📋</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">设计阶段</div>
+            <div class="manual-chapter-meta">
+              <span>2 条记录</span>
+              <span>2026-03-10</span>
+            </div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="manual-entry">
+            <div class="manual-entry-header">
+              <span class="manual-entry-date">2026-03-10</span>
+            </div>
+            <div class="manual-entry-title">量房设计</div>
+            <div class="manual-entry-content">今天约了设计师来量房，确认了全屋户型和承重墙位置。建筑面积 120㎡，套内约 95㎡。三室两厅一厨两卫，采光良好。</div>
+          </div>
+          <div class="manual-entry">
+            <div class="manual-entry-header">
+              <span class="manual-entry-date">2026-03-12</span>
+            </div>
+            <div class="manual-entry-title">预算规划</div>
+            <div class="manual-entry-content">总预算 30 万。分配如下：基装 8 万、主材 12 万、家具 5 万、家电 3 万、其他 2 万。预留 20% 备用金约 6 万。</div>
+            <div class="manual-entry-tags">
+              <span class="note-tag">预算</span>
+              <span class="note-tag">决策</span>
+            </div>
+          </div>
+          <button class="manual-add-btn" onclick="openModal('noteModal')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            添加内容
+          </button>
+        </div>
+      </div>
+
+      <!-- 水电阶段 -->
+      <div class="manual-chapter">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(37,99,235,.12);">⚡</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">水电阶段</div>
+            <div class="manual-chapter-meta">
+              <span>4 条记录</span>
+              <span>2026-05-01</span>
+            </div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="manual-entry">
+            <div class="manual-entry-header">
+              <span class="manual-entry-date">2026-05-01</span>
+            </div>
+            <div class="manual-entry-title">定位交底</div>
+            <div class="manual-entry-content">今天张师傅来现场定位，确认了全屋插座和开关位置。客厅需要 8 个电位，卧室 4 个，厨房 6 个。注意：电视背景墙需要预埋 50 管。</div>
+            <div class="manual-entry-images">
+              <div class="manual-entry-img">现场图1</div>
+              <div class="manual-entry-img">现场图2</div>
+              <div class="manual-entry-img">现场图3</div>
+              <div class="manual-entry-img">现场图4</div>
+            </div>
+          </div>
+          <div class="manual-entry">
+            <div class="manual-entry-header">
+              <span class="manual-entry-date">2026-05-03</span>
+            </div>
+            <div class="manual-entry-title">材料验收</div>
+            <div class="manual-entry-content">电线、水管、线管都到货了。验收了品牌和规格：电线用的熊猫 2.5平方，水管用的伟星 PPR 管，线管用的中财 PVC。全部符合要求。</div>
+            <div class="manual-entry-tags">
+              <span class="note-tag">材料验收</span>
+              <span class="note-tag">水电</span>
+            </div>
+          </div>
+          <div class="manual-entry">
+            <div class="manual-entry-header">
+              <span class="manual-entry-date">2026-05-05</span>
+            </div>
+            <div class="manual-entry-title">施工进度</div>
+            <div class="manual-entry-content">师傅在做开槽和布线，进展顺利。预计还有 3 天完工。</div>
+          </div>
+          <div class="manual-entry">
+            <div class="manual-entry-header">
+              <span class="manual-entry-date">2026-05-08</span>
+            </div>
+            <div class="manual-entry-title">验收完成</div>
+            <div class="manual-entry-content">水电验收完成！师傅做工很细致，线管都包好了，所有电位测试正常。花费 ¥15,600，比预算省了 ¥4,400。</div>
+            <div class="manual-entry-tags">
+              <span class="note-tag">验收</span>
+              <span class="note-tag">完成</span>
+            </div>
+          </div>
+          <button class="manual-add-btn" onclick="openModal('noteModal')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            添加内容
+          </button>
+        </div>
+      </div>
+
+      <!-- 其他阶段（未开始） -->
+      <div class="manual-chapter" style="opacity:.6;">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(202,138,4,.12);">🧱</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">泥工阶段</div>
+            <div class="manual-chapter-meta">
+              <span>暂无记录</span>
+            </div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" style="opacity:.3;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p style="margin-top:12px;font-size:.875rem;">阶段尚未开始</p>
+            <button class="manual-add-btn" onclick="openModal('noteModal')" style="margin-top:16px;border-color:var(--accent-orange);color:var(--accent-orange);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              开始记录
+            </button>
+          </div>
+          <div class="manual-chapter-link" onclick="goToProgress()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+            查看装修进度 →
+          </div>
+        </div>
+      </div>
+
+      <!-- 木工阶段 -->
+      <div class="manual-chapter" style="opacity:.6;">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(124,58,237,.12);">🪚</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">木工阶段</div>
+            <div class="manual-chapter-meta">
+              <span>暂无记录</span>
+            </div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" style="opacity:.3;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p style="margin-top:12px;font-size:.875rem;">阶段尚未开始</p>
+            <button class="manual-add-btn" onclick="openModal('noteModal')" style="margin-top:16px;border-color:var(--accent-orange);color:var(--accent-orange);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              开始记录
+            </button>
+          </div>
+          <div class="manual-chapter-link" onclick="goToProgress()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+            查看装修进度 →
+          </div>
+        </div>
+      </div>
+
+      <!-- 油漆阶段 -->
+      <div class="manual-chapter" style="opacity:.6;">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(22,163,74,.12);">🎨</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">油漆阶段</div>
+            <div class="manual-chapter-meta">
+              <span>暂无记录</span>
+            </div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" style="opacity:.3;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p style="margin-top:12px;font-size:.875rem;">阶段尚未开始</p>
+            <button class="manual-add-btn" onclick="openModal('noteModal')" style="margin-top:16px;border-color:var(--accent-orange);color:var(--accent-orange);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              开始记录
+            </button>
+          </div>
+          <div class="manual-chapter-link" onclick="goToProgress()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+            查看装修进度 →
+          </div>
+        </div>
+      </div>
+
+      <!-- 安装阶段 -->
+      <div class="manual-chapter" style="opacity:.6;">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(220,38,38,.12);">🔧</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">安装阶段</div>
+            <div class="manual-chapter-meta">
+              <span>暂无记录</span>
+            </div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" style="opacity:.3;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p style="margin-top:12px;font-size:.875rem;">阶段尚未开始</p>
+            <button class="manual-add-btn" onclick="openModal('noteModal')" style="margin-top:16px;border-color:var(--accent-orange);color:var(--accent-orange);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              开始记录
+            </button>
+          </div>
+          <div class="manual-chapter-link" onclick="goToProgress()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+            查看装修进度 →
+          </div>
+        </div>
+      </div>
+
+      <!-- 软装阶段 -->
+      <div class="manual-chapter" style="opacity:.6;">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(168,162,158,.12);">🛋️</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">软装阶段</div>
+            <div class="manual-chapter-meta">
+              <span>暂无记录</span>
+            </div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" style="opacity:.3;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p style="margin-top:12px;font-size:.875rem;">阶段尚未开始</p>
+            <button class="manual-add-btn" onclick="openModal('noteModal')" style="margin-top:16px;border-color:var(--accent-orange);color:var(--accent-orange);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              开始记录
+            </button>
+          </div>
+          <div class="manual-chapter-link" onclick="goToProgress()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+            查看装修进度 →
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+</main>
+</div>
+
+<!-- MODALS -->
+<!-- Task Detail Modal -->
+<div class="modal-overlay" id="taskModal">
+<div class="modal" style="max-width:560px;">
+<div class="modal-header">
+  <div><div class="modal-title">水电改造</div><div class="modal-subtitle">所属分类：水电 · 预算：¥20,000</div></div>
+  <button class="modal-close" onclick="closeModal('taskModal')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+</div>
+<div class="modal-body">
+  <div class="info-chips" style="margin-bottom:18px;">
+    <div class="info-chip"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.19.128a.75.75 0 01.75.75v1.5h1.5a.75.75 0 010 1.5H16.94v1.5a.75.75 0 01-1.5 0V3.75h-1.5a.75.75 0 010-1.5h1.5V.75a.75.75 0 01.75-.75z"/></svg>负责人：<strong>张师傅</strong></div>
+    <div class="info-chip"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>开始：<strong>2026-05-01</strong></div>
+    <div class="info-chip"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>预计：<strong>2026-05-15</strong></div>
+    <div class="info-chip" style="background:rgba(234,88,12,.08);color:var(--accent-orange);border-color:rgba(234,88,12,.2);"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>进行中 · 78%</div>
+  </div>
+  <div style="margin-bottom:18px;"><div class="progress-bar-track" style="height:8px;"><div class="progress-bar-fill" style="width:78%;"></div></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+    <div style="background:var(--bg-secondary);padding:12px 14px;border-radius:var(--radius-md);"><div style="font-size:.6875rem;color:var(--text-muted);font-weight:600;margin-bottom:4px;">预算值</div><div style="font-size:1.125rem;font-weight:700;color:var(--text-primary);">¥20,000</div></div>
+    <div style="background:rgba(22,163,74,.06);padding:12px 14px;border-radius:var(--radius-md);"><div style="font-size:.6875rem;color:var(--text-muted);font-weight:600;margin-bottom:4px;">实际花费</div><div style="font-size:1.125rem;font-weight:700;color:var(--accent-green);">¥15,600</div></div>
+  </div>
+  <div style="margin-bottom:18px;">
+    <div style="font-size:.875rem;font-weight:600;color:var(--text-primary);margin-bottom:10px;">待办清单</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(22,163,74,.06);border-radius:var(--radius-md);border:1px solid rgba(22,163,74,.15);"><div style="width:18px;height:18px;background:var(--accent-green);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="white"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span style="font-size:.875rem;color:var(--accent-green);font-weight:500;">确认插座点位</span></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(22,163,74,.06);border-radius:var(--radius-md);border:1px solid rgba(22,163,74,.15);"><div style="width:18px;height:18px;background:var(--accent-green);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="white"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span style="font-size:.875rem;color:var(--accent-green);font-weight:500;">水压测试</span></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(234,88,12,.06);border-radius:var(--radius-md);border:1px solid rgba(234,88,12,.15);"><div style="width:18px;height:18px;border:2px solid var(--border-medium);border-radius:4px;flex-shrink:0;"></div><span style="font-size:.875rem;color:var(--text-primary);">拍照留档</span></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(234,88,12,.06);border-radius:var(--radius-md);border:1px solid rgba(234,88,12,.15);"><div style="width:18px;height:18px;border:2px solid var(--border-medium);border-radius:4px;flex-shrink:0;"></div><span style="font-size:.875rem;color:var(--text-primary);">验收签字</span></div>
+    </div>
+  </div>
+  <div>
+    <div style="font-size:.875rem;font-weight:600;color:var(--text-primary);margin-bottom:8px;">备注</div>
+    <div style="font-size:.875rem;color:var(--text-secondary);line-height:1.6;padding:10px 14px;background:var(--bg-secondary);border-radius:var(--radius-md);">厨房插座需要增加，原计划 8 个改为 12 个。<br>客厅电视背景墙需要预埋 50 管。</div>
+  </div>
+  <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border-light);">
+    <div style="font-size:.875rem;font-weight:600;color:var(--text-primary);margin-bottom:10px;">切换状态</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary btn-sm">待开始</button>
+      <button class="btn btn-primary btn-sm">进行中</button>
+      <button class="btn btn-secondary btn-sm">待验收</button>
+      <button class="btn btn-secondary btn-sm">已完成</button>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- Param Modal -->
+<div class="modal-overlay" id="paramModal">
+<div class="modal" style="max-width:540px;">
+<div class="modal-header">
+  <div><div class="modal-title">参数设置</div><div class="modal-subtitle">中央空调对比字段配置</div></div>
+  <button class="modal-close" onclick="closeModal('paramModal')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+</div>
+<div class="modal-body">
+  <div class="param-field-list">
+    <div class="param-field-item"><div><div class="param-field-name">品牌</div><div class="param-field-type">文本</div></div><div class="param-field-preview" style="display:flex;gap:8px;flex-wrap:wrap;"><span style="background:var(--bg-card);border:1px solid var(--border-light);padding:3px 10px;border-radius:var(--radius-full);font-size:.8125rem;">大金</span><span style="background:var(--bg-card);border:1px solid var(--border-light);padding:3px 10px;border-radius:var(--radius-full);font-size:.8125rem;">约克</span><span style="background:var(--bg-card);border:1px solid var(--border-light);padding:3px 10px;border-radius:var(--radius-full);font-size:.8125rem;">三菱</span></div></div>
+    <div class="param-field-item"><div><div class="param-field-name">总价</div><div class="param-field-type">金额</div></div><div class="param-field-preview" style="display:flex;align-items:center;gap:6px;"><span style="font-weight:600;color:var(--accent-green);">¥28,000</span><span style="color:var(--text-muted);font-size:.75rem;">可添加备注</span></div></div>
+    <div class="param-field-item"><div><div class="param-field-name">产品图片</div><div class="param-field-type">图片</div></div><div class="param-field-preview" style="display:flex;gap:8px;"><div style="width:56px;height:40px;background:var(--bg-secondary);border-radius:var(--radius-sm);border:1px dashed var(--border-medium);display:flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg></div><span style="font-size:.75rem;color:var(--text-muted);display:flex;align-items:center;">最多 9 张</span></div></div>
+    <div class="param-field-item"><div><div class="param-field-name">推荐指数</div><div class="param-field-type">评分</div></div><div class="param-field-preview"><div class="star-rating"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star-value">4.5</span></div></div></div>
+    <div class="param-field-item"><div><div class="param-field-name">能效等级</div><div class="param-field-type">下拉选项</div></div><div class="param-field-preview" style="display:flex;gap:6px;"><span style="background:rgba(22,163,74,.1);color:var(--accent-green);padding:3px 10px;border-radius:var(--radius-full);font-size:.8125rem;font-weight:600;">一级能效</span><span style="background:var(--bg-card);border:1px solid var(--border-light);color:var(--text-muted);padding:3px 10px;border-radius:var(--radius-full);font-size:.8125rem;">二级能效</span></div></div>
+    <div class="param-field-item"><div><div class="param-field-name">备注说明</div><div class="param-field-type">长文本</div></div><div class="param-field-preview" style="font-size:.8125rem;color:var(--text-secondary);max-width:260px;">变频冷暖，噪音低，配件好找...</div></div>
+    <div class="param-field-item"><div><div class="param-field-name">安装日期</div><div class="param-field-type">日期</div></div><div class="param-field-preview" style="font-size:.8125rem;color:var(--text-primary);">2026-05-20</div></div>
+    <div class="param-field-item"><div><div class="param-field-name">是否含安装</div><div class="param-field-type">是否选中</div></div><div class="param-field-preview"><div style="width:36px;height:20px;background:var(--accent-green);border-radius:var(--radius-full);position:relative;cursor:pointer;"><div style="width:16px;height:16px;background:white;border-radius:50%;position:absolute;right:2px;top:2px;box-shadow:var(--shadow-sm);"></div></div><span style="font-size:.75rem;color:var(--text-muted);margin-left:8px;">含安装</span></div></div>
+  </div>
+  <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-light);">
+    <button class="btn btn-secondary btn-sm" style="width:100%;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>添加新字段</button>
+  </div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('paramModal')">取消</button><button class="btn btn-primary" onclick="closeModal('paramModal')">保存配置</button></div>
+</div>
+</div>
+
+<!-- Note Modal -->
+<div class="modal-overlay" id="noteModal">
+<div class="modal" style="max-width:620px;">
+<div class="modal-header">
+  <div><div class="modal-title">添加手册内容</div><div class="modal-subtitle">记录施工阶段的观察、决策、注意事项</div></div>
+  <button class="modal-close" onclick="closeModal('noteModal')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+</div>
+<div class="modal-body">
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">标题</label><input type="text" class="form-input" placeholder="例如：客厅中央空调隐藏风口参考"></div>
+    <div class="form-group"><label class="form-label">所属阶段</label><select class="form-select"><option value="">选择阶段</option><option>设计阶段</option><option>拆改阶段</option><option>水电阶段</option><option>泥工阶段</option><option>木工阶段</option><option>油漆阶段</option><option>安装阶段</option><option>软装阶段</option></select></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">来源平台</label><select class="form-select"><option value="">选择平台</option><option>小红书</option><option>淘宝</option><option>门店</option><option>报价单</option><option>其他</option></select></div>
+    <div class="form-group"><label class="form-label">来源链接</label><input type="url" class="form-input" placeholder="https://..."></div>
+  </div>
+  <div class="form-group"><label class="form-label">标签</label><input type="text" class="form-input" placeholder="多个标签用逗号分隔，例如：中央空调、吊顶、极简"></div>
+  <div class="form-hint" style="margin-top:4px;font-size:.75rem;color:var(--text-muted);">常用标签：小红书、淘宝、报价单、避坑、风格参考、安装注意、效果图</div>
+  <div class="form-group"><label class="form-label">关联手册</label><select class="form-select"><option value="">不关联</option><option>设计阶段 - 量房设计</option><option>设计阶段 - 预算规划</option><option>水电阶段 - 定位交底</option><option>水电阶段 - 材料验收</option><option>水电阶段 - 施工中</option><option>泥工阶段 - 瓷砖铺贴</option><option>木工阶段 - 木工制作</option></select></div>
+  <div class="form-group"><label class="form-label">图片上传</label>
+    <div class="img-upload-grid">
+      <div class="img-upload-item"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg><span>上传图片</span></div>
+      <div class="img-upload-item"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg><span>上传图片</span></div>
+      <div class="img-upload-item"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg><span>上传图片</span></div>
+    </div>
+    <div class="form-hint">支持 JPG、PNG，每张图片最大 10MB，可上传 9 张</div>
+  </div>
+  <div class="form-group"><label class="form-label">正文备注</label><textarea class="form-textarea" rows="4" placeholder="记录你的想法、注意点、决策依据..."></textarea></div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">重要程度</label><select class="form-select"><option>普通</option><option>重要</option><option>关键</option></select></div>
+    <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:28px;">
+      <input type="checkbox" checked style="width:16px;height:16px;cursor:pointer;">
+      <label style="font-size:.8125rem;font-weight:500;color:var(--text-primary);cursor:pointer;">收藏此笔记</label>
+    </div>
+  </div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('noteModal')">取消</button><button class="btn btn-primary" onclick="closeModal('noteModal')">保存笔记</button></div>
+</div>
+</div>
+
+<!-- Expense Modal -->
+<div class="modal-overlay" id="expenseModal">
+<div class="modal" style="max-width:520px;">
+<div class="modal-header">
+  <div><div class="modal-title">新增花费</div><div class="modal-subtitle">记录实际支出明细</div></div>
+  <button class="modal-close" onclick="closeModal('expenseModal')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+</div>
+<div class="modal-body">
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">支出日期</label><input type="date" class="form-input" value="2026-05-10"></div>
+    <div class="form-group"><label class="form-label">支出分类</label><select class="form-select"><option value="">选择分类</option><option>中央空调</option><option>门窗</option><option>瓷砖</option><option>地板</option><option>水电</option><option>木工</option></select></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">支出名称</label><input type="text" class="form-input" placeholder="例如：水电一期付款"></div>
+    <div class="form-group"><label class="form-label">金额（元）</label><input type="number" class="form-input" placeholder="0.00"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">支付方式</label><select class="form-select"><option>微信</option><option>支付宝</option><option>银行卡</option><option>现金</option><option>转账</option></select></div>
+    <div class="form-group"><label class="form-label">收款方</label><input type="text" class="form-input" placeholder="例如：张师傅"></div>
+  </div>
+  <div class="form-group"><label class="form-label">关联手册</label><select class="form-select"><option>不关联</option><option>设计阶段 - 量房设计</option><option>设计阶段 - 预算规划</option><option>水电阶段 - 定位交底</option><option>水电阶段 - 材料验收</option><option>水电阶段 - 施工中</option><option>泥工阶段 - 瓷砖铺贴</option><option>木工阶段 - 木工制作</option></select></div>
+  <div class="form-group"><label class="form-label">备注</label><input type="text" class="form-input" placeholder="例如：含送货、待安装"></div>
+  <div class="form-group"><label class="form-label">票据上传</label>
+    <div style="display:flex;gap:8px;">
+      <div class="img-upload-item" style="width:80px;height:80px;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg><span style="font-size:.625rem;">上传</span></div>
+    </div>
+    <div class="form-hint">上传收据、发票等凭证截图</div>
+  </div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('expenseModal')">取消</button><button class="btn btn-primary" onclick="closeModal('expenseModal')">保存记录</button></div>
+</div>
+</div>
+
+</div>
+
+<script>
+const pageNames={'overview':'首页总览','compare':'分类比较','compare-detail':'中央空调','budget':'预算控制','progress':'装修进度','notes':'装修手册'};
+function showPage(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const t=document.getElementById('page-'+p);if(t){t.classList.add('active');document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));const nb=document.querySelector('.nav-item[data-page="'+p+'"]');if(nb)nb.classList.add('active');const b=document.getElementById('topbarCurrentPage');if(b)b.textContent=pageNames[p]||p;window.scrollTo({top:0,behavior:'smooth'});closeMobileSidebar()}}
+function selectRow(r){r.parentElement.querySelectorAll('tr').forEach(x=>{x.classList.remove('selected');const c=x.querySelector('.radio-circle');if(c)c.classList.remove('checked')});r.classList.add('selected');const c=r.querySelector('.radio-circle');if(c)c.classList.add('checked')}
+document.querySelectorAll('.todo-item').forEach(i=>{i.addEventListener('click',function(e){if(e.target.closest('.todo-checkbox'))this.classList.toggle('done')})});
+function openModal(id){const m=document.getElementById(id);if(m){m.classList.add('active');document.body.style.overflow='hidden'}}
+function closeModal(id){const m=document.getElementById(id);if(m){m.classList.remove('active');document.body.style.overflow=''}}
+document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',function(e){if(e.target===this){this.classList.remove('active');document.body.style.overflow=''}})});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.modal-overlay.active').forEach(m=>{m.classList.remove('active')});document.body.style.overflow=''}});
+function toggleMobileSidebar(){document.getElementById('sidebar').classList.toggle('mobile-open');document.getElementById('sidebarOverlay').classList.toggle('active')}
+function closeMobileSidebar(){document.getElementById('sidebar').classList.remove('mobile-open');document.getElementById('sidebarOverlay').classList.remove('active')}
+document.querySelectorAll('.filter-chip').forEach(c=>{c.addEventListener('click',function(){const p=this.closest('.filter-bar, .filter-bar+div,.filter-bar~*');if(p){p.querySelectorAll('.filter-chip').forEach(x=>x.classList.remove('active'))}this.classList.add('active')})});
+document.querySelectorAll('.note-favorite').forEach(f=>{f.addEventListener('click',e=>{e.stopPropagation();this.classList.toggle('active')})});
+// 装修手册目录折叠
+function toggleTocSection(btn){
+  const section=btn.closest('.manual-toc-section');
+  document.querySelectorAll('.manual-toc-section').forEach(s=>s.classList.remove('open'));
+  section.classList.toggle('open');
+  section.querySelectorAll('.manual-toc-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+// 装修手册章节折叠
+function toggleChapter(header){
+  const chapter=header.closest('.manual-chapter');
+  chapter.classList.toggle('open');
+}
+// 跳转到装修进度页面
+function goToProgress(){
+  showPage('progress');
+}
+// 跳转到装修手册页面
+function goToNotes(){
+  showPage('notes');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>装修风格方案 - XX小区 120㎡ 现代简约</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-paper: #FDFCFA;
+  --bg-warm: #F7F4F0;
+  --bg-card: #FFFFFF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #5A5A5A;
+  --text-muted: #9A9A9A;
+  --accent: #2D5A4A;
+  --accent-light: #E8F0ED;
+  --accent-warm: #C4A87C;
+  --border: #E8E4DE;
+  --shadow: 0 4px 24px rgba(0,0,0,.06);
+  --shadow-hover: 0 8px 32px rgba(0,0,0,.1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, sans-serif;
+  background: var(--bg-paper);
+  color: var(--text-primary);
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 简洁顶部 */
+.top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: rgba(253,252,250,.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  z-index: 100;
+}
+
+.top-bar-brand {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+}
+
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.top-bar-actions button {
+  background: none;
+  border: none;
+  font-size: .8125rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all .2s;
+}
+
+.top-bar-actions button:hover {
+  background: var(--bg-warm);
+  color: var(--text-primary);
+}
+
+/* 主内容 */
+.main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 40px;
+  padding-top: 120px;
+  padding-bottom: 120px;
+}
+
+/* 封面区 */
+.cover {
+  text-align: center;
+  margin-bottom: 100px;
+}
+
+.cover-label {
+  display: inline-block;
+  font-size: .6875rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 6px 16px;
+  border-radius: 20px;
+  margin-bottom: 32px;
+}
+
+.cover-title {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+  margin-bottom: 16px;
+  line-height: 1.3;
+}
+
+.cover-subtitle {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  font-weight: 300;
+}
+
+.cover-meta {
+  margin-top: 48px;
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+}
+
+.cover-meta-item {
+  text-align: center;
+}
+
+.cover-meta-label {
+  font-size: .6875rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+
+.cover-meta-value {
+  font-size: .9375rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* 章节 */
+.section {
+  margin-bottom: 100px;
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-number {
+  font-family: 'Noto Serif SC', serif;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+}
+
+.section-title {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 文字块 */
+.prose {
+  font-size: 1rem;
+  line-height: 2;
+  color: var(--text-secondary);
+  max-width: 720px;
+}
+
+.prose h3 {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 48px;
+  margin-bottom: 16px;
+}
+
+.prose p {
+  margin-bottom: 20px;
+}
+
+/* 关键词标签 */
+.keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 32px 0;
+}
+
+.keyword {
+  font-size: .875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-warm);
+  padding: 8px 20px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+}
+
+/* 色彩方案 */
+.color-palette {
+  display: flex;
+  gap: 20px;
+  margin: 40px 0;
+}
+
+.color-swatch {
+  flex: 1;
+  text-align: center;
+}
+
+.color-block {
+  height: 100px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.color-name {
+  font-size: .875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.color-code {
+  font-size: .6875rem;
+  color: var(--text-muted);
+  font-family: 'SF Mono', monospace;
+}
+
+/* 图片网格 */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 40px 0;
+}
+
+.image-grid.cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.image-item {
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-warm);
+  position: relative;
+  aspect-ratio: 4/3;
+}
+
+.image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .4s ease;
+}
+
+.image-item:hover img {
+  transform: scale(1.03);
+}
+
+.image-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 14px;
+  background: linear-gradient(transparent, rgba(0,0,0,.6));
+  color: white;
+  font-size: .75rem;
+}
+
+/* 空间卡片 */
+.spaces {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin: 40px 0;
+}
+
+.space-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: all .3s ease;
+}
+
+.space-card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-4px);
+}
+
+.space-card-img {
+  height: 200px;
+  background: var(--bg-warm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: .875rem;
+}
+
+.space-card-body {
+  padding: 20px;
+}
+
+.space-card-name {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.space-card-desc {
+  font-size: .875rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* 材质板 */
+.material-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin: 40px 0;
+}
+
+.material-item {
+  text-align: center;
+}
+
+.material-swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow);
+}
+
+.material-name {
+  font-size: .8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.material-brand {
+  font-size: .6875rem;
+  color: var(--text-muted);
+}
+
+/* 引用块 */
+.quote-block {
+  background: var(--accent-light);
+  border-left: 3px solid var(--accent);
+  padding: 24px 28px;
+  border-radius: 0 12px 12px 0;
+  margin: 40px 0;
+}
+
+.quote-text {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.125rem;
+  color: var(--text-primary);
+  font-style: italic;
+  line-height: 1.8;
+}
+
+/* 底部 */
+.footer {
+  text-align: center;
+  padding: 60px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 100px;
+}
+
+.footer-text {
+  font-size: .8125rem;
+  color: var(--text-muted);
+}
+
+/* 设计清单 */
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.checklist-category {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.checklist-title {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.checklist-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.checklist-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--bg-warm);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .2s;
+  font-size: .875rem;
+  color: var(--text-primary);
+}
+
+.checklist-item:hover {
+  background: var(--accent-light);
+}
+
+.checklist-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.checklist-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-warm);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .2s;
+  font-size: .875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.checklist-item-row:hover {
+  background: var(--accent-light);
+  color: var(--text-primary);
+}
+
+.checklist-item-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .top-bar { padding: 0 20px; }
+  .main { padding: 0 20px; padding-top: 100px; }
+  .cover-title { font-size: 2rem; }
+  .cover-meta { gap: 24px; flex-wrap: wrap; }
+  .color-palette { flex-wrap: wrap; }
+  .color-swatch { flex: 1 1 45%; }
+  .image-grid { grid-template-columns: 1fr; }
+  .spaces { grid-template-columns: 1fr; }
+  .material-board { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<div class="top-bar">
+  <div class="top-bar-brand">装修风格方案</div>
+  <div class="top-bar-actions">
+    <button>
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+      分享
+    </button>
+    <button>
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+      下载 PDF
+    </button>
+  </div>
+</div>
+
+<!-- 主内容 -->
+<div class="main">
+
+  <!-- 封面 -->
+  <section class="cover">
+    <div class="cover-label">设计方案</div>
+    <h1 class="cover-title">现代简约 · 温暖栖居</h1>
+    <p class="cover-subtitle">XX小区 120㎡ 三室两厅</p>
+    <div class="cover-meta">
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">设计风格</div>
+        <div class="cover-meta-value">现代简约</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">户型面积</div>
+        <div class="cover-meta-value">120 ㎡</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">常住人口</div>
+        <div class="cover-meta-value">3 人</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">方案版本</div>
+        <div class="cover-meta-value">V2.0</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 第一章：设计理念 -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <h2 class="section-title">设计理念</h2>
+    </div>
+
+    <div class="prose">
+      <p>本案以"少即是多"为核心理念，追求空间的纯粹与宁静。在快节奏的都市生活中，我们希望打造一个让人卸下疲惫、回归本真的居所。</p>
+      <p>整体设计强调：</p>
+    </div>
+
+    <div class="keywords">
+      <span class="keyword">简约留白</span>
+      <span class="keyword">自然材质</span>
+      <span class="keyword">柔和光线</span>
+      <span class="keyword">功能美学</span>
+      <span class="keyword">温暖色调</span>
+    </div>
+
+    <div class="quote-block">
+      <p class="quote-text">"设计不是为了装饰空间，而是为了让生活在其中的人找到归属感。"</p>
+    </div>
+  </section>
+
+  <!-- 第二章：色彩方案 -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <h2 class="section-title">色彩方案</h2>
+    </div>
+
+    <div class="color-palette">
+      <div class="color-swatch">
+        <div class="color-block" style="background: #F5F0E8;"></div>
+        <div class="color-name">暖白</div>
+        <div class="color-code">#F5F0E8</div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-block" style="background: #C4A87C;"></div>
+        <div class="color-name">原木色</div>
+        <div class="color-code">#C4A87C</div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-block" style="background: #2D5A4A;"></div>
+        <div class="color-name">墨绿</div>
+        <div class="color-code">#2D5A4A</div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-block" style="background: #E8DFD4;"></div>
+        <div class="color-name">亚麻灰</div>
+        <div class="color-code">#E8DFD4</div>
+      </div>
+    </div>
+
+    <div class="prose">
+      <h3>色彩比例</h3>
+      <p>主色（暖白）占比 60%，辅色（原木）占比 25%，强调色（墨绿）占比 10%，点缀色（亚麻灰）占比 5%。</p>
+    </div>
+  </section>
+
+  <!-- 第三章：空间设计 -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-number">03</span>
+      <h2 class="section-title">空间设计</h2>
+    </div>
+
+    <div class="spaces">
+      <div class="space-card">
+        <div class="space-card-img">客厅效果图</div>
+        <div class="space-card-body">
+          <h3 class="space-card-name">客厅 Living Room</h3>
+          <p class="space-card-desc">无主灯设计配合悬浮吊顶，电视背景墙采用隐形门与储物柜结合，既保证美观又增加收纳空间。</p>
+        </div>
+      </div>
+      <div class="space-card">
+        <div class="space-card-img">餐厅效果图</div>
+        <div class="space-card-body">
+          <h3 class="space-card-name">餐厅 Dining Room</h3>
+          <p class="space-card-desc">餐岛一体设计，岛台兼具早餐台与备餐功能，悬垂的线性吊灯营造温馨的用餐氛围。</p>
+        </div>
+      </div>
+      <div class="space-card">
+        <div class="space-card-img">主卧效果图</div>
+        <div class="space-card-body">
+          <h3 class="space-card-name">主卧 Master Bedroom</h3>
+          <p class="space-card-desc">床头半高木饰面背景，搭配隐藏式灯带，衣柜采用一门到顶设计，保持空间的整洁统一。</p>
+        </div>
+      </div>
+      <div class="space-card">
+        <div class="space-card-img">厨房效果图</div>
+        <div class="space-card-body">
+          <h3 class="space-card-name">厨房 Kitchen</h3>
+          <p class="space-card-desc">开放式厨房设计，配合集成灶解决油烟问题，橱柜采用肤感门板，手感细腻更易清洁。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 第四章：材质选择 -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-number">04</span>
+      <h2 class="section-title">材质选择</h2>
+    </div>
+
+    <div class="material-board">
+      <div class="material-item">
+        <div class="material-swatch" style="background: linear-gradient(135deg, #D4C4B0 0%, #C4B4A0 100%);"></div>
+        <div class="material-name">瓷砖 · 微水泥</div>
+        <div class="material-brand">诺贝尔 / 600x1200</div>
+      </div>
+      <div class="material-item">
+        <div class="material-swatch" style="background: linear-gradient(135deg, #8B7355 0%, #6B5344 100%);"></div>
+        <div class="material-name">地板 · 实木复合</div>
+        <div class="material-brand">大自然 / 人字拼</div>
+      </div>
+      <div class="material-item">
+        <div class="material-swatch" style="background: linear-gradient(135deg, #E8E4DE 0%, #D8D4CE 100%);"></div>
+        <div class="material-name">乳胶漆 · 暖白</div>
+        <div class="material-brand">立邦 / 菱花白</div>
+      </div>
+      <div class="material-item">
+        <div class="material-swatch" style="background: linear-gradient(135deg, #F5F0E8 0%, #E8E0D8 100%);"></div>
+        <div class="material-name">木饰面</div>
+        <div class="material-brand">爱格 / 暖白木纹</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 第五章：参考图片 -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-number">05</span>
+      <h2 class="section-title">意向图片</h2>
+    </div>
+
+    <div class="image-grid">
+      <div class="image-item">
+        <div class="space-card-img" style="height:100%;border-radius:0;">客厅参考图 1</div>
+        <div class="image-caption">极简客厅</div>
+      </div>
+      <div class="image-item">
+        <div class="space-card-img" style="height:100%;border-radius:0;">客厅参考图 2</div>
+        <div class="image-caption">无主灯设计</div>
+      </div>
+      <div class="image-item">
+        <div class="space-card-img" style="height:100%;border-radius:0;">客厅参考图 3</div>
+        <div class="image-caption">储物电视墙</div>
+      </div>
+      <div class="image-item">
+        <div class="space-card-img" style="height:100%;border-radius:0;">餐厅参考图</div>
+        <div class="image-caption">餐岛一体</div>
+      </div>
+      <div class="image-item">
+        <div class="space-card-img" style="height:100%;border-radius:0;">卧室参考图</div>
+        <div class="image-caption">木饰面床头</div>
+      </div>
+      <div class="image-item">
+        <div class="space-card-img" style="height:100%;border-radius:0;">厨房参考图</div>
+        <div class="image-caption">开放式厨房</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 第六章：设计清单（超详细） -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-number">06</span>
+      <h2 class="section-title">设计清单</h2>
+    </div>
+
+    <div class="checklist">
+      <!-- 风格选择 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🏠 装修风格</h3>
+        <div class="checklist-grid">
+          <label class="checklist-item"><input type="checkbox"> <span>现代简约</span></label>
+          <label class="checklist-item"><input type="checkbox"> <span>北欧风格</span></label>
+          <label class="checklist-item"><input type="checkbox"> <span>日式风格</span></label>
+          <label class="checklist-item"><input type="checkbox"> <span>新中式风格</span></label>
+          <label class="checklist-item"><input type="checkbox"> <span>美式风格</span></label>
+          <label class="checklist-item"><input type="checkbox"> <span>法式风格</span></label>
+          <label class="checklist-item"><input type="checkbox"> <span>侘寂风格</span></label>
+          <label class="checklist-item"><input type="checkbox"> <span>奶油风格</span></label>
+          <label class="checklist-item"><input type="checkbox"> <span>轻奢风格</span></label>
+          <label class="checklist-item"><input type="checkbox"> <span>工业风格</span></label>
+          <label class="checklist-item"><input type="checkbox"> <span>混搭风格</span></label>
+        </div>
+      </div>
+
+      <!-- 玄关设计 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🚪 玄关设计</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>鞋柜深度 35-40cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>层板高度：平底鞋 12-15cm、高跟鞋 20cm、短靴 25-30cm、长靴 35cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>底部悬空 15-20cm（放常穿鞋）+ 感应灯带</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>换鞋凳尺寸：宽≥40cm、深 35-40cm、高 40-45cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>挂衣区高度：成人 1.6-1.8m、儿童 1.2m</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>开放格：高 40cm、宽 30cm（放钥匙、消毒液）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>全身镜（可选）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>强弱电箱位置</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>扫地机器人充电位</span></label>
+        </div>
+      </div>
+
+      <!-- 客厅设计 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🛋️ 客厅设计</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>沙发与电视墙距离：150-200cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>沙发宽度：占墙面 1/2 至 1/3</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>主通道宽度 ≥90cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>茶几高度：30-40cm（与沙发坐高相差不大）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>沙发与茶几间距：40-60cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>电视中心线距地 110-120cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>设备柜深度 ≥40cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>收纳"二八原则"：80%隐藏 + 20%展示</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>电视背景墙射灯：3-5盏，距墙 25-35cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>沙发两侧各预留 2 个五孔插座（带 USB）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>电视墙：电视插座、网络插座、音响插座</span></label>
+        </div>
+      </div>
+
+      <!-- 餐厅设计 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🍽️ 餐厅设计</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>餐桌吊灯色温：2700K-3000K</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>吊灯离桌面约 65cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>餐边柜设计（收纳 + 小家电位）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>插座：餐边柜上方（距台面 30cm）2-4 个</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>餐椅后通道 ≥90cm</span></label>
+        </div>
+      </div>
+
+      <!-- 厨房设计 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🍳 厨房设计</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>动线设计：取-洗-切-炒-盛（黄金三角）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>布局选择：一字型 / L型 / U型 / 中岛型</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>地柜高度：身高 165cm 以下 80cm，165cm 以上 85cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>地柜深度：56-60cm（含台面约 60-70cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>台面厚度：约 4cm，石英石厚度 ≥12mm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>吊柜高度：底部距地面 145-150cm，距台面 50-60cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>吊柜深度：30-35cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>灶台与排烟罩距离：70-75cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>配菜区：40cm；盛菜区：30-40cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>两排橱柜间距：80-120cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>插座数量：至少 10 个（轨道插座更灵活）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>冰箱插座（单独专线，离地 50cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>水槽下柜插座：净水器、垃圾处理器（离地 50cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>嵌入式电器（烤箱/蒸箱）：标准宽度 60cm，留 5cm 散热</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>转角装旋转拉篮</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>吊柜升降拉篮</span></label>
+        </div>
+      </div>
+
+      <!-- 主卧设计 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🛏️ 主卧设计</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>面积建议：13-15 平方米</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>床两侧通道：至少 60cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>床头柜尺寸：1.5m 床配 500mm，1.8m 床配 600mm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>床头柜高度：450mm 左右，略低于床面</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>衣柜深度：60cm（最小 50cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>衣柜内部分区：上衣区 120-140cm、长衣区 180-200cm、叠放区 30-40cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>床头灯高度：150-170cm，色温 2700K-3000K</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>窗帘遮光率：85%-95%，双层设计（遮光布+纱帘）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>窗帘盒深度：≥15cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>床头两侧各 2 个五孔插座（带 USB），高度 75cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>主灯色温：3000K 暖光</span></label>
+        </div>
+      </div>
+
+      <!-- 次卧/儿童房/书房 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">📚 次卧 / 儿童房 / 书房</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>床与电视柜距离：至少 3.3m</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>书桌高度：75-80cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>书桌插座：距台面 10cm，2-3 个 + 网线接口</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>儿童房书桌：考虑成长性，可调节高度</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>衣柜：顶部放换季物品，中部开放格放常穿衣物</span></label>
+        </div>
+      </div>
+
+      <!-- 卫生间设计 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🚿 卫生间设计</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>干湿分离方案：玻璃淋浴房 / 浴帘+挡水条 / 半墙隔断</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>三分离：洗手区、如厕区、淋浴区</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>防水：湿区墙面高度 ≥1.8m，干区 ≥1.2m</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>闭水试验：24-48 小时</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>淋浴区坡度：2-3%（向地漏倾斜）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>地漏：深水封防臭型或长条型</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>浴室柜：悬空安装，距地面 ≥20cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>镜柜背后贴防潮铝箔</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>照明：顶部防水筒灯 + 镜前灯 + 淋浴区防水射灯</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>浴霸开关（离地 130cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>电热水器插座（单独专线，离地 200cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>智能马桶插座（离地 30cm，带防溅盒）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>吹风机插座（离地 130cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>换气扇：功率 ≥100W，每小时换气 ≥8 次</span></label>
+        </div>
+      </div>
+
+      <!-- 阳台设计 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🌿 阳台设计</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>功能定位：洗衣区 / 储物区 / 休闲区 / 花园 / 工作区</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>洗衣池台面：宽 60cm、高 80-90cm、深 65-70cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>洗衣机/烘干机插座（离地 130cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>地漏位置和坡度</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>防水涂层厚度 >5mm，高度刷到墙面 30cm 以上</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>封窗方案：平开 / 推拉 / 落地窗</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>晾衣架：固定晾衣杆 / 活动晾衣架 / 天花板升降晾衣架</span></label>
+        </div>
+      </div>
+
+      <!-- 全屋灯光设计 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">💡 全屋灯光设计</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>色温选择：现代简约/北欧 3500K，新中式/日式/美式 3000K，工业风 4000K</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>亮度计算：卧室 2W/㎡，客厅 3W/㎡，餐厅 3W/㎡，厨房 5W/㎡</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>三层照明：基础照明 + 重点照明 + 氛围照明</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>射灯参数：显色指数 ≥90，光束角 24°-38°（洗墙）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>客厅射灯：6-12W；卧室射灯：6W</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>深杯体防眩射灯（避免眩光）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>灯带：低压灯带（频闪低）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>卧室：避免床头正上方直射筒灯</span></label>
+        </div>
+      </div>
+
+      <!-- 全屋定制 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🗄️ 全屋定制要点</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>板材选择：ENF级（甲醛≤0.025mg/m³）或 F4星</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>颗粒板：平整度好、价格实惠</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>欧松板：材质均匀、握钉力好，适合潮湿区域</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>多层板：防潮性好、强度高，适合柜体</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>推荐组合：柜体用日本住友 + 门板用爱格/可丽芙</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>铰链：液压阻尼铰链（三维调节），推荐 DTC/悍高/百隆/海蒂诗</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>抽屉滑轨：托底轨或骑马抽（承重强）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>封边工艺：优先 PUR 封边，预算够选激光封边</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>柜体深度：30-40cm（视空间而定）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>一门到顶设计（顶部留缝 5mm）</span></label>
+        </div>
+      </div>
+
+      <!-- 全屋电位 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🔌 全屋插座点位</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>玄关：备用插座（离地 130cm）、扫地机器人插座（离地 30cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>客厅沙发两侧：各 2 个五孔插座（离地 30cm）+ USB</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>客厅电视墙：电视插座、网络盒子、音箱（离地 40cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>客厅空调：16A 插座（离地 200cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>餐厅：餐边柜插座（距台面 30cm）2-4 个</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>厨房台面：轨道插座或 2-3 个（距台面 30cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>厨房水槽下：净水器、垃圾处理器（离地 50cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>厨房冰箱：单独专线（离地 50cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>卧室床头：各 2 个五孔+USB（离地 75cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>书房书桌：插座（距台面 10cm）+ 网线接口</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>卫生间：电热水器（单独专线）、智能马桶、吹风机</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>阳台：洗衣机、烘干机（离地 130cm）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>开关高度：离地 130cm</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>全屋插座总数：约 80-100 个</span></label>
+        </div>
+      </div>
+
+      <!-- 网络布线 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">📶 全屋网络 & 智能</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>组网方案：AC+AP 组网 / Mesh 组网</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>网线：六类以上（千兆要求）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>弱电箱：升级为 60×40cm 大尺寸</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>每个房间预留 1-2 个网线接口</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>AP 面板位置规划</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>智能家居预留：网关、中控屏、电动窗帘、感应灯</span></label>
+        </div>
+      </div>
+
+      <!-- 暖通设备 -->
+      <div class="checklist-category">
+        <h3 class="checklist-title">🌡️ 暖通设备</h3>
+        <div class="checklist-items">
+          <label class="checklist-item-row"><input type="checkbox"> <span>中央空调 vs 分体空调（根据层高和预算）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>新风系统（室内外空气置换）</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>地暖：水地暖 / 电地暖 / 空气源热泵地暖</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>小户型（<40㎡）或层高 <2.6m 慎装中央空调</span></label>
+          <label class="checklist-item-row"><input type="checkbox"> <span>中央空调和新风不能共用管道</span></label>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 底部 -->
+  <div class="footer">
+    <p class="footer-text">© 2026 装修风格方案 · XX小区 120㎡</p>
+  </div>
+
+</div>
+
+</body>
+</html>

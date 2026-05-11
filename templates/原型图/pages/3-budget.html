@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenovaMate - 预算控制</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/renovamate.css">
+</head>
+<body>
+
+<!-- Sidebar Overlay for mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileSidebar()"></div>
+
+<!-- App Layout Wrapper -->
+<div class="app-layout">
+
+<!-- Sidebar Navigation -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+    </div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">RenovaMate</span>
+      <span class="sidebar-brand-sub">装修助手</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">导航</div>
+    <a class="nav-item" href="1-overview.html">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+      <span>首页总览</span>
+    </a>
+    <a class="nav-item" href="4-progress.html">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+      <span>装修进度</span>
+    </a>
+    <a class="nav-item" href="2-compare.html">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"/></svg>
+      <span>分类比较</span>
+      <span class="nav-item-badge">5</span>
+    </a>
+    <a class="nav-item active" href="3-budget.html">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span>预算控制</span>
+      <span class="nav-item-badge red">2</span>
+    </a>
+    <a class="nav-item" href="5-notes.html">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+      <span>装修手册</span>
+      <span class="nav-item-badge green">12</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-project-card">
+      <div class="sidebar-project-name">新房装修</div>
+      <div class="sidebar-project-meta">120㎡ · 现代简约 · 水电阶段</div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<main class="main">
+
+<!-- Top Bar -->
+<header class="topbar">
+  <button class="topbar-menu-btn mobile-sidebar-toggle" data-sidebar-toggle aria-label="收起侧边栏">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+  </button>
+  <div class="topbar-breadcrumb">
+    <span>RenovaMate</span>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+    <span class="current">预算控制</span>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-budget-chip"><span class="label">总预算</span><span class="value">200,000 元</span></div>
+  <div class="topbar-budget-chip"><span class="label">实际花费</span><span class="value saved">89,500 元</span></div>
+  <div class="topbar-budget-chip"><span class="label">剩余</span><span class="value saved">110,500 元</span></div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost btn-icon" title="设置">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    </button>
+    <div class="topbar-avatar">李</div>
+  </div>
+</header>
+
+<!-- Page Content -->
+<section class="content">
+<div class="page-container">
+
+  <!-- Page Header -->
+  <div class="budget-page-header">
+    <div class="budget-header-left">
+      <h1 class="budget-page-title">预算控制</h1>
+      <p class="budget-page-subtitle">根据已选方案生成预算值，记录实际花费，追踪超支与节省情况</p>
+    </div>
+    <div class="budget-header-actions">
+      <button class="btn btn-primary" onclick="openExpenseModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        新增花费
+      </button>
+      <button class="btn btn-secondary" onclick="showToast('预算说明：总预算来自项目设置，预计花费来自分类比较中的已选方案，实际花费来自支出记录求和')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/></svg>
+        预算说明
+      </button>
+    </div>
+  </div>
+
+  <!-- Budget Cockpit Hero -->
+  <div class="budget-cockpit" id="budgetCockpit">
+    <div class="cockpit-header">
+      <div class="cockpit-main-stat">
+        <div class="cockpit-stat-label">总预算目标</div>
+        <div class="cockpit-stat-value">¥200,000</div>
+      </div>
+      <div class="cockpit-divider"></div>
+      <div class="cockpit-secondary-stats">
+        <div class="cockpit-secondary-item">
+          <span class="cockpit-secondary-label">当前预计花费</span>
+          <span class="cockpit-secondary-value" id="cockpitEstimated">¥158,000</span>
+        </div>
+        <div class="cockpit-secondary-item">
+          <span class="cockpit-secondary-label">实际已花费</span>
+          <span class="cockpit-secondary-value saved" id="cockpitSpent">¥89,500</span>
+        </div>
+        <div class="cockpit-secondary-item">
+          <span class="cockpit-secondary-label">预计剩余</span>
+          <span class="cockpit-secondary-value" id="cockpitEstimatedLeft">¥42,000</span>
+        </div>
+        <div class="cockpit-secondary-item">
+          <span class="cockpit-secondary-label">实际剩余</span>
+          <span class="cockpit-secondary-value saved" id="cockpitRemaining">¥110,500</span>
+        </div>
+      </div>
+    </div>
+    <div class="cockpit-progress-section">
+      <div class="cockpit-progress-header">
+        <span class="cockpit-progress-label">预算使用率</span>
+        <span class="cockpit-progress-percent" id="cockpitUsagePercent">17.9%</span>
+      </div>
+      <div class="cockpit-progress-track">
+        <div class="cockpit-progress-fill" id="cockpitUsageBar" style="width: 17.9%;"></div>
+      </div>
+      <div class="cockpit-progress-legend">
+        <span class="legend-item"><span class="legend-dot actual"></span>实际花费 17.9%</span>
+        <span class="legend-item"><span class="legend-dot estimated"></span>预计花费 31.6%</span>
+      </div>
+    </div>
+    <div class="cockpit-status">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span id="cockpitStatusText">当前预算状态良好，实际支出低于总预算，但中央空调与瓷砖存在超支风险。</span>
+    </div>
+  </div>
+
+  <!-- Core Stats Cards -->
+  <div class="budget-stats-grid" id="budgetStatsGrid">
+    <div class="budget-stat-card animate-in">
+      <div class="budget-stat-icon orange">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118.75 16.5h2.25M12 3h.008v.008H12V3zm0 3h.008v.008H12V6zm0 3h.008v.008H12V9zm-3.75 3h.008v.008H8.25V12zm0 3h.008v.008H8.25V15zm0 3h.008v.008H8.25V18z"/></svg>
+      </div>
+      <div class="budget-stat-content">
+        <div class="budget-stat-label">已选方案预算</div>
+        <div class="budget-stat-value">¥158,000</div>
+        <div class="budget-stat-note">来自已选最终方案</div>
+      </div>
+    </div>
+    <div class="budget-stat-card animate-in">
+      <div class="budget-stat-icon green">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div class="budget-stat-content">
+        <div class="budget-stat-label">实际已花</div>
+        <div class="budget-stat-value saved">¥89,500</div>
+        <div class="budget-stat-note">来自支出记录求和</div>
+      </div>
+    </div>
+    <div class="budget-stat-card animate-in">
+      <div class="budget-stat-icon red">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+      </div>
+      <div class="budget-stat-content">
+        <div class="budget-stat-label">超支分类</div>
+        <div class="budget-stat-value red">2 个</div>
+        <div class="budget-stat-note">中央空调、瓷砖</div>
+      </div>
+    </div>
+    <div class="budget-stat-card animate-in">
+      <div class="budget-stat-icon green">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>
+      </div>
+      <div class="budget-stat-content">
+        <div class="budget-stat-label">节省金额</div>
+        <div class="budget-stat-value saved">¥6,900</div>
+        <div class="budget-stat-note">门窗、水电、冰箱等</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Budget Risk Alerts -->
+  <div class="budget-alerts-section">
+    <div class="budget-alerts-header">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+      <h3>预算风险提醒</h3>
+    </div>
+    <div class="budget-alerts-list">
+      <div class="budget-alert-item">
+        <span class="alert-dot red"></span>
+        <p>中央空调实际花费比预算高 <strong>¥2,000</strong>，需要确认辅材和安装费用。</p>
+      </div>
+      <div class="budget-alert-item">
+        <span class="alert-dot red"></span>
+        <p>瓷砖实际花费比预算高 <strong>¥1,500</strong>，建议核对损耗，补砖和运费。</p>
+      </div>
+      <div class="budget-alert-item">
+        <span class="alert-dot orange"></span>
+        <p>地板、木工、全屋定制还未确定最终方案，后续预算可能增加。</p>
+      </div>
+      <div class="budget-alert-item">
+        <span class="alert-dot green"></span>
+        <p>当前实际已花 <strong>¥89,500</strong>，占总预算 <strong>17.9%</strong>，整体仍在安全范围内。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Budget Comparison Table -->
+  <div class="budget-table-section">
+    <div class="budget-table-header">
+      <h3 class="budget-table-title">预算明细</h3>
+      <div class="budget-filter-tabs">
+        <button class="budget-filter-tab active" data-filter="all" onclick="filterBudgetRows('all')">全部</button>
+        <button class="budget-filter-tab" data-filter="over" onclick="filterBudgetRows('over')">超支</button>
+        <button class="budget-filter-tab" data-filter="saved" onclick="filterBudgetRows('saved')">节省</button>
+        <button class="budget-filter-tab" data-filter="equal" onclick="filterBudgetRows('equal')">持平</button>
+        <button class="budget-filter-tab" data-filter="pending" onclick="filterBudgetRows('pending')">未选方案</button>
+      </div>
+    </div>
+    <div class="budget-table-wrapper">
+      <table class="budget-table" id="budgetTable">
+        <thead>
+          <tr>
+            <th>分类</th>
+            <th>最终方案</th>
+            <th>预算值</th>
+            <th>实际花费</th>
+            <th>差额</th>
+            <th>使用率</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="budgetTableBody">
+          <!-- Budget rows rendered by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Expense Records -->
+  <div class="expense-section">
+    <div class="expense-section-header">
+      <h3 class="expense-section-title">实际花费记录</h3>
+      <div class="expense-section-actions">
+        <button class="btn btn-sm btn-primary" onclick="openExpenseModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          新增花费
+        </button>
+      </div>
+    </div>
+    <div class="expense-month-groups" id="expenseMonthGroups">
+      <!-- Expense groups rendered by JS -->
+    </div>
+  </div>
+
+  <!-- Category Spending Analysis -->
+  <div class="category-analysis-section">
+    <div class="category-analysis-header">
+      <h3>分类花费分析</h3>
+    </div>
+    <div class="category-bars" id="categoryBars">
+      <!-- Category bars rendered by JS -->
+    </div>
+  </div>
+
+  <!-- Next Steps Suggestions -->
+  <div class="budget-suggestions-section">
+    <div class="suggestions-header">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/></svg>
+      <h3>下一步预算建议</h3>
+    </div>
+    <ul class="suggestions-list">
+      <li>优先确认门窗、地板、木工、全屋定制这几个未完全确定的项目。</li>
+      <li>中央空调和瓷砖已经出现超支，后续付款前要确认是否还有隐藏费用。</li>
+      <li>水电实际花费低于预算，但验收前不要急着结清尾款。</li>
+      <li>建议每一笔支出都上传票据或截图，后续方便对账。</li>
+    </ul>
+  </div>
+
+</div>
+</section>
+</main>
+
+</div>
+
+<!-- 新增花费弹窗 -->
+<div class="modal-overlay" id="expenseModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <h3>新增花费记录</h3>
+        <p>记录一笔实际支出</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('expenseModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">支出日期</label>
+          <input class="form-input" type="date" id="expenseDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">支出分类</label>
+          <select class="form-select" id="expenseCategory">
+            <option value="">请选择</option>
+            <option value="中央空调">中央空调</option>
+            <option value="门窗">门窗</option>
+            <option value="瓷砖">瓷砖</option>
+            <option value="地板">地板</option>
+            <option value="水电">水电</option>
+            <option value="木工">木工</option>
+            <option value="冰箱">冰箱</option>
+            <option value="洗衣机">洗衣机</option>
+            <option value="木门">木门</option>
+            <option value="全屋定制">全屋定制</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">支出名称</label>
+          <input class="form-input" id="expenseName" placeholder="例如：大金定金">
+        </div>
+        <div class="form-group">
+          <label class="form-label">金额</label>
+          <input class="form-input" type="number" id="expenseAmount" placeholder="例如：3000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">支付方式</label>
+          <select class="form-select" id="expenseMethod">
+            <option value="">请选择</option>
+            <option value="银行卡">银行卡</option>
+            <option value="微信">微信</option>
+            <option value="支付宝">支付宝</option>
+            <option value="转账">转账</option>
+            <option value="现金">现金</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">收款方</label>
+          <input class="form-input" id="expensePayee" placeholder="例如：大金专卖店">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea class="form-textarea" id="expenseNote" rows="2" placeholder="补充说明"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">票据图片</label>
+        <div class="img-upload-grid">
+          <div class="img-upload-item" onclick="showToast('票据上传功能后续接入')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+            <span>点击上传</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('expenseModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveExpense()">保存记录</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast 提示 -->
+<style>
+.toast-message {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  background: #1C1917;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  z-index: 300;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all .2s ease;
+  font-size: .875rem;
+  font-weight: 500;
+}
+.toast-message.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+</style>
+
+<script src="js/renovamate.js"></script>
+</body>
+</html>

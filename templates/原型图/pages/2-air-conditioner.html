@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenovaMate - 中央空调方案比较</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/renovamate.css">
+</head>
+<body>
+
+<!-- Sidebar Overlay for mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileSidebar()"></div>
+
+<!-- App Layout Wrapper -->
+<div class="app-layout">
+
+<!-- Sidebar Navigation -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+    </div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">RenovaMate</span>
+      <span class="sidebar-brand-sub">装修助手</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">导航</div>
+    <a class="nav-item" href="1-overview.html">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+      <span>首页总览</span>
+    </a>
+    <a class="nav-item" href="4-progress.html">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+      <span>装修进度</span>
+    </a>
+    <a class="nav-item active" href="2-compare.html">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"/></svg>
+      <span>分类比较</span>
+      <span class="nav-item-badge">5</span>
+    </a>
+    <a class="nav-item" href="3-budget.html">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span>预算控制</span>
+      <span class="nav-item-badge red">2</span>
+    </a>
+    <a class="nav-item" href="5-notes.html">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+      <span>装修手册</span>
+      <span class="nav-item-badge green">12</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-project-card">
+      <div class="sidebar-project-name">新房装修</div>
+      <div class="sidebar-project-meta">120㎡ · 现代简约 · 水电阶段</div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<main class="main">
+
+<!-- Top Bar -->
+<header class="topbar">
+  <button class="topbar-menu-btn mobile-sidebar-toggle" data-sidebar-toggle aria-label="收起侧边栏">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+  </button>
+  <div class="topbar-breadcrumb">
+    <span>RenovaMate</span>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+    <a href="2-compare.html">分类比较</a>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+    <span class="current">中央空调</span>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-budget-chip"><span class="label">总预算</span><span class="value">200,000 元</span></div>
+  <div class="topbar-budget-chip"><span class="label">实际花费</span><span class="value saved">89,500 元</span></div>
+  <div class="topbar-budget-chip"><span class="label">剩余</span><span class="value saved">110,500 元</span></div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost btn-icon" title="设置">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    </button>
+    <div class="topbar-avatar">李</div>
+  </div>
+</header>
+
+<!-- Page Content -->
+<section class="content">
+<div class="page-container">
+
+  <!-- Page Header -->
+  <div class="ac-page-header">
+    <div class="ac-header-left">
+      <h1 class="ac-page-title">中央空调方案比较</h1>
+      <p class="ac-page-subtitle">对比不同品牌、配置、价格和安装方案，选择最终预算方案</p>
+    </div>
+    <div class="ac-header-actions">
+      <button class="btn btn-secondary" onclick="goBackToCompare()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"/></svg>
+        返回分类
+      </button>
+      <button class="btn btn-primary" onclick="openAddPlanModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        新增方案
+      </button>
+      <button class="btn btn-secondary" onclick="openParamSettingsModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.149-.894z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        参数设置
+      </button>
+    </div>
+  </div>
+
+  <!-- Category Overview Card -->
+  <div class="ac-overview-card">
+    <div class="ac-overview-header">
+      <div class="ac-overview-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/></svg>
+      </div>
+      <div class="ac-overview-info">
+        <h2 class="ac-overview-title">中央空调</h2>
+        <span class="ac-overview-badge">设备系统</span>
+      </div>
+      <div class="ac-overview-status selected">
+        <span class="status-dot"></span>
+        已选方案
+      </div>
+    </div>
+    <div class="ac-overview-grid">
+      <div class="ac-overview-item">
+        <span class="ac-overview-label">展示方式</span>
+        <span class="ac-overview-value">表格模式</span>
+      </div>
+      <div class="ac-overview-item">
+        <span class="ac-overview-label">分类预算</span>
+        <span class="ac-overview-value budget">¥30,000</span>
+      </div>
+      <div class="ac-overview-item highlight">
+        <span class="ac-overview-label">当前已选方案</span>
+        <span class="ac-overview-value plan-name">大金 VRV-P 一拖五</span>
+      </div>
+      <div class="ac-overview-item">
+        <span class="ac-overview-label">预计花费</span>
+        <span class="ac-overview-value cost">¥28,000</span>
+      </div>
+      <div class="ac-overview-item">
+        <span class="ac-overview-label">方案数量</span>
+        <span class="ac-overview-value">3</span>
+      </div>
+      <div class="ac-overview-item">
+        <span class="ac-overview-label">相关手册</span>
+        <span class="ac-overview-value">3 条</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="ac-action-bar">
+    <div class="ac-view-toggle">
+      <div class="view-tabs">
+        <button class="view-tab active" data-view="table" onclick="toggleAcView('table')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0118 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-3.75 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0118 7.125v-1.5m1.125 2.625c-.621 0-1.125.504-1.125 1.125v1.5m2.625-2.625c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25M7.125 12h9.75m-9.75 0A1.125 1.125 0 016 10.875M7.125 12C6.504 12 6 12.504 6 13.125m0-2.25C6 11.496 5.496 12 4.875 12M18 10.875c0 .621-.504 1.125-1.125 1.125M18 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m-12 5.25v-5.25m0 5.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125m-12 0v-1.5c0-.621-.504-1.125-1.125-1.125M18 18.375v-5.25m0 5.25v-1.5c0-.621.504-1.125 1.125-1.125M18 13.125v1.5c0 .621.504 1.125 1.125 1.125M18 13.125c0-.621.504-1.125 1.125-1.125M6 13.125v1.5c0 .621-.504 1.125-1.125 1.125M6 13.125C6 12.504 5.496 12 4.875 12m-1.5 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M19.125 12h1.5m0 0c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h1.5m14.25 0h1.5"/></svg>
+          表格
+        </button>
+        <button class="view-tab" data-view="card" onclick="toggleAcView('card')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+          卡片
+        </button>
+      </div>
+    </div>
+    <div class="ac-action-btns">
+      <button class="btn btn-sm btn-secondary" onclick="openParamSettingsModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.149-.894z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        参数设置
+      </button>
+      <button class="btn btn-sm btn-secondary" onclick="goToNotes()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+        查看相关手册
+      </button>
+    </div>
+  </div>
+
+  <!-- Parameter Summary -->
+  <div class="ac-params-section">
+    <div class="ac-section-header">
+      <h3 class="ac-section-title">参数字段</h3>
+      <span class="ac-section-hint">共 13 个字段</span>
+    </div>
+    <div class="ac-params-grid">
+      <div class="ac-param-chip">
+        <span class="param-type">文本</span>
+        品牌
+      </div>
+      <div class="ac-param-chip">
+        <span class="param-type">文本</span>
+        型号
+      </div>
+      <div class="ac-param-chip">
+        <span class="param-type">数字</span>
+        匹数
+      </div>
+      <div class="ac-param-chip">
+        <span class="param-type">文本</span>
+        一拖几
+      </div>
+      <div class="ac-param-chip highlight">
+        <span class="param-type">金额</span>
+        总价
+      </div>
+      <div class="ac-param-chip">
+        <span class="param-type">数字</span>
+        外机数量
+      </div>
+      <div class="ac-param-chip">
+        <span class="param-type">数字</span>
+        内机数量
+      </div>
+      <div class="ac-param-chip">
+        <span class="param-type">下拉</span>
+        能效等级
+      </div>
+      <div class="ac-param-chip">
+        <span class="param-type">文本</span>
+        保修年限
+      </div>
+      <div class="ac-param-chip">
+        <span class="param-type">图片</span>
+        产品图片
+      </div>
+      <div class="ac-param-chip">
+        <span class="param-type">图片</span>
+        报价单图片
+      </div>
+      <div class="ac-param-chip">
+        <span class="param-type">长文本</span>
+        备注
+      </div>
+      <div class="ac-param-chip highlight">
+        <span class="param-type">评分</span>
+        推荐指数
+      </div>
+    </div>
+  </div>
+
+  <!-- Table View -->
+  <div id="acTableView">
+    <!-- Table Toolbar -->
+    <div class="ac-table-toolbar">
+      <div class="ac-toolbar-left">
+        <h3 class="ac-section-title">方案对比表</h3>
+        <span class="ac-plan-count" id="acPlanCount">3 个方案</span>
+      </div>
+      <div class="ac-toolbar-right">
+        <div class="ac-search-wrapper">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+          <input type="text" class="ac-search-input" id="acSearchInput" placeholder="搜索品牌 / 型号 / 备注" oninput="searchAirconPlans(this.value)">
+        </div>
+        <div class="ac-filter-tabs">
+          <button class="ac-filter-tab active" data-filter="all" onclick="filterAirconPlans('all')">全部</button>
+          <button class="ac-filter-tab" data-filter="selected" onclick="filterAirconPlans('selected')">已选</button>
+        </div>
+        <button class="ac-sort-btn" onclick="sortAirconPlansByPrice()" title="按价格排序">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5"/></svg>
+          价格
+        </button>
+        <button class="btn btn-sm btn-primary" onclick="openAddPlanModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          新增
+        </button>
+      </div>
+    </div>
+
+    <!-- Plan Table -->
+    <div class="plan-table-wrapper">
+      <table class="plan-table" id="acPlanTable">
+        <thead>
+          <tr>
+            <th class="sticky-col col-select">选中</th>
+            <th class="sticky-col col-brand">品牌</th>
+            <th>型号</th>
+            <th>配置</th>
+            <th class="col-price">总价</th>
+            <th class="col-units">外机/内机</th>
+            <th>能效</th>
+            <th>保修</th>
+            <th class="col-rating">推荐</th>
+            <th>产品图</th>
+            <th>报价单</th>
+            <th class="col-note">备注</th>
+            <th class="col-action">操作</th>
+          </tr>
+        </thead>
+        <tbody id="acPlanTableBody">
+          <!-- Rendered by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Card View -->
+  <div id="acCardView" style="display:none;">
+    <div class="ac-table-header">
+      <h3 class="ac-section-title">方案卡片</h3>
+      <div class="ac-table-actions">
+        <button class="btn btn-sm btn-primary" onclick="openAddPlanModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          新增方案
+        </button>
+      </div>
+    </div>
+    <div class="ac-plan-cards" id="acPlanCards">
+      <!-- Rendered by JS -->
+    </div>
+  </div>
+
+  <!-- Related Manuals Section -->
+  <div class="ac-manuals-section">
+    <div class="ac-section-header">
+      <h3 class="ac-section-title">相关装修手册</h3>
+      <span class="ac-section-count">3 条记录</span>
+    </div>
+    <div class="ac-manuals-list">
+      <div class="ac-manual-item" onclick="goToNotes()">
+        <div class="ac-manual-icon">📖</div>
+        <div class="ac-manual-content">
+          <h4 class="ac-manual-title">小红书隐藏风口参考</h4>
+          <div class="ac-manual-tags">
+            <span class="note-tag">中央空调</span>
+            <span class="note-tag">吊顶</span>
+            <span class="note-tag">极简</span>
+          </div>
+          <p class="ac-manual-note">风口效果干净，需要确认是否影响层高</p>
+        </div>
+        <svg class="ac-manual-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+      </div>
+      <div class="ac-manual-item" onclick="goToNotes()">
+        <div class="ac-manual-icon">📋</div>
+        <div class="ac-manual-content">
+          <h4 class="ac-manual-title">大金报价单截图</h4>
+          <div class="ac-manual-tags">
+            <span class="note-tag">报价单</span>
+            <span class="note-tag">大金</span>
+            <span class="note-tag">预算</span>
+          </div>
+          <p class="ac-manual-note">报价含安装，但不含部分辅材</p>
+        </div>
+        <svg class="ac-manual-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+      </div>
+      <div class="ac-manual-item" onclick="goToNotes()">
+        <div class="ac-manual-icon">⚠️</div>
+        <div class="ac-manual-content">
+          <h4 class="ac-manual-title">中央空调安装避坑</h4>
+          <div class="ac-manual-tags">
+            <span class="note-tag">安装</span>
+            <span class="note-tag">避坑</span>
+            <span class="note-tag">检修口</span>
+          </div>
+          <p class="ac-manual-note">需要提前确认检修口位置和排水坡度</p>
+        </div>
+        <svg class="ac-manual-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+      </div>
+    </div>
+    <button class="btn btn-secondary ac-manuals-more" onclick="goToNotes()">
+      查看全部手册
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+    </button>
+  </div>
+
+  <!-- Decision Suggestion -->
+  <div class="ac-decision-card">
+    <div class="ac-decision-header">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></svg>
+      <h3>当前决策建议</h3>
+    </div>
+    <ul class="ac-decision-list">
+      <li>大金方案价格略高，但品牌和安装服务较稳定。</li>
+      <li>约克方案性价比高，但需要确认安装辅材和售后范围。</li>
+      <li>三菱方案性能强，但预算压力较大。</li>
+      <li class="highlight">当前已选大金方案，建议在付款前确认是否包含铜管、打孔、排水、检修口等费用。</li>
+    </ul>
+  </div>
+
+</div>
+</section>
+</main>
+
+</div>
+
+<!-- 新增方案弹窗 -->
+<div class="modal-overlay" id="addPlanModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <h3>新增中央空调方案</h3>
+        <p>添加新的方案进行对比</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('addPlanModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">品牌</label>
+          <input class="form-input" id="planBrand" placeholder="例如：大金">
+        </div>
+        <div class="form-group">
+          <label class="form-label">型号</label>
+          <input class="form-input" id="planModel" placeholder="例如：VRV-P">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">匹数</label>
+          <input class="form-input" id="planPower" placeholder="例如：6匹">
+        </div>
+        <div class="form-group">
+          <label class="form-label">一拖几</label>
+          <input class="form-input" id="planUnits" placeholder="例如：一拖五">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">总价</label>
+          <input class="form-input" type="number" id="planPrice" placeholder="例如：28000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">外机数量</label>
+          <input class="form-input" type="number" id="planOutdoor" placeholder="例如：1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">内机数量</label>
+          <input class="form-input" type="number" id="planIndoor" placeholder="例如：5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">能效等级</label>
+          <select class="form-select" id="planEfficiency">
+            <option value="">请选择</option>
+            <option value="一级">一级</option>
+            <option value="二级">二级</option>
+            <option value="三级">三级</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">保修年限</label>
+          <input class="form-input" id="planWarranty" placeholder="例如：3年">
+        </div>
+        <div class="form-group">
+          <label class="form-label">推荐指数</label>
+          <input class="form-input" type="number" step="0.1" min="0" max="5" id="planRating" placeholder="例如：4.5">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea class="form-textarea" id="planNote" rows="3" placeholder="方案优缺点、注意事项等"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">产品图片</label>
+        <div class="img-upload-grid">
+          <div class="img-upload-item" onclick="showToast('图片上传功能后续接入')">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+            <span>点击上传</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">报价单图片</label>
+        <div class="img-upload-grid">
+          <div class="img-upload-item" onclick="showToast('图片上传功能后续接入')">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+            <span>点击上传</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addPlanModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveNewPlan()">保存方案</button>
+    </div>
+  </div>
+</div>
+
+<!-- 参数设置弹窗 -->
+<div class="modal-overlay" id="paramSettingsModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <h3>参数设置</h3>
+        <p>配置中央空调方案需要展示的字段</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('paramSettingsModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="param-settings-list" id="paramSettingsList">
+        <div class="param-settings-item">
+          <div class="param-settings-name">品牌</div>
+          <div class="param-settings-type">文本</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge required">必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item">
+          <div class="param-settings-name">型号</div>
+          <div class="param-settings-type">文本</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge required">必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item">
+          <div class="param-settings-name">匹数</div>
+          <div class="param-settings-type">数字</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">非必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item">
+          <div class="param-settings-name">一拖几</div>
+          <div class="param-settings-type">文本</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">非必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item highlight">
+          <div class="param-settings-name">总价</div>
+          <div class="param-settings-type">金额</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge required">必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge budget">用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item">
+          <div class="param-settings-name">外机数量</div>
+          <div class="param-settings-type">数字</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">非必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item">
+          <div class="param-settings-name">内机数量</div>
+          <div class="param-settings-type">数字</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">非必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item">
+          <div class="param-settings-name">能效等级</div>
+          <div class="param-settings-type">下拉</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">非必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item">
+          <div class="param-settings-name">保修年限</div>
+          <div class="param-settings-type">文本</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">非必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item">
+          <div class="param-settings-name">产品图片</div>
+          <div class="param-settings-type">图片</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">非必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item">
+          <div class="param-settings-name">报价单图片</div>
+          <div class="param-settings-type">图片</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">非必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item">
+          <div class="param-settings-name">备注</div>
+          <div class="param-settings-type">长文本</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">非必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+        <div class="param-settings-item highlight">
+          <div class="param-settings-name">推荐指数</div>
+          <div class="param-settings-type">评分</div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge show">显示</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">非必填</span>
+          </div>
+          <div class="param-settings-toggle">
+            <span class="toggle-badge">不用于预算</span>
+          </div>
+        </div>
+      </div>
+      <p class="param-settings-hint">第一版只做静态可视化，不需要真正保存配置。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('paramSettingsModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast 提示 -->
+<style>
+.toast-message {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  background: #1C1917;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  z-index: 300;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all .2s ease;
+  font-size: .875rem;
+  font-weight: 500;
+}
+.toast-message.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+</style>
+
+<script src="js/renovamate.js"></script>
+</body>
+</html>
