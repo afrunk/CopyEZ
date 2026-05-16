@@ -424,6 +424,49 @@
           </div>
         </div>
       </div>
+
+      <!-- 第三行：RenovaMate 装修助手入口（左侧卡片 + 右侧介绍） -->
+      <div class="hero-row">
+        <a href="{{ url_for('decoration.index') }}" class="floating-card">
+          <div class="card-header">
+            <span class="card-title">RenovaMate</span>
+            <span class="card-tag card-tag-orange">装修助手</span>
+          </div>
+          <p class="card-headline">轻松管理装修预算与进度</p>
+          <p class="card-desc">
+            记录每一笔装修支出，对比不同品牌方案，跟踪装修进度，让装修不再一团糟。
+          </p>
+          <div class="card-meta">
+            <span>预算规划 · 方案对比 · 进度跟踪 · 花费记录</span>
+            <span>开始装修 →</span>
+          </div>
+        </a>
+        <div class="hero-block">
+          <div class="hero-status">
+            <span class="hero-status-dot" style="background: #f59e0b;"></span>
+            <span>RenovaMate 装修助手</span>
+          </div>
+          <h2 class="hero-title">
+            <span class="brand">装修管理</span> <span style="color: #f59e0b;">省心省力</span>
+          </h2>
+          <p class="hero-desc">
+            记录每一笔装修支出，对比不同品牌方案，跟踪装修进度，让装修不再一团糟。
+          </p>
+          <div class="hero-features">
+            <span class="hero-feature">预算规划</span>
+            <span class="hero-feature">方案对比</span>
+            <span class="hero-feature">进度跟踪</span>
+            <span class="hero-feature">花费记录</span>
+          </div>
+          <div class="hero-actions">
+            <a href="{{ url_for('decoration.index') }}" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ea580c);">
+              <i data-lucide="home" style="width: 18px; height: 18px;"></i>
+              进入装修助手
+            </a>
+            <a href="{{ url_for('decoration.budget') }}" class="btn-ghost">预算管理</a>
+          </div>
+        </div>
+      </div>
     </div>
 
     <footer class="portal-footer">
