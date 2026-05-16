@@ -9,75 +9,73 @@
 
   <div class="manual-layout">
     <!-- 左侧目录 -->
-    <div class="manual-toc">
+    <div class="manual-toc" id="manualToc">
       <div class="manual-toc-header">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
-        <span class="manual-toc-title">目录</span>
+        <div class="manual-toc-header-left">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+          <span class="manual-toc-title">目录</span>
+        </div>
+        <button class="manual-toc-toggle" onclick="toggleManualToc()" title="收起/展开目录">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" id="tocToggleIcon"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+        </button>
       </div>
 
-      <div class="manual-toc-section open">
+      <div class="manual-toc-body">
         <button class="manual-toc-btn active" onclick="selectTocStage('design')">
           <div class="manual-toc-icon" style="background:rgba(234,88,12,.12);color:var(--accent-orange);">📋</div>
           <span class="manual-toc-text">设计阶段</span>
           <span class="manual-toc-count" id="toc-count-design">0</span>
         </button>
-      </div>
 
-      <div class="manual-toc-section">
         <button class="manual-toc-btn" onclick="selectTocStage('demolition')">
           <div class="manual-toc-icon" style="background:rgba(168,85,247,.12);color:#A855F7;">🔨</div>
           <span class="manual-toc-text">拆改阶段</span>
           <span class="manual-toc-count" id="toc-count-demolition">0</span>
         </button>
-      </div>
 
-      <div class="manual-toc-section">
         <button class="manual-toc-btn" onclick="selectTocStage('water')">
           <div class="manual-toc-icon" style="background:rgba(37,99,235,.12);color:var(--accent-blue);">⚡</div>
           <span class="manual-toc-text">水电阶段</span>
           <span class="manual-toc-count" id="toc-count-water">0</span>
         </button>
-      </div>
 
-      <div class="manual-toc-section">
         <button class="manual-toc-btn" onclick="selectTocStage('mud')">
           <div class="manual-toc-icon" style="background:rgba(202,138,4,.12);color:var(--accent-yellow);">🧱</div>
           <span class="manual-toc-text">泥工阶段</span>
           <span class="manual-toc-count" id="toc-count-mud">0</span>
         </button>
-      </div>
 
-      <div class="manual-toc-section">
         <button class="manual-toc-btn" onclick="selectTocStage('wood')">
           <div class="manual-toc-icon" style="background:rgba(124,58,237,.12);color:var(--accent-purple);">🪚</div>
           <span class="manual-toc-text">木工阶段</span>
           <span class="manual-toc-count" id="toc-count-wood">0</span>
         </button>
-      </div>
 
-      <div class="manual-toc-section">
         <button class="manual-toc-btn" onclick="selectTocStage('paint')">
           <div class="manual-toc-icon" style="background:rgba(22,163,74,.12);color:var(--accent-green);">🎨</div>
           <span class="manual-toc-text">油漆阶段</span>
           <span class="manual-toc-count" id="toc-count-paint">0</span>
         </button>
-      </div>
 
-      <div class="manual-toc-section">
         <button class="manual-toc-btn" onclick="selectTocStage('install')">
           <div class="manual-toc-icon" style="background:rgba(220,38,38,.12);color:var(--accent-red);">🔧</div>
           <span class="manual-toc-text">安装阶段</span>
           <span class="manual-toc-count" id="toc-count-install">0</span>
         </button>
-      </div>
 
-      <div class="manual-toc-section">
         <button class="manual-toc-btn" onclick="selectTocStage('soft')">
           <div class="manual-toc-icon" style="background:rgba(168,162,158,.12);color:var(--text-muted);">🛋️</div>
           <span class="manual-toc-text">软装阶段</span>
           <span class="manual-toc-count" id="toc-count-soft">0</span>
         </button>
       </div>
+    </div>
+
+    <!-- 收起状态的目录 -->
+    <div class="manual-toc-collapsed" id="manualTocCollapsed" style="display:none;">
+      <button class="manual-toc-toggle-expanded" onclick="toggleManualToc()" title="展开目录">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+      </button>
     </div>
 
     <!-- 右侧内容 -->
@@ -387,4 +385,24 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+// 目录收起/展开
+function toggleManualToc() {
+  const toc = document.getElementById('manualToc');
+  const collapsed = document.getElementById('manualTocCollapsed');
+  const layout = document.querySelector('.manual-layout');
+
+  if (toc.style.display === 'none') {
+    // 展开
+    toc.style.display = '';
+    collapsed.style.display = 'none';
+    layout.style.gridTemplateColumns = '240px 1fr';
+  } else {
+    // 收起
+    toc.style.display = 'none';
+    collapsed.style.display = '';
+    layout.style.gridTemplateColumns = '48px 1fr';
+  }
+}
+</script>
 {% endblock %}
