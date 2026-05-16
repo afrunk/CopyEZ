@@ -1,0 +1,158 @@
+{% extends "decoration/base.html" %}
+
+{% block title %}RenovaMate - 首页总览{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">首页总览</h1>
+    <p class="page-subtitle">查看装修项目整体情况，随时掌握进度与预算</p>
+  </div>
+
+  {% if project %}
+  <!-- Hero Project Card -->
+  <div class="hero-project-card animate-in">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;position:relative;z-index:1;">
+      <div>
+        <div style="font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:8px;">当前装修项目</div>
+        <h2 style="font-size:1.75rem;font-weight:800;color:white;letter-spacing:-0.03em;margin-bottom:4px;" id="heroProjectName">{{ project.name }}</h2>
+        <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;align-items:center;">
+          {% if project.house_area %}
+          <span style="display:flex;align-items:center;gap:5px;font-size:.8125rem;color:rgba(255,255,255,.6);">
+            <svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+            {{ project.house_area }}
+          </span>
+          {% endif %}
+          {% if project.style %}
+          <span style="display:flex;align-items:center;gap:5px;font-size:.8125rem;color:rgba(255,255,255,.6);">
+            <svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/></svg>
+            {{ project.style }}
+          </span>
+          {% endif %}
+          {% if project.current_stage %}
+          <span class="status-tag status-ongoing" style="background:rgba(234,88,12,.2);color:#FB923C;" id="heroStage">{{ project.stage_display() }}</span>
+          {% endif %}
+          <button class="btn btn-sm" style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.2);" onclick="openProjectSettings()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+            修改项目
+          </button>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.45);margin-bottom:6px;">总预算</div>
+        <div style="font-size:2rem;font-weight:800;color:white;letter-spacing:-0.03em;">¥<span class="hero-total-budget">{{ "{:,}".format(project.total_budget or 0) }}</span><span style="font-size:.875rem;font-weight:500;margin-left:2px;">元</span></div>
+      </div>
+    </div>
+    <div class="hero-project-grid">
+      <div class="hero-project-item"><div class="label">预计花费</div><div class="value">¥{{ "{:,}".format(0) }} 元</div></div>
+      <div class="hero-project-item"><div class="label">实际已花</div><div class="value highlight">¥{{ "{:,}".format(0) }} 元</div></div>
+      <div class="hero-project-item"><div class="label">剩余预算</div><div class="value hero-remaining" style="color:#86EFAC;">¥{{ "{:,}".format((remaining or 0)|int) }} 元</div></div>
+      <div class="hero-project-item"><div class="label">已选方案</div><div class="value">0 个</div></div>
+      <div class="hero-project-item"><div class="label">超支分类</div><div class="value" style="color:#FCA5A5;">0 个</div></div>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-overview animate-in">
+    <div class="progress-overview-header">
+      <span class="progress-overview-title">装修整体进度</span>
+      <span class="progress-overview-value">约 0% 完成</span>
+    </div>
+    <div class="progress-bar-track"><div class="progress-bar-fill" style="width:0%;"></div></div>
+  </div>
+
+  <!-- Two Column -->
+  <div class="two-col-layout">
+    <div>
+      <div class="page-section">
+        <div class="page-section-header">
+          <h3 class="page-section-title">核心数据</h3>
+          <button class="btn btn-ghost btn-sm" onclick="openProjectSettings()">项目设置</button>
+        </div>
+        <div class="dashboard-stats-grid">
+          <div class="stat-card animate-in">
+            <div class="stat-card-accent"></div>
+            <div class="stat-label">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>总预算
+            </div>
+            <div class="stat-value">{{ "{:,}".format(project.total_budget or 0) }}</div>
+            <div class="stat-meta">元</div>
+          </div>
+          <div class="stat-card green animate-in">
+            <div class="stat-card-accent"></div>
+            <div class="stat-label">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>实际已花
+            </div>
+            <div class="stat-value green">{{ "{:,}".format((actual_spent|default(0)|int)) }}</div>
+            <div class="stat-meta">元（接花费记录后自动汇总）</div>
+          </div>
+          <div class="stat-card green animate-in">
+            <div class="stat-card-accent"></div>
+            <div class="stat-label">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5"/></svg>剩余预算
+            </div>
+            <div class="stat-value green">{{ "{:,}".format((remaining|default(0)|int)) }}</div>
+            <div class="stat-meta">元</div>
+          </div>
+          <div class="stat-card blue animate-in">
+            <div class="stat-card-accent"></div>
+            <div class="stat-label">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z"/></svg>已选方案
+            </div>
+            <div class="stat-value blue">0</div>
+            <div class="stat-meta">个分类已确定</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-section">
+        <div class="page-section-header">
+          <h3 class="page-section-title">分类状态</h3>
+          <a href="{{ url_for('decoration.compare') }}" class="btn btn-ghost btn-sm">查看全部 →</a>
+        </div>
+        <div class="empty-state">
+          <p>暂无装修分类，请先添加分类。</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="page-section">
+        <div class="page-section-header">
+          <h3 class="page-section-title">待办提醒</h3>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="todo-section-badge status-tag status-ongoing">0 项待处理</span>
+            <a href="{{ url_for('decoration.progress') }}" class="btn btn-ghost btn-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              添加
+            </a>
+          </div>
+        </div>
+        <div class="empty-state"><p>暂无待办事项。</p></div>
+      </div>
+      <div class="page-section">
+        <div class="page-section-header">
+          <h3 class="page-section-title">最近花费</h3>
+          <a href="{{ url_for('decoration.budget') }}" class="btn btn-ghost btn-sm">全部</a>
+        </div>
+        <div class="empty-state"><p>暂无花费记录。</p></div>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Empty State: No Project -->
+  <div class="hero-project-card animate-in" style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);text-align:center;padding:64px 24px;">
+    <div style="font-size:3rem;margin-bottom:16px;">🏠</div>
+    <h2 style="font-size:1.5rem;font-weight:700;color:white;margin-bottom:8px;">还没有装修项目</h2>
+    <p style="color:rgba(255,255,255,.6);font-size:.9375rem;max-width:360px;margin:0 auto 24px;">创建第一个装修项目后，你可以管理分类方案、预算、进度和装修手册。</p>
+    <button class="btn btn-primary" onclick="openProjectSettings()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      创建装修项目
+    </button>
+  </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}

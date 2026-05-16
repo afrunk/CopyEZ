@@ -1,0 +1,408 @@
+{% extends "decoration/base.html" %}
+
+{% block content %}
+<div class="page-container">
+
+  <!-- Page Header -->
+  <div class="budget-page-header">
+    <div class="budget-header-left">
+      <h1 class="budget-page-title">预算控制</h1>
+      <p class="budget-page-subtitle">根据已选方案生成预算值，记录实际花费，追踪超支与节省情况</p>
+    </div>
+    <div class="budget-header-actions">
+      <button class="btn btn-primary" onclick="openExpenseModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        新增花费
+      </button>
+      <button class="btn btn-secondary" onclick="showToast('预算说明：总预算来自项目设置，预计花费来自分类比较中的已选方案，实际花费来自支出记录求和')">
+        预算说明
+      </button>
+    </div>
+  </div>
+
+  {% if not total_budget or total_budget == '未设置' %}
+  <!-- 主空状态：未设置总预算 -->
+  <div class="hero-project-card animate-in" style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);text-align:center;padding:64px 24px;">
+    <div style="font-size:3rem;margin-bottom:16px;">💰</div>
+    <h2 style="font-size:1.5rem;font-weight:700;color:white;margin-bottom:8px;">还没有设置装修预算</h2>
+    <p style="color:rgba(255,255,255,.6);font-size:.9375rem;max-width:400px;margin:0 auto 24px;">设置总预算后，系统会根据已选方案和实际花费帮你追踪超支、节省和剩余预算。</p>
+    <button class="btn btn-primary" onclick="showToast('预算设置功能后续接入')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      设置总预算
+    </button>
+  </div>
+  {% endif %}
+
+  <!-- Budget Cockpit Hero -->
+  <div class="budget-cockpit" id="budgetCockpit">
+    <div class="cockpit-header">
+      <div class="cockpit-main-stat">
+        <div class="cockpit-stat-label">总预算目标</div>
+        <div class="cockpit-stat-value" id="cockpitTotalBudget">{% if total_budget and total_budget != '未设置' %}¥{{ "{:,}".format(total_budget|int) }}{% else %}未设置{% endif %}</div>
+      </div>
+      <div class="cockpit-divider"></div>
+      <div class="cockpit-secondary-stats">
+        <div class="cockpit-secondary-item">
+          <span class="cockpit-secondary-label">当前预计花费</span>
+          <span class="cockpit-secondary-value" id="cockpitEstimated">¥{{ "{:,}".format(estimated_cost|default(0)) }}</span>
+        </div>
+        <div class="cockpit-secondary-item">
+          <span class="cockpit-secondary-label">实际已花费</span>
+          <span class="cockpit-secondary-value saved" id="cockpitSpent">¥{{ "{:,}".format(actual_spent|default(0)|int) }}</span>
+        </div>
+        <div class="cockpit-secondary-item">
+          <span class="cockpit-secondary-label">预计剩余</span>
+          <span class="cockpit-secondary-value" id="cockpitEstimatedLeft">未设置</span>
+        </div>
+        <div class="cockpit-secondary-item">
+          <span class="cockpit-secondary-label">实际剩余</span>
+          <span class="cockpit-secondary-value saved" id="cockpitRemaining">{% if remaining and remaining != '未设置' %}¥{{ "{:,}".format(remaining|int) if remaining and remaining != '未设置' else '未设置' }}{% else %}未设置{% endif %}</span>
+        </div>
+      </div>
+    </div>
+    <div class="cockpit-progress-section">
+      <div class="cockpit-progress-header">
+        <span class="cockpit-progress-label">预算使用率</span>
+        <span class="cockpit-progress-percent" id="cockpitUsagePercent">0%</span>
+      </div>
+      <div class="cockpit-progress-track">
+        <div class="cockpit-progress-fill" id="cockpitUsageBar" style="width: 0%;"></div>
+      </div>
+      <div class="cockpit-progress-legend">
+        <span class="legend-item"><span class="legend-dot actual"></span>实际花费 0%</span>
+        <span class="legend-item"><span class="legend-dot estimated"></span>预计花费 0%</span>
+      </div>
+    </div>
+    <div class="cockpit-status">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span id="cockpitStatusText">请先设置总预算，再添加分类方案和实际花费记录。</span>
+    </div>
+  </div>
+
+  <!-- Core Stats Cards -->
+  <div class="budget-stats-grid" id="budgetStatsGrid">
+    <div class="budget-stat-card animate-in">
+      <div class="budget-stat-icon orange">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118.75 16.5h2.25M12 3h.008v.008H12V3zm0 3h.008v.008H12V6zm0 3h.008v.008H12V9zm-3.75 3h.008v.008H8.25V12zm0 3h.008v.008H8.25V15zm0 3h.008v.008H8.25V18z"/></svg>
+      </div>
+      <div class="budget-stat-content">
+        <div class="budget-stat-label">已选方案预算</div>
+        <div class="budget-stat-value" id="statEstimated">¥{{ "{:,}".format(estimated_cost|default(0)|int) }}</div>
+        <div class="budget-stat-note">来自已选最终方案</div>
+      </div>
+    </div>
+    <div class="budget-stat-card animate-in">
+      <div class="budget-stat-icon green">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div class="budget-stat-content">
+        <div class="budget-stat-label">实际已花</div>
+        <div class="budget-stat-value saved" id="statSpent">¥{{ "{:,}".format(actual_spent|default(0)|int) }}</div>
+        <div class="budget-stat-note">来自支出记录求和</div>
+      </div>
+    </div>
+    <div class="budget-stat-card animate-in">
+      <div class="budget-stat-icon red">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75h.008v.008H12v-.008z"/></svg>
+      </div>
+      <div class="budget-stat-content">
+        <div class="budget-stat-label">超支分类</div>
+        <div class="budget-stat-value red" id="statOverCount">0 个</div>
+        <div class="budget-stat-note">暂无超支分类</div>
+      </div>
+    </div>
+    <div class="budget-stat-card animate-in">
+      <div class="budget-stat-icon green">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>
+      </div>
+      <div class="budget-stat-content">
+        <div class="budget-stat-label">节省金额</div>
+        <div class="budget-stat-value saved" id="statSavedAmount">¥{{ "{:,}".format(0) }}</div>
+        <div class="budget-stat-note">暂无节省分类</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Budget Risk Alerts -->
+  <div class="budget-alerts-section" id="budgetAlertsSection" style="display:none;">
+    <div class="budget-alerts-header">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z"/></svg>
+      <h3>预算风险提醒</h3>
+    </div>
+    <div class="budget-alerts-list" id="budgetAlertsList">
+      <!-- Dynamically rendered -->
+    </div>
+  </div>
+
+  <!-- Budget Comparison Table -->
+  <div class="budget-table-section">
+    <div class="budget-table-header">
+      <h3 class="budget-table-title">预算明细</h3>
+      <div class="budget-filter-tabs">
+        <button class="budget-filter-tab active" data-filter="all" onclick="filterBudgetRows('all')">全部</button>
+        <button class="budget-filter-tab" data-filter="over" onclick="filterBudgetRows('over')">超支</button>
+        <button class="budget-filter-tab" data-filter="saved" onclick="filterBudgetRows('saved')">节省</button>
+        <button class="budget-filter-tab" data-filter="equal" onclick="filterBudgetRows('equal')">持平</button>
+        <button class="budget-filter-tab" data-filter="pending" onclick="filterBudgetRows('pending')">未选方案</button>
+      </div>
+    </div>
+    <div class="budget-table-wrapper" id="budgetTableWrapper">
+      <table class="budget-table" id="budgetTable">
+        <thead>
+          <tr>
+            <th>分类</th>
+            <th>最终方案</th>
+            <th>预算值</th>
+            <th>实际花费</th>
+            <th>差额</th>
+            <th>使用率</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="budgetTableBody">
+          <!-- JS renders rows here -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="budgetTableEmpty" style="padding:32px;text-align:center;">
+        <p>暂无预算明细<br>选择分类最终方案后，这里会自动汇总预算值。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expense Records -->
+  <div class="expense-section">
+    <div class="expense-section-header">
+      <h3 class="expense-section-title">实际花费记录</h3>
+      <div class="expense-section-actions">
+        <button class="btn btn-sm btn-primary" onclick="openExpenseModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          新增花费
+        </button>
+      </div>
+    </div>
+    <div class="expense-month-groups" id="expenseMonthGroups">
+      <!-- JS renders groups here -->
+      <div class="empty-state" id="expenseEmpty" style="padding:32px;text-align:center;">
+        <p>暂无花费记录<br>点击"新增花费"记录第一笔装修支出。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Spending Analysis -->
+  <div class="category-analysis-section">
+    <div class="category-analysis-header">
+      <h3>分类花费分析</h3>
+    </div>
+    <div class="category-bars" id="categoryBars">
+      <!-- JS renders bars here -->
+      <div class="empty-state" id="categoryBarsEmpty" style="padding:32px;text-align:center;">
+        <p>暂无分类花费数据</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Next Steps Suggestions -->
+  <div class="budget-suggestions-section">
+    <div class="suggestions-header">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
+      <h3>下一步预算建议</h3>
+    </div>
+    <ul class="suggestions-list" id="suggestionsList">
+      <li>请先设置总预算，再添加分类方案和实际花费记录。</li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- 新增花费弹窗 -->
+<div class="modal-overlay" id="expenseModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <h3>新增花费记录</h3>
+        <p>记录一笔实际支出</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('expenseModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">支出日期</label>
+          <input class="form-input" type="date" id="expenseDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">支出分类</label>
+          <select class="form-select" id="expenseCategory" data-fill-category>
+            <option value="">请选择</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">关联方案</label>
+          <select class="form-select" id="expenseCompareItem" data-fill-compare-item>
+            <option value="">不关联</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">支出名称</label>
+          <input class="form-input" id="expenseName" placeholder="例如：大金定金">
+        </div>
+        <div class="form-group">
+          <label class="form-label">金额</label>
+          <input class="form-input" type="number" id="expenseAmount" placeholder="例如：3000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">支付方式</label>
+          <select class="form-select" id="expenseMethod">
+            <option value="">请选择</option>
+            <option value="银行卡">银行卡</option>
+            <option value="微信">微信</option>
+            <option value="支付宝">支付宝</option>
+            <option value="转账">转账</option>
+            <option value="现金">现金</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">收款方</label>
+          <input class="form-input" id="expensePayee" placeholder="例如：大金专卖店">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea class="form-textarea" id="expenseNote" rows="2" placeholder="补充说明"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('expenseModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveExpense()">保存记录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 费用详情弹窗 -->
+<div class="modal-overlay" id="expenseDetailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h3 id="expenseDetailTitle">费用详情</h3>
+        <p id="expenseDetailSubtitle">查看支出记录</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('expenseDetailModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <!-- 查看模式 -->
+    <div class="modal-body" id="expenseDetailView">
+      <input type="hidden" id="expenseDetailId">
+      <div class="detail-row">
+        <span class="detail-label">日期</span>
+        <span class="detail-value" id="expenseDetailDate">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">分类</span>
+        <span class="detail-value" id="expenseDetailCategory">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">支出名称</span>
+        <span class="detail-value" id="expenseDetailName">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">金额</span>
+        <span class="detail-value expense-amount" id="expenseDetailAmount">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">支付方式</span>
+        <span class="detail-value" id="expenseDetailMethod">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">收款方</span>
+        <span class="detail-value" id="expenseDetailPayee">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">关联方案</span>
+        <span class="detail-value" id="expenseDetailCompareItem">-</span>
+      </div>
+      <div class="detail-row" id="expenseDetailNoteRow">
+        <span class="detail-label">备注</span>
+        <span class="detail-value" id="expenseDetailNote">-</span>
+      </div>
+    </div>
+    <!-- 编辑模式 -->
+    <div class="modal-body" id="expenseDetailEdit" style="display:none;">
+      <input type="hidden" id="expenseEditId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">支出日期</label>
+          <input class="form-input" type="date" id="expenseEditDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">支出分类</label>
+          <select class="form-select" id="expenseEditCategory" data-fill-category>
+            <option value="">请选择</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">关联方案</label>
+          <select class="form-select" id="expenseEditCompareItem" data-fill-compare-item>
+            <option value="">不关联</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">支出名称</label>
+          <input class="form-input" id="expenseEditName" placeholder="例如：大金定金">
+        </div>
+        <div class="form-group">
+          <label class="form-label">金额</label>
+          <input class="form-input" type="number" id="expenseEditAmount" placeholder="例如：3000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">支付方式</label>
+          <select class="form-select" id="expenseEditMethod">
+            <option value="">请选择</option>
+            <option value="银行卡">银行卡</option>
+            <option value="微信">微信</option>
+            <option value="支付宝">支付宝</option>
+            <option value="转账">转账</option>
+            <option value="现金">现金</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">收款方</label>
+          <input class="form-input" id="expenseEditPayee" placeholder="例如：大金专卖店">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea class="form-textarea" id="expenseEditNote" rows="2" placeholder="补充说明"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="deleteExpense()">删除</button>
+      <button class="btn btn-secondary" onclick="openExpenseModalForEdit()" id="expenseDetailEditBtn">修改</button>
+      <button class="btn btn-secondary" onclick="openExpenseModalForEdit()" id="expenseDetailSaveBtn" style="display:none;">保存</button>
+      <button class="btn btn-secondary" onclick="cancelExpenseEdit()" id="expenseDetailCancelBtn" style="display:none;">取消</button>
+      <button class="btn btn-secondary" onclick="closeModal('expenseDetailModal')">关闭</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('budgetCockpit')) {
+    initBudgetPage();
+  }
+});
+</script>
+{% endblock %}

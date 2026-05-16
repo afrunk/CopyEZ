@@ -1,0 +1,229 @@
+{% extends "decoration/base.html" %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">分类比较</h1>
+    <p class="page-subtitle">管理装修分类，进入具体分类后比较不同品牌、方案和报价</p>
+  </div>
+
+  <!-- 分类大类 -->
+  <div class="page-section" id="categoryGroupSection">
+    <div class="page-section-header">
+      <h3 class="page-section-title">分类大类</h3>
+      <button class="btn btn-sm btn-primary" id="btnAddGroup">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        新增大类
+      </button>
+    </div>
+    <div class="category-group-grid" id="categoryGroupGrid">
+      <!-- Rendered by JS; empty state shown when no groups -->
+    </div>
+  </div>
+
+  <!-- 子分类 -->
+  <div class="page-section">
+    <div class="page-section-header">
+      <h3 class="page-section-title" id="subcatTitle">所有子分类 <span id="subcatCount" style="font-weight:400;font-size:.875rem;color:var(--text-muted);"></span></h3>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div class="view-tabs" id="viewTabs">
+          <button class="view-tab active" data-view="card" id="btnCardView">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+            卡片
+          </button>
+          <button class="view-tab" data-view="table" id="btnTableView">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0118 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-3.75 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0118 7.125v-1.5m1.125 2.625c-.621 0-1.125.504-1.125 1.125v1.5m2.625-2.625c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25M7.125 12h9.75m-9.75 0A1.125 1.125 0 016 10.875M7.125 12C6.504 12 6 12.504 6 13.125m0-2.25C6 11.496 5.496 12 4.875 12M18 10.875c0 .621-.504 1.125-1.125 1.125M18 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m-12 5.25v-5.25m0 5.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125m-12 0v-1.5c0-.621-.504-1.125-1.125-1.125M18 18.375v-5.25m0 5.25v-1.5c0-.621.504-1.125 1.125-1.125M18 13.125v1.5c0 .621.504 1.125 1.125 1.125M18 13.125c0-.621.504-1.125 1.125-1.125M6 13.125v1.5c0 .621-.504 1.125-1.125 1.125M6 13.125C6 12.504 5.496 12 4.875 12m-1.5 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M19.125 12h1.5m0 0c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h1.5m14.25 0h1.5"/></svg>
+            表格
+          </button>
+        </div>
+        <button class="btn btn-sm btn-primary" id="btnAddSubcat">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          新增子分类
+        </button>
+      </div>
+    </div>
+
+    <!-- 筛选 Pills -->
+    <div class="sub-category-pills" id="filterPills" style="margin-bottom:16px;">
+      <!-- Rendered by JS -->
+    </div>
+
+    <!-- 卡片视图 -->
+    <div id="cardViewContainer">
+      <div class="category-grid" id="subcatCardGrid">
+        <!-- Rendered by JS; empty state shown when no subcats -->
+      </div>
+      <div class="empty-state" id="subcatCardEmpty" style="display:none;padding:32px;text-align:center;">
+        <p>暂无装修分类<br>添加子分类后，你可以进入具体分类页面比较品牌、参数、报价和方案。</p>
+        <button class="btn btn-primary" onclick="openSubcatModal()" style="margin-top:16px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          新增子分类
+        </button>
+      </div>
+    </div>
+
+    <!-- 表格视图 -->
+    <div id="tableViewContainer" style="display:none;">
+      <div class="table-wrapper">
+        <table class="comparison-table" id="subcatTable">
+          <thead>
+            <tr>
+              <th>分类名称</th>
+              <th>所属大类</th>
+              <th>状态</th>
+              <th>预算</th>
+              <th>方案数</th>
+              <th>展示方式</th>
+              <th style="text-align:center;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="subcatTableBody">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="subcatTableEmpty" style="display:none;padding:32px;text-align:center;">
+        <p>暂无分类数据</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增大类弹窗 -->
+<div class="modal-overlay" id="groupModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h3 id="groupModalTitle">新增大类</h3>
+        <p>添加新的分类大类</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('groupModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="groupModalId">
+      <div class="form-group">
+        <label class="form-label">大类名称</label>
+        <input class="form-input" id="groupModalName" placeholder="例如：设备系统">
+      </div>
+      <div class="form-group">
+        <label class="form-label">图标</label>
+        <div class="icon-picker" id="groupIconPicker" style="display:flex;flex-wrap:wrap;gap:8px;">
+          <span class="icon-option" data-icon="🏠">🏠</span>
+          <span class="icon-option" data-icon="❄️">❄️</span>
+          <span class="icon-option" data-icon="💡">💡</span>
+          <span class="icon-option" data-icon="🧱">🧱</span>
+          <span class="icon-option" data-icon="🚪">🚪</span>
+          <span class="icon-option" data-icon="🛁">🛁</span>
+          <span class="icon-option" data-icon="🔌">🔌</span>
+          <span class="icon-option" data-icon="🪚">🪚</span>
+          <span class="icon-option" data-icon="🛋️">🛋️</span>
+          <span class="icon-option" data-icon="📦">📦</span>
+          <span class="icon-option" data-icon="🌿">🌿</span>
+          <span class="icon-option" data-icon="⚙️">⚙️</span>
+          <span class="icon-option" data-icon="🔧">🔧</span>
+          <span class="icon-option" data-icon="🎨">🎨</span>
+          <span class="icon-option" data-icon="📺">📺</span>
+          <span class="icon-option" data-icon="🛒">🛒</span>
+        </div>
+        <input type="hidden" id="groupModalIcon" value="🏠">
+      </div>
+      <div class="form-group">
+        <label class="form-label">说明</label>
+        <textarea class="form-textarea" id="groupModalDesc" rows="2" placeholder="简要描述这个大类的用途"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">排序</label>
+          <input class="form-input" type="number" id="groupModalOrder" value="0" min="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">是否启用</label>
+          <select class="form-select" id="groupModalEnabled">
+            <option value="1">启用</option>
+            <option value="0">禁用</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('groupModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveGroupModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/编辑子分类弹窗 -->
+<div class="modal-overlay" id="subcatModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h3 id="subcatModalTitle">新增子分类</h3>
+        <p>添加新的装修分类</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('subcatModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="subcatModalId">
+      <div class="form-group">
+        <label class="form-label">分类名称</label>
+        <input class="form-input" id="subcatModalName" placeholder="例如：中央空调">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">所属大类</label>
+          <select class="form-select" id="subcatModalGroup">
+            <!-- Filled by JS -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">当前状态</label>
+          <select class="form-select" id="subcatModalStatus">
+            <option value="not-started">未开始</option>
+            <option value="comparing">比价中</option>
+            <option value="selected">已选方案</option>
+            <option value="ongoing">进行中</option>
+            <option value="pending">待确认</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">预算金额</label>
+          <input class="form-input" id="subcatModalBudget" placeholder="例如：28000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">展示方式</label>
+          <select class="form-select" id="subcatModalView">
+            <option value="card">卡片模式</option>
+            <option value="table">表格模式</option>
+            <option value="list">清单模式</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea class="form-textarea" id="subcatModalNote" rows="2" placeholder="补充说明、注意事项"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('subcatModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveSubcatModal()">保存</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 页面初始化
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('categoryGroupGrid')) {
+    initComparePage();
+  }
+});
+</script>
+{% endblock %}

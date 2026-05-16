@@ -1,0 +1,448 @@
+{% extends "decoration/base.html" %}
+
+{% block title %}RenovaMate - 装修进度{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">装修进度看板</h1>
+    <p class="page-subtitle">追踪所有装修任务的状态与进度，可关联装修手册中的记录</p>
+  </div>
+
+  <!-- 顶部操作栏 -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+    <div class="progress-overview" style="flex:1;min-width:200px;margin:0;">
+      <div class="progress-overview-header">
+        <div>
+          <div class="progress-overview-title">装修整体进度</div>
+          <div style="font-size:.75rem;color:var(--text-muted);margin-top:2px;">待开始 {{ progress_summary.pending }} · 进行中 {{ progress_summary.ongoing }} · 待验收 {{ progress_summary.review }} · 已完成 {{ progress_summary.done }}</div>
+        </div>
+        <div class="progress-overview-value">约 {{ progress_summary.percent }}%</div>
+      </div>
+      <div class="progress-bar-track" style="margin-top:10px;"><div class="progress-bar-fill" style="width:{{ progress_summary.percent }}%;"></div></div>
+    </div>
+    <button class="btn btn-primary" data-open-modal="taskModal">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      新建任务
+    </button>
+  </div>
+
+  <!-- 看板主体 -->
+  <div class="kanban-board">
+    <!-- 设计阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">📋</div>
+        <div class="kanban-group-title">设计阶段</div>
+        <div class="kanban-group-count" data-group="design">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: #9CA3AF;"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="design" data-status="pending"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-orange);"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="design" data-status="ongoing"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-yellow);"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="design" data-status="review"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-green);"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="design" data-status="done"><div class="kanban-empty-tip">暂无任务</div></div>
+          <button class="kanban-add-btn" data-open-modal="taskModal" data-stage="design">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15 m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 拆改阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🔨</div>
+        <div class="kanban-group-title">拆改阶段</div>
+        <div class="kanban-group-count" data-group="demolition">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: #9CA3AF;"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="demolition" data-status="pending"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-orange);"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="demolition" data-status="ongoing"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-yellow);"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="demolition" data-status="review"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-green);"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="demolition" data-status="done"><div class="kanban-empty-tip">暂无任务</div></div>
+          <button class="kanban-add-btn" data-open-modal="taskModal" data-stage="demolition">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15 m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 水电阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">⚡</div>
+        <div class="kanban-group-title">水电阶段</div>
+        <div class="kanban-group-count" data-group="water">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: #9CA3AF;"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="water" data-status="pending"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-orange);"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="water" data-status="ongoing"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-yellow);"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="water" data-status="review"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-green);"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="water" data-status="done"><div class="kanban-empty-tip">暂无任务</div></div>
+          <button class="kanban-add-btn" data-open-modal="taskModal" data-stage="water">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15 m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 泥工阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🧱</div>
+        <div class="kanban-group-title">泥工阶段</div>
+        <div class="kanban-group-count" data-group="mud">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: #9CA3AF;"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="mud" data-status="pending"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-orange);"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="mud" data-status="ongoing"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-yellow);"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="mud" data-status="review"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-green);"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="mud" data-status="done"><div class="kanban-empty-tip">暂无任务</div></div>
+          <button class="kanban-add-btn" data-open-modal="taskModal" data-stage="mud">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15 m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 木工阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🪚</div>
+        <div class="kanban-group-title">木工阶段</div>
+        <div class="kanban-group-count" data-group="wood">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: #9CA3AF;"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="wood" data-status="pending"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-orange);"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="wood" data-status="ongoing"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-yellow);"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="wood" data-status="review"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-green);"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="wood" data-status="done"><div class="kanban-empty-tip">暂无任务</div></div>
+          <button class="kanban-add-btn" data-open-modal="taskModal" data-stage="wood">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15 m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 油漆阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🎨</div>
+        <div class="kanban-group-title">油漆阶段</div>
+        <div class="kanban-group-count" data-group="paint">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: #9CA3AF;"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="paint" data-status="pending"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-orange);"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="paint" data-status="ongoing"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-yellow);"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="paint" data-status="review"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-green);"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="paint" data-status="done"><div class="kanban-empty-tip">暂无任务</div></div>
+          <button class="kanban-add-btn" data-open-modal="taskModal" data-stage="paint">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15 m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 安装阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🔧</div>
+        <div class="kanban-group-title">安装阶段</div>
+        <div class="kanban-group-count" data-group="install">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: #9CA3AF;"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="install" data-status="pending"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-orange);"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="install" data-status="ongoing"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-yellow);"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="install" data-status="review"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-green);"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="install" data-status="done"><div class="kanban-empty-tip">暂无任务</div></div>
+          <button class="kanban-add-btn" data-open-modal="taskModal" data-stage="install">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15 m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 软装阶段 -->
+    <div class="kanban-group kanban-group-pending">
+      <div class="kanban-group-header">
+        <div class="kanban-group-icon">🛋️</div>
+        <div class="kanban-group-title">软装阶段</div>
+        <div class="kanban-group-count" data-group="soft">0 个任务</div>
+      </div>
+      <div class="kanban-columns">
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: #9CA3AF;"></div><div class="kanban-col-title">待开始</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="soft" data-status="pending"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-orange);"></div><div class="kanban-col-title">进行中</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="soft" data-status="ongoing"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-yellow);"></div><div class="kanban-col-title">待验收</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="soft" data-status="review"><div class="kanban-empty-tip">暂无任务</div></div>
+        </div>
+        <div class="kanban-column">
+          <div class="kanban-col-header"><div class="kanban-col-dot" style="background: var(--accent-green);"></div><div class="kanban-col-title">已完成</div><div class="kanban-col-count" data-col-count>0</div></div>
+          <div class="kanban-cards kanban-cards-empty" data-stage="soft" data-status="done"><div class="kanban-empty-tip">暂无任务</div></div>
+          <button class="kanban-add-btn" data-open-modal="taskModal" data-stage="soft">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15 m7.5-7.5h-15"/></svg>
+            添加任务
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新建任务弹窗 -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h3>新建装修任务</h3>
+        <p>添加一个新的装修进度任务</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('taskModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">任务名称 *</label>
+        <input class="form-input" id="taskTitle" placeholder="例如：中央空调安装">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">所属阶段</label>
+          <select class="form-select" id="taskStage">
+            <option value="design">设计阶段</option>
+            <option value="demolition">拆改阶段</option>
+            <option value="water">水电阶段</option>
+            <option value="mud">泥工阶段</option>
+            <option value="wood">木工阶段</option>
+            <option value="paint">油漆阶段</option>
+            <option value="install">安装阶段</option>
+            <option value="soft">软装阶段</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">任务状态</label>
+          <select class="form-select" id="taskStatus">
+            <option value="pending">待开始</option>
+            <option value="ongoing">进行中</option>
+            <option value="review">待验收</option>
+            <option value="done">已完成</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">预算金额</label>
+          <input class="form-input" id="taskBudget" placeholder="例如：28000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">实际花费</label>
+          <input class="form-input" id="taskActual" placeholder="例如：3000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">负责人</label>
+        <input class="form-input" id="taskOwner" placeholder="例如：张师傅 / 大金安装师傅">
+      </div>
+      <div class="form-group">
+        <label class="form-label">关联分类</label>
+        <select class="form-select" id="taskCategory" data-fill-category>
+          <option value="">不关联</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea class="form-textarea" id="taskNote" rows="3" placeholder="补充任务说明、注意事项、验收要求"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('taskModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveProgressTask()">保存任务</button>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑任务弹窗 -->
+<div class="modal-overlay" id="editTaskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h3>编辑装修任务</h3>
+        <p>修改任务状态、预算、负责人和备注</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('editTaskModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editTaskId">
+      <div class="form-group">
+        <label class="form-label">任务名称</label>
+        <input class="form-input" id="editTaskTitle" placeholder="例如：中央空调安装">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">所属阶段</label>
+          <select class="form-select" id="editTaskStage">
+            <option value="design">设计阶段</option>
+            <option value="demolition">拆改阶段</option>
+            <option value="water">水电阶段</option>
+            <option value="mud">泥工阶段</option>
+            <option value="wood">木工阶段</option>
+            <option value="paint">油漆阶段</option>
+            <option value="install">安装阶段</option>
+            <option value="soft">软装阶段</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">任务状态</label>
+          <select class="form-select" id="editTaskStatus">
+            <option value="pending">待开始</option>
+            <option value="ongoing">进行中</option>
+            <option value="review">待验收</option>
+            <option value="done">已完成</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">预算金额</label>
+          <input class="form-input" id="editTaskBudget" placeholder="例如：28000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">实际花费</label>
+          <input class="form-input" id="editTaskActual" placeholder="例如：3000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">负责人</label>
+        <input class="form-input" id="editTaskOwner" placeholder="例如：张师傅">
+      </div>
+      <div class="form-group">
+        <label class="form-label">关联分类</label>
+        <select class="form-select" id="editTaskCategory" data-fill-category>
+          <option value="">不关联</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">关联笔记</label>
+        <div id="editTaskNotes" style="display:flex;flex-wrap:wrap;gap:8px;">
+          <span style="color:var(--text-muted);font-size:.8125rem;">加载中...</span>
+        </div>
+        <div style="margin-top:8px;">
+          <a href="/decoration/notes" target="_blank" class="btn btn-ghost btn-sm" style="font-size:.75rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            添加笔记
+          </a>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea class="form-textarea" id="editTaskNote" rows="3" placeholder="补充任务说明、注意事项、验收要求"></textarea>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.875rem;color:var(--text-secondary);">
+          <input type="checkbox" id="editTaskAddNote" style="width:auto;accent-color:var(--accent-orange);">
+          状态更新后添加一条装修手册记录
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="deleteTaskFromEdit()">删除任务</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-secondary" onclick="closeModal('editTaskModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveEditedTask()">保存修改</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

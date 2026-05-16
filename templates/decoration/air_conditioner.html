@@ -1,0 +1,335 @@
+{% extends "decoration/base.html" %}
+
+{% block content %}
+<div class="page-container" id="acPageContent">
+
+  {% if not ac_category %}
+  <!-- Empty State: no 中央空调 sub-category yet -->
+  <div class="ac-empty-state">
+    <div class="ac-empty-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"/>
+      </svg>
+    </div>
+    <h2>还没有添加中央空调分类</h2>
+    <p>请先到分类比较页添加"中央空调"子分类。</p>
+    <a class="btn btn-primary" href="{{ url_for('decoration.compare') }}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"/></svg>
+      返回分类比较
+    </a>
+  </div>
+
+  {% else %}
+  <!-- Inject real category_id for JS -->
+  <script>window.acCategoryId = {{ ac_category.id }};</script>
+
+  <!-- Page Header -->
+  <div class="ac-page-header">
+    <div class="ac-header-left">
+      <h1 class="ac-page-title">中央空调详情</h1>
+      <p class="ac-page-subtitle">对比不同品牌、配置、价格和安装方案，选择最终预算方案</p>
+    </div>
+    <div class="ac-header-actions">
+      <button class="btn btn-secondary" onclick="goBackToCompare()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"/></svg>
+        返回分类
+      </button>
+      <button class="btn btn-primary" onclick="openAddPlanModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        新增方案
+      </button>
+      <button class="btn btn-secondary" onclick="openParamSettingsModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737a1.125 1.125 0 01-1.449.12l-.738-.527a1.125 1.125 0 00-1.449.12l-.773.774a1.125 1.125 0 01-1.45.12l-.737-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.78.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.149-.894z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        参数设置
+      </button>
+    </div>
+  </div>
+
+  <!-- Category Overview Card -->
+  <div class="ac-overview-card" id="acOverviewCard">
+    <div class="ac-overview-header">
+      <div class="ac-overview-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/></svg>
+      </div>
+      <div class="ac-overview-info">
+        <h2 class="ac-overview-title">中央空调</h2>
+        <span class="ac-overview-badge">设备系统</span>
+      </div>
+      <div class="ac-overview-status" id="acOverviewStatus">
+        <span class="status-dot"></span>
+        <span id="acStatusText">暂无方案</span>
+      </div>
+    </div>
+    <div class="ac-overview-grid">
+      <div class="ac-overview-item">
+        <span class="ac-overview-label">展示方式</span>
+        <span class="ac-overview-value">表格模式</span>
+      </div>
+      <div class="ac-overview-item">
+        <span class="ac-overview-label">分类预算</span>
+        <span class="ac-overview-value budget">¥0</span>
+      </div>
+      <div class="ac-overview-item highlight">
+        <span class="ac-overview-label">当前已选方案</span>
+        <span class="ac-overview-value plan-name" id="acPlanName">未选择</span>
+      </div>
+      <div class="ac-overview-item">
+        <span class="ac-overview-label">预计花费</span>
+        <span class="ac-overview-value cost" id="acPlanCost">¥0</span>
+      </div>
+      <div class="ac-overview-item">
+        <span class="ac-overview-label">方案数量</span>
+        <span class="ac-overview-value" id="acPlanCountOverview">0</span>
+      </div>
+      <div class="ac-overview-item">
+        <span class="ac-overview-label">相关手册</span>
+        <span class="ac-overview-value" id="acManualCount">0 条</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="ac-action-bar">
+    <div class="ac-view-toggle">
+      <div class="view-tabs">
+        <button class="view-tab active" data-view="table" onclick="toggleAcView('table')">表格</button>
+        <button class="view-tab" data-view="card" onclick="toggleAcView('card')">卡片</button>
+      </div>
+    </div>
+    <div class="ac-action-btns">
+      <button class="btn btn-sm btn-secondary" onclick="openParamSettingsModal()">参数设置</button>
+      <button class="btn btn-sm btn-secondary" onclick="goToNotes()">查看相关手册</button>
+    </div>
+  </div>
+
+  <!-- Parameter Summary -->
+  <div class="ac-params-section">
+    <div class="ac-section-header">
+      <h3 class="ac-section-title">参数字段</h3>
+      <span class="ac-section-hint">共 13 个字段</span>
+    </div>
+    <div class="ac-params-grid">
+      <div class="ac-param-chip"><span class="param-type">文本</span>品牌</div>
+      <div class="ac-param-chip"><span class="param-type">文本</span>型号</div>
+      <div class="ac-param-chip"><span class="param-type">数字</span>匹数</div>
+      <div class="ac-param-chip"><span class="param-type">文本</span>一拖几</div>
+      <div class="ac-param-chip highlight"><span class="param-type">金额</span>总价</div>
+      <div class="ac-param-chip"><span class="param-type">数字</span>外机数量</div>
+      <div class="ac-param-chip"><span class="param-type">数字</span>内机数量</div>
+      <div class="ac-param-chip"><span class="param-type">下拉</span>能效等级</div>
+      <div class="ac-param-chip"><span class="param-type">文本</span>保修年限</div>
+      <div class="ac-param-chip"><span class="param-type">图片</span>产品图片</div>
+      <div class="ac-param-chip"><span class="param-type">图片</span>报价单图片</div>
+      <div class="ac-param-chip"><span class="param-type">长文本</span>备注</div>
+      <div class="ac-param-chip highlight"><span class="param-type">评分</span>推荐指数</div>
+    </div>
+  </div>
+
+  <!-- Table View -->
+  <div id="acTableView">
+    <div class="ac-table-toolbar">
+      <div class="ac-toolbar-left">
+        <h3 class="ac-section-title">方案对比表</h3>
+        <span class="ac-plan-count" id="acPlanCountToolbar">0 个方案</span>
+      </div>
+      <div class="ac-toolbar-right">
+        <div class="ac-search-wrapper">
+          <input type="text" class="ac-search-input" id="acSearchInput" placeholder="搜索品牌 / 型号 / 备注" oninput="searchAirconPlans(this.value)">
+        </div>
+        <div class="ac-filter-tabs">
+          <button class="ac-filter-tab active" data-filter="all" onclick="filterAirconPlans('all')">全部</button>
+          <button class="ac-filter-tab" data-filter="selected" onclick="filterAirconPlans('selected')">已选</button>
+        </div>
+        <button class="ac-sort-btn" onclick="sortAirconPlansByPrice()">价格</button>
+        <button class="btn btn-sm btn-primary" onclick="openAddPlanModal()">新增</button>
+      </div>
+    </div>
+    <div class="plan-table-wrapper" id="acTableWrapper">
+      <table class="plan-table" id="acPlanTable">
+        <thead>
+          <tr>
+            <th class="sticky-col col-select">选中</th>
+            <th class="sticky-col col-brand">品牌</th>
+            <th>型号</th>
+            <th>配置</th>
+            <th class="col-price">总价</th>
+            <th class="col-units">外机/内机</th>
+            <th>能效</th>
+            <th>保修</th>
+            <th class="col-rating">推荐</th>
+            <th>产品图</th>
+            <th>报价单</th>
+            <th class="col-note">备注</th>
+            <th class="col-action">操作</th>
+          </tr>
+        </thead>
+        <tbody id="acPlanTableBody"></tbody>
+      </table>
+      <div class="empty-state" id="acTableEmpty" style="padding:32px;text-align:center;">
+        <p>暂无中央空调方案<br>点击"新增方案"添加第一个品牌方案。</p>
+        <button class="btn btn-primary" onclick="openAddPlanModal()" style="margin-top:16px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          新增第一个方案
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card View -->
+  <div id="acCardView" style="display:none;">
+    <div class="ac-table-header">
+      <h3 class="ac-section-title">方案卡片</h3>
+      <button class="btn btn-sm btn-primary" onclick="openAddPlanModal()">新增方案</button>
+    </div>
+    <div class="ac-plan-cards" id="acPlanCards"></div>
+    <div class="empty-state" id="acCardEmpty" style="padding:32px;text-align:center;">
+      <p>暂无中央空调方案<br>点击"新增方案"添加第一个品牌方案。</p>
+    </div>
+  </div>
+
+  <!-- Related Manuals Section -->
+  <div class="ac-manuals-section" id="acManualsSection">
+    <div class="ac-section-header">
+      <h3 class="ac-section-title">相关装修手册</h3>
+      <span class="ac-section-count" id="acManualCountBadge">0 条记录</span>
+    </div>
+    <div class="ac-manuals-list" id="acManualsList">
+      <div class="empty-state"><p>暂无相关装修手册记录</p></div>
+    </div>
+    <button class="btn btn-secondary ac-manuals-more" onclick="goToNotes()">查看全部手册</button>
+  </div>
+
+  <!-- Decision Suggestion -->
+  <div class="ac-decision-card" id="acDecisionCard">
+    <div class="ac-decision-header">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></svg>
+      <h3>当前决策建议</h3>
+    </div>
+    <ul class="ac-decision-list" id="acDecisionList">
+      <li id="acDecisionEmpty">添加多个方案后，系统可以帮助你对比价格、配置和风险点。</li>
+    </ul>
+  </div>
+
+  <!-- 新增方案弹窗 -->
+  <div class="modal-overlay" id="addPlanModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3>新增中央空调方案</h3>
+          <p>添加新的方案进行对比</p>
+        </div>
+        <button class="modal-close" onclick="closeModal('addPlanModal')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">品牌</label>
+            <input class="form-input" id="planBrand" placeholder="例如：大金">
+          </div>
+          <div class="form-group">
+            <label class="form-label">型号</label>
+            <input class="form-input" id="planModel" placeholder="例如：VRV-P">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">匹数</label>
+            <input class="form-input" id="planPower" placeholder="例如：6匹">
+          </div>
+          <div class="form-group">
+            <label class="form-label">一拖几</label>
+            <input class="form-input" id="planUnits" placeholder="例如：一拖五">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">总价</label>
+            <input class="form-input" type="number" id="planPrice" placeholder="例如：28000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">外机数量</label>
+            <input class="form-input" type="number" id="planOutdoor" placeholder="例如：1">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">内机数量</label>
+            <input class="form-input" type="number" id="planIndoor" placeholder="例如：5">
+          </div>
+          <div class="form-group">
+            <label class="form-label">能效等级</label>
+            <select class="form-select" id="planEfficiency">
+              <option value="">请选择</option>
+              <option value="一级">一级</option>
+              <option value="二级">二级</option>
+              <option value="三级">三级</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">保修年限</label>
+            <input class="form-input" id="planWarranty" placeholder="例如：3年">
+          </div>
+          <div class="form-group">
+            <label class="form-label">推荐指数</label>
+            <input class="form-input" type="number" step="0.1" min="0" max="5" id="planRating" placeholder="例如：4.5">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">备注</label>
+          <textarea class="form-textarea" id="planNote" rows="3" placeholder="方案优缺点、注意事项等"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('addPlanModal')">取消</button>
+        <button class="btn btn-primary" onclick="saveNewPlan()">保存方案</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 参数设置弹窗 -->
+  <div class="modal-overlay" id="paramSettingsModal">
+    <div class="modal modal-xl">
+      <div class="modal-header">
+        <div>
+          <h3>参数设置</h3>
+          <p>配置方案对比需要展示的字段，支持多种产品类型</p>
+        </div>
+        <button class="modal-close" onclick="closeModal('paramSettingsModal')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body param-settings-body">
+        <div class="param-settings-info">
+          <p class="param-settings-hint">
+            <span class="hint-icon">💡</span>
+            选择字段控制表格中显示的内容，<strong>★</strong> 标记高亮重点关注的字段
+          </p>
+        </div>
+        <div class="param-fields-list" id="paramFieldsList">
+          <!-- Fields will be rendered by JS -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="resetParamSettings()">重置默认</button>
+        <button class="btn btn-primary" onclick="saveParamSettings()">应用配置</button>
+      </div>
+    </div>
+  </div>
+
+{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('acPlanTableBody')) {
+    initAcDetailPage();
+  }
+});
+</script>
+{% endblock %}

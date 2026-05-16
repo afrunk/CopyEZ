@@ -1,0 +1,390 @@
+{% extends "decoration/base.html" %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">装修手册</h1>
+    <p class="page-subtitle">按施工阶段整理，记录每个阶段的决策、灵感和注意事项</p>
+  </div>
+
+  <div class="manual-layout">
+    <!-- 左侧目录 -->
+    <div class="manual-toc">
+      <div class="manual-toc-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+        <span class="manual-toc-title">目录</span>
+      </div>
+
+      <div class="manual-toc-section open">
+        <button class="manual-toc-btn active" onclick="selectTocStage('design')">
+          <div class="manual-toc-icon" style="background:rgba(234,88,12,.12);color:var(--accent-orange);">📋</div>
+          <span class="manual-toc-text">设计阶段</span>
+          <span class="manual-toc-count" id="toc-count-design">0</span>
+        </button>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="selectTocStage('demolition')">
+          <div class="manual-toc-icon" style="background:rgba(168,85,247,.12);color:#A855F7;">🔨</div>
+          <span class="manual-toc-text">拆改阶段</span>
+          <span class="manual-toc-count" id="toc-count-demolition">0</span>
+        </button>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="selectTocStage('water')">
+          <div class="manual-toc-icon" style="background:rgba(37,99,235,.12);color:var(--accent-blue);">⚡</div>
+          <span class="manual-toc-text">水电阶段</span>
+          <span class="manual-toc-count" id="toc-count-water">0</span>
+        </button>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="selectTocStage('mud')">
+          <div class="manual-toc-icon" style="background:rgba(202,138,4,.12);color:var(--accent-yellow);">🧱</div>
+          <span class="manual-toc-text">泥工阶段</span>
+          <span class="manual-toc-count" id="toc-count-mud">0</span>
+        </button>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="selectTocStage('wood')">
+          <div class="manual-toc-icon" style="background:rgba(124,58,237,.12);color:var(--accent-purple);">🪚</div>
+          <span class="manual-toc-text">木工阶段</span>
+          <span class="manual-toc-count" id="toc-count-wood">0</span>
+        </button>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="selectTocStage('paint')">
+          <div class="manual-toc-icon" style="background:rgba(22,163,74,.12);color:var(--accent-green);">🎨</div>
+          <span class="manual-toc-text">油漆阶段</span>
+          <span class="manual-toc-count" id="toc-count-paint">0</span>
+        </button>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="selectTocStage('install')">
+          <div class="manual-toc-icon" style="background:rgba(220,38,38,.12);color:var(--accent-red);">🔧</div>
+          <span class="manual-toc-text">安装阶段</span>
+          <span class="manual-toc-count" id="toc-count-install">0</span>
+        </button>
+      </div>
+
+      <div class="manual-toc-section">
+        <button class="manual-toc-btn" onclick="selectTocStage('soft')">
+          <div class="manual-toc-icon" style="background:rgba(168,162,158,.12);color:var(--text-muted);">🛋️</div>
+          <span class="manual-toc-text">软装阶段</span>
+          <span class="manual-toc-count" id="toc-count-soft">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 右侧内容 -->
+    <div class="manual-content">
+
+      <div class="manual-chapter open" id="chapter-design">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(234,88,12,.12);">🏠</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">设计阶段</div>
+            <div class="manual-chapter-meta"><span>0 条记录</span></div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="empty-state"><p>暂无装修手册记录<br>点击"添加内容"开始记录装修过程中的决策、灵感、图片和注意事项。</p></div>
+          <button class="btn btn-secondary manual-add-btn" onclick="openNoteModalForStage('design')">添加内容</button>
+        </div>
+      </div>
+
+      <div class="manual-chapter" id="chapter-demolition">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(168,85,247,.12);">🔨</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">拆改阶段</div>
+            <div class="manual-chapter-meta"><span>0 条记录</span></div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="empty-state"><p>暂无装修手册记录，请点击"添加内容"开始记录</p></div>
+          <button class="btn btn-secondary manual-add-btn" onclick="openNoteModalForStage('demolition')">添加内容</button>
+        </div>
+      </div>
+
+      <div class="manual-chapter" id="chapter-water">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(37,99,235,.12);">⚡</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">水电阶段</div>
+            <div class="manual-chapter-meta"><span>0 条记录</span></div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="empty-state"><p>暂无装修手册记录，请点击"添加内容"开始记录</p></div>
+          <button class="btn btn-secondary manual-add-btn" onclick="openNoteModalForStage('water')">添加内容</button>
+        </div>
+      </div>
+
+      <div class="manual-chapter" id="chapter-mud">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(202,138,4,.12);">🧱</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">泥工阶段</div>
+            <div class="manual-chapter-meta"><span>0 条记录</span></div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="empty-state"><p>暂无装修手册记录，请点击"添加内容"开始记录</p></div>
+          <button class="btn btn-secondary manual-add-btn" onclick="openNoteModalForStage('mud')">添加内容</button>
+        </div>
+      </div>
+
+      <div class="manual-chapter" id="chapter-wood">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(124,58,237,.12);">🪚</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">木工阶段</div>
+            <div class="manual-chapter-meta"><span>0 条记录</span></div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="empty-state"><p>暂无装修手册记录，请点击"添加内容"开始记录</p></div>
+          <button class="btn btn-secondary manual-add-btn" onclick="openNoteModalForStage('wood')">添加内容</button>
+        </div>
+      </div>
+
+      <div class="manual-chapter" id="chapter-paint">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(22,163,74,.12);">🎨</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">油漆阶段</div>
+            <div class="manual-chapter-meta"><span>0 条记录</span></div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="empty-state"><p>暂无装修手册记录，请点击"添加内容"开始记录</p></div>
+          <button class="btn btn-secondary manual-add-btn" onclick="openNoteModalForStage('paint')">添加内容</button>
+        </div>
+      </div>
+
+      <div class="manual-chapter" id="chapter-install">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(220,38,38,.12);">🔧</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">安装阶段</div>
+            <div class="manual-chapter-meta"><span>0 条记录</span></div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="empty-state"><p>暂无装修手册记录，请点击"添加内容"开始记录</p></div>
+          <button class="btn btn-secondary manual-add-btn" onclick="openNoteModalForStage('install')">添加内容</button>
+        </div>
+      </div>
+
+      <div class="manual-chapter" id="chapter-soft">
+        <div class="manual-chapter-header" onclick="toggleChapter(this)">
+          <div class="manual-chapter-icon" style="background:rgba(168,162,158,.12);">🛋️</div>
+          <div class="manual-chapter-info">
+            <div class="manual-chapter-title">软装阶段</div>
+            <div class="manual-chapter-meta"><span>0 条记录</span></div>
+          </div>
+          <div class="manual-chapter-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+          </div>
+        </div>
+        <div class="manual-chapter-body">
+          <div class="empty-state"><p>暂无装修手册记录，请点击"添加内容"开始记录</p></div>
+          <button class="btn btn-secondary manual-add-btn" onclick="openNoteModalForStage('soft')">添加内容</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 新增记录弹窗 -->
+<div class="modal-overlay" id="noteEntryModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <h3>添加内容</h3>
+        <p>记录装修过程中的决策、灵感和注意事项</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('noteEntryModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">装修阶段</label>
+          <select class="form-select" id="noteStage">
+            <option value="design">设计阶段</option>
+            <option value="demolition">拆改阶段</option>
+            <option value="water">水电阶段</option>
+            <option value="mud">泥工阶段</option>
+            <option value="wood">木工阶段</option>
+            <option value="paint">油漆阶段</option>
+            <option value="install">安装阶段</option>
+            <option value="soft">软装阶段</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">来源链接</label>
+          <input class="form-input" id="noteSource" placeholder="小红书 / 淘宝 / 网页链接">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">记录标题</label>
+        <input class="form-input" id="noteTitle" placeholder="例如：客厅中央空调隐藏风口参考">
+      </div>
+      <div class="form-group">
+        <label class="form-label">记录内容</label>
+        <textarea class="form-textarea" id="noteContent" rows="4" placeholder="写下这个方案的优点、缺点，需要确认的问题"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">关联任务</label>
+          <select class="form-select" id="noteRelatedTask" data-fill-task>
+            <option value="">不关联</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">关联分类</label>
+          <select class="form-select" id="noteRelatedCategory" data-fill-category>
+            <option value="">不关联</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">关联方案</label>
+        <select class="form-select" id="noteRelatedCompareItem" data-fill-compare-item>
+          <option value="">不关联</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">图片</label>
+        <div class="img-upload-flex" id="noteImageContainer">
+          <div class="img-upload-add-btn" onclick="document.getElementById('noteImageNew').click()">
+            <input type="file" class="img-upload-input" id="noteImageNew" accept="image/*" onchange="handleNewImageUpload(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            <span>添加图片</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('noteEntryModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveNoteEntry()">保存记录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑记录弹窗 -->
+<div class="modal-overlay" id="editNoteModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <h3>编辑记录</h3>
+        <p>修改装修手册记录内容</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('editNoteModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editNoteId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">装修阶段</label>
+          <select class="form-select" id="editNoteStage">
+            <option value="design">设计阶段</option>
+            <option value="demolition">拆改阶段</option>
+            <option value="water">水电阶段</option>
+            <option value="mud">泥工阶段</option>
+            <option value="wood">木工阶段</option>
+            <option value="paint">油漆阶段</option>
+            <option value="install">安装阶段</option>
+            <option value="soft">软装阶段</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">来源链接</label>
+          <input class="form-input" id="editNoteSource" placeholder="小红书 / 淘宝 / 网页链接">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">记录标题</label>
+        <input class="form-input" id="editNoteTitle" placeholder="例如：客厅中央空调隐藏风口参考">
+      </div>
+      <div class="form-group">
+        <label class="form-label">记录内容</label>
+        <textarea class="form-textarea" id="editNoteContent" rows="4" placeholder="写下这个方案的优点、缺点，需要确认的问题"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">标签</label>
+        <input class="form-input" id="editNoteTags" placeholder="例如：中央空调、吊顶、极简、避坑">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">关联任务</label>
+          <select class="form-select" id="editNoteRelatedTask" data-fill-task>
+            <option value="">不关联</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">关联分类</label>
+          <select class="form-select" id="editNoteRelatedCategory" data-fill-category>
+            <option value="">不关联</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">关联方案</label>
+        <select class="form-select" id="editNoteRelatedCompareItem" data-fill-compare-item>
+          <option value="">不关联</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">图片</label>
+        <div class="img-upload-flex" id="editNoteImageContainer">
+          <div class="img-upload-add-btn" onclick="document.getElementById('editNoteImageNew').click()">
+            <input type="file" class="img-upload-input" id="editNoteImageNew" accept="image/*" onchange="handleNewImageUploadEdit(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            <span>添加图片</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('editNoteModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveEditedNote()">保存修改</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}

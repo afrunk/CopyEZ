@@ -104,6 +104,42 @@ app.add_url_rule("/api/format_markdown", endpoint="api_format_markdown", view_fu
 # Upload API
 app.add_url_rule("/api/upload_image", endpoint="upload_image", view_func=upload_image, methods=["POST"])
 
+# Decoration Image Upload API (装修手册专用)
+@app.route("/decoration/api/upload/image", methods=["POST"])
+def decoration_upload_image():
+    """
+    装修手册图片上传接口
+    """
+    from flask import current_app
+    from app.utils.presets import ALLOWED_IMAGE_EXTENSIONS
+    from uuid import uuid4
+
+    if "image" not in request.files:
+        return jsonify({"success": False, "message": "未收到图片文件"}), 400
+
+    file = request.files["image"]
+
+    if not file or file.filename == "":
+        return jsonify({"success": False, "message": "文件名为空"}), 400
+
+    # 从原始文件名提取扩展名（避免 secure_filename 在 Windows 下丢失扩展名）
+    original_filename = file.filename
+    ext = ""
+    if "." in original_filename:
+        ext = original_filename.rsplit(".", 1)[1].lower()
+    
+    if not ext or ext not in ALLOWED_IMAGE_EXTENSIONS:
+        return jsonify({"success": False, "message": f"不支持的图片格式，支持: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}"}), 400
+
+    random_name = f"{uuid4().hex}.{ext}"
+    upload_dir = os.path.join(current_app.root_path, "static", "uploads", "decoration")
+    os.makedirs(upload_dir, exist_ok=True)
+    save_path = os.path.join(upload_dir, random_name)
+    file.save(save_path)
+
+    file_url = url_for("static", filename=f"uploads/decoration/{random_name}")
+    return jsonify({"success": True, "url": file_url, "filename": random_name})
+
 # LedgerEZ Blueprint
 from app.modules.ledger.auth import auth_bp
 app.register_blueprint(ledger_bp)
@@ -239,6 +275,50 @@ def ensure_schema():
     if "custom_categories" not in insp.get_table_names():
         db.create_all()
         # Categories initialized via API on first use
+
+    # 创建 decoration_projects 表（如果不存在）
+    if "decoration_projects" not in insp.get_table_names():
+        # 导入模型，使 SQLAlchemy 知道要创建哪些表
+        from app.models.renovamate import DecorationProject  # noqa: F401
+        db.create_all()
+
+    # 创建 decoration_category_groups 表（如果不存在）
+    if "decoration_category_groups" not in insp.get_table_names():
+        # 导入模型，使 SQLAlchemy 知道要创建哪些表
+        from app.models.renovamate import DecorationCategoryGroup  # noqa: F401
+        db.create_all()
+
+    # 创建 decoration_categories 表（如果不存在）
+    if "decoration_categories" not in insp.get_table_names():
+        # 导入模型，使 SQLAlchemy 知道要创建哪些表
+        from app.models.renovamate import DecorationCategory  # noqa: F401
+        db.create_all()
+    else:
+        # 迁移：添加 selected_plan_id 字段（CompareItem 方案引用）
+        cat_cols = [c["name"] for c in insp.get_columns("decoration_categories")]
+        if "selected_plan_id" not in cat_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE decoration_categories ADD COLUMN selected_plan_id INTEGER"))
+
+    # 创建 renovamate_compare_items 表（如果不存在）
+    if "renovamate_compare_items" not in insp.get_table_names():
+        from app.models.renovamate import CompareItem  # noqa: F401
+        db.create_all()
+
+    # 创建 renovamate_expenses 表（如果不存在）
+    if "renovamate_expenses" not in insp.get_table_names():
+        from app.models.renovamate import Expense  # noqa: F401
+        db.create_all()
+
+    # 创建 renovamate_progress_tasks 表（如果不存在）
+    if "renovamate_progress_tasks" not in insp.get_table_names():
+        from app.models.renovamate import ProgressTask  # noqa: F401
+        db.create_all()
+
+    # 创建 renovamate_notes 表（如果不存在）
+    if "renovamate_notes" not in insp.get_table_names():
+        from app.models.renovamate import DecorationNote  # noqa: F401
+        db.create_all()
 
     # === Memo 表的自修复迁移（置顶/星标） ===
     # 兼容老库：为 memos 表补充 is_pinned / is_starred / pinned_at / starred_at 字段
