@@ -1151,7 +1151,9 @@ def api_create_note():
     import json as _json
     tags = data.get('tags', [])
     if isinstance(tags, list):
-        tags = _json.dumps(tags, ensure_ascii=False)
+        # 过滤掉无效标签：空字符串、纯空白、"[]" 等
+        valid_tags = [t for t in tags if t and str(t).strip() and str(t).strip() != '[]']
+        tags = _json.dumps(valid_tags, ensure_ascii=False)
     elif not isinstance(tags, str):
         tags = '[]'
 
@@ -1205,7 +1207,9 @@ def api_update_note(note_id):
         import json as _json
         tags = data['tags']
         if isinstance(tags, list):
-            item.tags = _json.dumps(tags, ensure_ascii=False)
+            # 过滤掉无效标签：空字符串、纯空白、"[]" 等
+            valid_tags = [t for t in tags if t and str(t).strip() and str(t).strip() != '[]']
+            item.tags = _json.dumps(valid_tags, ensure_ascii=False)
         else:
             item.tags = tags or '[]'
     if 'image_urls' in data:

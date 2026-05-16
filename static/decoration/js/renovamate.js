@@ -71,6 +71,17 @@ function getPlatformInfo(url) {
   return null; // 不支持的平台
 }
 
+// 修复 URL，添加协议前缀
+function fixUrl(url) {
+  if (!url) return '';
+  url = url.trim();
+  // 如果 URL 不以 http:// 或 https:// 开头，则添加 https://
+  if (!/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
+  }
+  return url;
+}
+
 // Toast notification
 function showToast(message) {
   let toast = document.querySelector('.toast-message');
@@ -354,24 +365,99 @@ function closeModal(modalId) {
 }
 
 // Image Lightbox functions
-function openImageLightbox(imageUrl) {
+var lightboxImages = [];
+var lightboxCurrentIndex = 0;
+
+function openImageLightbox(imageUrl, images) {
+  // 解析 images（可能是 JSON 字符串或数组）
+  var parsedImages = images;
+  if (typeof images === 'string') {
+    try {
+      parsedImages = JSON.parse(images);
+    } catch(e) {
+      parsedImages = [imageUrl];
+    }
+  }
+  // Store all images for navigation
+  lightboxImages = Array.isArray(parsedImages) ? parsedImages : [imageUrl];
+  lightboxCurrentIndex = lightboxImages.indexOf(imageUrl);
+  if (lightboxCurrentIndex < 0) lightboxCurrentIndex = 0;
+
   // Create lightbox if not exists
   var lightbox = document.getElementById('imageLightbox');
   if (!lightbox) {
-    var lbHtml = '<div id="imageLightbox" class="image-lightbox" onclick="closeImageLightbox()">' +
+    var lbHtml = '<div id="imageLightbox" class="image-lightbox" onclick="handleLightboxClick(event)">' +
+      '<button class="lightbox-nav lightbox-prev" onclick="event.stopPropagation();lightboxPrev()">' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>' +
+      '</button>' +
       '<img id="lightboxImage" src="" alt="放大图片">' +
       '<button class="lightbox-close" onclick="event.stopPropagation();closeImageLightbox()">' +
       '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>' +
       '</button>' +
+      '<button class="lightbox-nav lightbox-next" onclick="event.stopPropagation();lightboxNext()">' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>' +
+      '</button>' +
+      '<div class="lightbox-counter" id="lightboxCounter"></div>' +
       '</div>';
     document.body.insertAdjacentHTML('beforeend', lbHtml);
     lightbox = document.getElementById('imageLightbox');
+
+    // Add keyboard listener
+    document.addEventListener('keydown', handleLightboxKeydown);
   }
-  
-  var img = document.getElementById('lightboxImage');
-  img.src = imageUrl;
+
+  updateLightboxImage();
   lightbox.classList.add('active');
   document.body.style.overflow = 'hidden';
+}
+
+function updateLightboxImage() {
+  var img = document.getElementById('lightboxImage');
+  var counter = document.getElementById('lightboxCounter');
+  if (img && lightboxImages.length > 0) {
+    img.src = lightboxImages[lightboxCurrentIndex];
+  }
+  if (counter) {
+    counter.textContent = (lightboxCurrentIndex + 1) + ' / ' + lightboxImages.length;
+  }
+
+  // Update nav button visibility
+  var prevBtn = document.querySelector('.lightbox-prev');
+  var nextBtn = document.querySelector('.lightbox-next');
+  if (prevBtn) prevBtn.style.opacity = lightboxImages.length <= 1 ? '0' : '1';
+  if (nextBtn) nextBtn.style.opacity = lightboxImages.length <= 1 ? '0' : '1';
+}
+
+function lightboxPrev() {
+  if (lightboxImages.length <= 1) return;
+  lightboxCurrentIndex = (lightboxCurrentIndex - 1 + lightboxImages.length) % lightboxImages.length;
+  updateLightboxImage();
+}
+
+function lightboxNext() {
+  if (lightboxImages.length <= 1) return;
+  lightboxCurrentIndex = (lightboxCurrentIndex + 1) % lightboxImages.length;
+  updateLightboxImage();
+}
+
+function handleLightboxClick(event) {
+  // Close when clicking outside the image
+  if (event.target.id === 'imageLightbox' || event.target.tagName === 'IMG') {
+    closeImageLightbox();
+  }
+}
+
+function handleLightboxKeydown(e) {
+  var lightbox = document.getElementById('imageLightbox');
+  if (!lightbox || !lightbox.classList.contains('active')) return;
+
+  if (e.key === 'ArrowLeft') {
+    lightboxPrev();
+  } else if (e.key === 'ArrowRight') {
+    lightboxNext();
+  } else if (e.key === 'Escape') {
+    closeImageLightbox();
+  }
 }
 
 function closeImageLightbox() {
@@ -865,14 +951,14 @@ function saveNoteEntry() {
     
     var sourceHtml = source ? '<div style="font-size:.75rem;color:var(--text-muted);margin-top:6px;">来源: ' + source + '</div>' : '';
     
-    entry.innerHTML = 
+    entry.innerHTML =
       '<div class="manual-entry-header">' +
         '<span class="manual-entry-date">' + today + '</span>' +
       '</div>' +
       '<div class="manual-entry-title">' + title + '</div>' +
       '<div class="manual-entry-content">' + (content || '暂无内容') + '</div>' +
       sourceHtml +
-      tagsHtml;
+      (tagsHtml ? tagsHtml : '');
     
     // Insert before the "添加内容" button if exists
     var addBtn = target.querySelector('.manual-add-btn, .manual-add-btn[style*="margin-top"]');
@@ -969,6 +1055,7 @@ function loadTasksFromAPI() {
       progressTasks = data.data || [];
       renderAllKanbanCards();
       updateProgressSummary();
+      renderHomeTodoList(); // update home page todo list
     })
     .catch(function(err) {
       console.error('Failed to load tasks:', err);
@@ -3482,6 +3569,137 @@ function renderExpenseRecords() {
   });
 }
 
+// Render recent expenses for home page (shows last 5)
+function renderHomeRecentExpenses() {
+  var container = document.getElementById('homeRecentExpenses');
+  if (!container) return;
+  
+  // Get recent 5 expenses (already sorted by date desc in groupExpensesByMonth)
+  var recent = expenseRecords.slice(0, 5);
+  
+  if (recent.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>暂无花费记录。</p></div>';
+    return;
+  }
+  
+  var html = '<div class="recent-expense-list">';
+  recent.forEach(function(exp) {
+    var day = exp.date ? exp.date.substring(8, 10) : '--';
+    var monthShort = exp.date ? exp.date.substring(5, 7) + '月' : '';
+    html +=
+      '<div class="recent-expense-item" onclick="openExpenseDetailModal(\'' + (exp.id || exp._id) + '\')">' +
+        '<div class="recent-expense-date">' +
+          '<div class="recent-expense-day">' + day + '</div>' +
+          '<div class="recent-expense-month">' + monthShort + '</div>' +
+        '</div>' +
+        '<div class="recent-expense-info">' +
+          '<div class="recent-expense-category">' + (exp.category || '未分类') + '</div>' +
+          '<div class="recent-expense-name">' + exp.name + '</div>' +
+        '</div>' +
+        '<div class="recent-expense-amount">¥' + formatBudgetNumber(exp.amount) + '</div>' +
+      '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Render home page category status (shows categories with plans selected)
+function renderHomeCategoryStatus() {
+  var container = document.getElementById('homeCategoryStatus');
+  if (!container) return;
+  
+  // Get categories from lookup data
+  var categories = window.renovaLookupData && window.renovaLookupData.categories ? window.renovaLookupData.categories : [];
+  
+  if (categories.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>暂无装修分类，请先添加分类。</p></div>';
+    return;
+  }
+  
+  // Count categories with selected plans
+  var selectedCount = categories.filter(function(c) { return c.selected_plan_id; }).length;
+  
+  // Update hero stat
+  var statValueEl = document.querySelector('.hero-project-card .stat-value.blue');
+  if (statValueEl) {
+    statValueEl.textContent = selectedCount;
+  }
+  var statMetaEl = document.querySelector('.hero-project-card .stat-meta');
+  if (statMetaEl) {
+    statMetaEl.textContent = '个分类已确定';
+  }
+  
+  // Show categories with status
+  var html = '<div class="home-category-list">';
+  categories.forEach(function(cat) {
+    var statusMap = { 'comparing': '对比中', 'selected': '已选定', 'pending': '待处理', 'done': '已完成' };
+    var status = statusMap[cat.status] || cat.status || '';
+    var statusClass = cat.status === 'selected' ? 'selected' : cat.status === 'comparing' ? 'comparing' : 'pending';
+    html +=
+      '<div class="home-category-item" onclick="location.href=\'/decoration/compare?cat=' + cat.id + '\'">' +
+        '<span class="home-category-icon">' + (cat.icon || '📦') + '</span>' +
+        '<div class="home-category-info">' +
+          '<div class="home-category-name">' + (cat.name || '未命名') + '</div>' +
+          '<div class="home-category-meta">' + (cat.group_name || '') + '</div>' +
+        '</div>' +
+        '<span class="home-category-status ' + statusClass + '">' + status + '</span>' +
+      '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Render home page todo list (shows ongoing tasks)
+function renderHomeTodoList() {
+  var container = document.getElementById('homeTodoList');
+  var badge = document.getElementById('homeTodoBadge');
+  if (!container) return;
+
+  // Filter ongoing tasks
+  var ongoingTasks = progressTasks.filter(function(t) {
+    return t.status === 'ongoing' || t.status === 'pending' || t.status === 'review';
+  });
+
+  // Update badge
+  if (badge) {
+    badge.textContent = ongoingTasks.length + ' 项待处理';
+  }
+
+  if (ongoingTasks.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>暂无待办事项。</p></div>';
+    return;
+  }
+
+  // Show max 5 tasks
+  var showTasks = ongoingTasks.slice(0, 5);
+  var html = '<div class="home-todo-list">';
+  showTasks.forEach(function(task) {
+    var stageLabels = { 'design': '设计', 'demolition': '拆改', 'water': '水电', 'mud': '泥工', 'wood': '木工', 'paint': '油漆', 'install': '安装', 'soft': '软装' };
+    var statusLabels = { 'pending': '待开始', 'ongoing': '进行中', 'review': '待验收', 'done': '已完成' };
+    var stageLabel = stageLabels[task.stage] || task.stage || '';
+    var statusLabel = statusLabels[task.status] || task.status || '';
+    var catName = '';
+    if (task.category_id && window.renovaLookupData && window.renovaLookupData.categories) {
+      var cat = window.renovaLookupData.categories.find(function(c) { return c.id === task.category_id; });
+      if (cat) catName = cat.name;
+    }
+    html +=
+      '<div class="home-todo-item" onclick="location.href=\'/decoration/progress\'">' +
+        '<div class="home-todo-status ' + task.status + '"></div>' +
+        '<div class="home-todo-content">' +
+          '<div class="home-todo-title">' + (task.title || '未命名任务') + '</div>' +
+          '<div class="home-todo-meta">' +
+            (catName ? '<span class="home-todo-tag">' + catName + '</span>' : '') +
+            (stageLabel ? '<span class="home-todo-tag stage">' + stageLabel + '</span>' : '') +
+            '<span class="home-todo-status-label">' + statusLabel + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
 // Render category analysis bars
 function renderCategoryBars() {
   var container = document.getElementById('categoryBars');
@@ -3609,8 +3827,11 @@ function saveExpense() {
     }
     closeModal('expenseModal');
     showToast('已新增花费记录');
-    loadBudgetSummaryFromAPI();  // reload budget summary (includes updated spent per category)
-    loadExpensesFromAPI();       // reload expense records
+    // 先加载预算摘要，再加载花费记录（确保依赖关系正确）
+    loadBudgetSummaryFromAPI(function() {
+      loadExpensesFromAPI();
+      updateBudgetDisplay();
+    });
   })
   .catch(function(err) {
     console.error('Failed to save expense:', err);
@@ -3847,6 +4068,19 @@ function saveExpenseEdit() {
   });
 }
 
+// Initialize home page: load recent expenses and tasks
+function initHomePage() {
+  if (document.getElementById('homeRecentExpenses') || document.getElementById('homeTodoList') || document.getElementById('homeCategoryStatus')) {
+    loadLookupData(function() {
+      // Update home category status after lookup data loaded
+      renderHomeCategoryStatus();
+      // Load tasks and expenses
+      loadTasksFromAPI();
+      loadExpensesFromAPI();
+    });
+  }
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   var parts = dateStr.split('-');
@@ -3860,14 +4094,17 @@ function formatDate(dateStr) {
 function initBudgetPage() {
   if (document.getElementById('budgetTable') || document.getElementById('expenseMonthGroups')) {
     loadLookupData(function() {
-      loadBudgetSummaryFromAPI();
-      loadExpensesFromAPI();
+      // 先加载预算摘要（包含分类数据）
+      loadBudgetSummaryFromAPI(function() {
+        // 预算摘要加载完成后再加载花费记录
+        loadExpensesFromAPI();
+      });
     });
   }
 }
 
 // Load budget summary from API
-function loadBudgetSummaryFromAPI() {
+function loadBudgetSummaryFromAPI(callback) {
   fetch(apiBase + '/api/budget/summary')
     .then(function(res) { return res.json(); })
     .then(function(resp) {
@@ -3879,9 +4116,12 @@ function loadBudgetSummaryFromAPI() {
       updateCockpit();
       renderBudgetTable();
       renderCategoryBars();
+      updateBudgetDisplay(); // update topbar budget chips
+      if (callback) callback();
     })
     .catch(function(err) {
       console.error('Failed to load budget summary:', err);
+      if (callback) callback();
     });
 }
 
@@ -3950,6 +4190,7 @@ function loadExpensesFromAPI() {
       renderExpenseRecords();
       renderBudgetTable();
       renderCategoryBars();
+      renderHomeRecentExpenses(); // update home page recent expenses
     })
     .catch(function(err) {
       console.error('Failed to load expenses:', err);
@@ -4039,11 +4280,12 @@ function renderNoteEntry(note) {
     }).join('') + '</div>';
   }
 
+  var fixedSourceUrl = fixUrl(note.source_url);
   var platformInfo = getPlatformInfo(note.source_url);
   var sourceHtml = '';
   if (platformInfo) {
     sourceHtml = '<div class="manual-entry-source">' +
-      '<a href="' + note.source_url.replace(/"/g, '&quot;') + '" target="_blank" class="source-link-badge" ' +
+      '<a href="' + fixedSourceUrl.replace(/"/g, '&quot;') + '" target="_blank" class="source-link-badge" ' +
          'style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:16px;' +
          'background:' + platformInfo.bg + ';color:' + platformInfo.color + ';' +
          'font-size:12px;font-weight:500;text-decoration:none;transition:all 0.2s;" ' +
@@ -4057,7 +4299,7 @@ function renderNoteEntry(note) {
   } else if (note.source_url) {
     // 不支持的平台，只显示链接按钮
     sourceHtml = '<div class="manual-entry-source">' +
-      '<a href="' + note.source_url.replace(/"/g, '&quot;') + '" target="_blank" class="source-link-badge" ' +
+      '<a href="' + fixedSourceUrl.replace(/"/g, '&quot;') + '" target="_blank" class="source-link-badge" ' +
          'style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:16px;' +
          'background:#F3F4F6;color:#6B7280;font-size:12px;font-weight:500;text-decoration:none;" ' +
          'title="打开链接">' +
@@ -4073,11 +4315,11 @@ function renderNoteEntry(note) {
   try { imageUrls = JSON.parse(note.image_urls || '[]'); } catch(e) {}
   var imagesHtml = '';
   if (imageUrls.length > 0) {
-    imagesHtml = '<div class="manual-entry-images">';
+    imagesHtml = '<div class="manual-entry-images" data-images=\'' + JSON.stringify(imageUrls).replace(/'/g, "&#39;") + '\'>';
     imageUrls.forEach(function(url) {
       if (url) {
-        var escapedUrl = url.replace(/"/g, '&quot;');
-        imagesHtml += '<img src="' + escapedUrl + '" alt="附件图片" style="max-width:200px;max-height:150px;border-radius:4px;margin:4px;cursor:pointer;" onclick="openImageLightbox(\'' + escapedUrl + '\')" onerror="this.style.display=\'none\';this.nextSibling.textContent=\'图片无法加载\';">';
+        var escapedUrl = url.replace(/'/g, "&#39;");
+        imagesHtml += '<img src="' + escapedUrl + '" alt="附件图片" style="max-width:200px;max-height:150px;border-radius:4px;margin:4px;cursor:pointer;" data-src="' + escapedUrl + '" onerror="this.style.display=&apos;none&apos;;this.nextSibling.textContent=&apos;图片无法加载&apos;;">';
       }
     });
     imagesHtml += '</div>';
@@ -4117,7 +4359,34 @@ function renderNoteEntry(note) {
   if (body) {
     var tempDiv = document.createElement('div');
     tempDiv.innerHTML = entryHtml;
-    body.insertBefore(tempDiv.firstElementChild, addBtn);
+    var newEntry = tempDiv.firstElementChild;
+    body.insertBefore(newEntry, addBtn);
+    // 绑定图片点击事件（避免 HTML 属性中的引号转义问题）
+    bindImageClickEvents(newEntry);
+  }
+}
+
+// 绑定图片点击事件（从 data-images 属性读取图片列表）
+function bindImageClickEvents(entry) {
+  var imagesContainer = entry.querySelector('.manual-entry-images');
+  if (!imagesContainer) return;
+  
+  var imagesData = imagesContainer.getAttribute('data-images');
+  if (!imagesData) return;
+  
+  try {
+    var images = JSON.parse(imagesData);
+    var imagesJson = JSON.stringify(images);
+    var imgs = imagesContainer.querySelectorAll('img');
+    
+    imgs.forEach(function(img) {
+      img.style.cursor = 'pointer';
+      img.addEventListener('click', function() {
+        openImageLightbox(img.getAttribute('src'), imagesJson);
+      });
+    });
+  } catch(e) {
+    console.error('Error binding image click events:', e);
   }
 }
 
@@ -4171,7 +4440,7 @@ function openNoteModalForStage(stage) {
 function saveNoteEntry() {
   var title = document.getElementById('noteTitle').value.trim();
   var stage = document.getElementById('noteStage').value;
-  var source = document.getElementById('noteSource').value.trim();
+  var source = fixUrl(document.getElementById('noteSource').value.trim());
   var tagsStr = document.getElementById('noteTags') ? document.getElementById('noteTags').value.trim() : '';
   var content = document.getElementById('noteContent').value.trim();
   var relatedTask = document.getElementById('noteRelatedTask');
@@ -4249,7 +4518,24 @@ function openEditNoteModal(noteId) {
   var sourceEl = document.getElementById('editNoteSource');
   if (sourceEl) sourceEl.value = entry.dataset.source || '';
   var tagsEl = document.getElementById('editNoteTags');
-  if (tagsEl) tagsEl.value = entry.dataset.tags || '';
+  if (tagsEl) {
+    // 正确解析 tags：可能是 JSON 数组字符串 ['tag1','tag2'] 或空数组 '[]'
+    var rawTags = entry.dataset.tags || '';
+    var tagsValue = '';
+    try {
+      if (rawTags) {
+        var parsed = JSON.parse(rawTags);
+        if (Array.isArray(parsed)) {
+          tagsValue = parsed.filter(function(t) { return t && t.trim(); }).join('、');
+        } else {
+          tagsValue = rawTags;
+        }
+      }
+    } catch(e) {
+      tagsValue = rawTags;
+    }
+    tagsEl.value = tagsValue;
+  }
   var contentEl = document.getElementById('editNoteContent');
   if (contentEl) contentEl.value = entry.dataset.content || '';
 
@@ -4316,7 +4602,7 @@ function saveEditedNote() {
 
   var title = document.getElementById('editNoteTitle').value.trim();
   var stage = document.getElementById('editNoteStage').value;
-  var source = document.getElementById('editNoteSource').value.trim();
+  var source = fixUrl(document.getElementById('editNoteSource').value.trim());
   var tagsStr = document.getElementById('editNoteTags') ? document.getElementById('editNoteTags').value.trim() : '';
   var content = document.getElementById('editNoteContent').value.trim();
 
@@ -4749,6 +5035,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Initialize AC detail page if present
   initAcDetailPage();
+
+  // Initialize home page if present
+  initHomePage();
 
   // Initialize budget page if present
   initBudgetPage();

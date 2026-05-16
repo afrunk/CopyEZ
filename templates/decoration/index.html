@@ -110,8 +110,10 @@
           <h3 class="page-section-title">分类状态</h3>
           <a href="{{ url_for('decoration.compare') }}" class="btn btn-ghost btn-sm">查看全部 →</a>
         </div>
-        <div class="empty-state">
-          <p>暂无装修分类，请先添加分类。</p>
+        <div id="homeCategoryStatus">
+          <div class="empty-state">
+            <p>暂无装修分类，请先添加分类。</p>
+          </div>
         </div>
       </div>
     </div>
@@ -121,21 +123,25 @@
         <div class="page-section-header">
           <h3 class="page-section-title">待办提醒</h3>
           <div style="display:flex;gap:8px;align-items:center;">
-            <span class="todo-section-badge status-tag status-ongoing">0 项待处理</span>
+            <span class="todo-section-badge status-tag status-ongoing" id="homeTodoBadge">0 项待处理</span>
             <a href="{{ url_for('decoration.progress') }}" class="btn btn-ghost btn-sm">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
               添加
             </a>
           </div>
         </div>
-        <div class="empty-state"><p>暂无待办事项。</p></div>
+        <div id="homeTodoList">
+          <div class="empty-state"><p>暂无待办事项。</p></div>
+        </div>
       </div>
       <div class="page-section">
         <div class="page-section-header">
           <h3 class="page-section-title">最近花费</h3>
           <a href="{{ url_for('decoration.budget') }}" class="btn btn-ghost btn-sm">全部</a>
         </div>
-        <div class="empty-state"><p>暂无花费记录。</p></div>
+        <div id="homeRecentExpenses">
+          <div class="empty-state"><p>加载中...</p></div>
+        </div>
       </div>
     </div>
   </div>
