@@ -34,6 +34,101 @@ function parseFormattedNumber(str) {
   return parseInt(str.replace(/,/g, '')) || 0;
 }
 
+// Escape HTML for safe display (preserves whitespace/newlines)
+function escapeHtmlForDisplay(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Check if form has unsaved changes for protected modals
+function formHasChanges(modalId) {
+  if (modalId === 'noteEntryModal') {
+    var title = document.getElementById('noteTitle');
+    var content = document.getElementById('noteContent');
+    return (title && title.value.trim()) || (content && content.value.trim());
+  }
+  if (modalId === 'editNoteModal') {
+    var title = document.getElementById('editNoteTitle');
+    var content = document.getElementById('editNoteContent');
+    return (title && title.value.trim()) || (content && content.value.trim());
+  }
+  return false;
+}
+
+// Safe close for note modals - asks for confirmation if there are unsaved changes
+function closeNoteModal(modalId) {
+  var modal = document.getElementById(modalId);
+  if (!modal) return;
+
+  var shouldProtect = modal.getAttribute('data-protect-close') === 'true';
+
+  if (shouldProtect && formHasChanges(modalId)) {
+    var confirmed = confirm('当前内容尚未保存，确定关闭吗？');
+    if (!confirmed) {
+      return;
+    }
+  }
+
+  modal.classList.remove('active');
+  document.body.style.overflow = '';
+
+  if (modalId === 'noteEntryModal') {
+    resetNoteEntryForm();
+  }
+}
+
+// Reset the note entry form
+function resetNoteEntryForm() {
+  var fields = ['noteTitle', 'noteContent'];
+  fields.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  var relatedTask = document.getElementById('noteRelatedTask');
+  if (relatedTask) relatedTask.selectedIndex = 0;
+  var relatedCat = document.getElementById('noteRelatedCategory');
+  if (relatedCat) relatedCat.selectedIndex = 0;
+  var relatedCi = document.getElementById('noteRelatedCompareItem');
+  if (relatedCi) relatedCi.selectedIndex = 0;
+  // Clear source links
+  var sourceContainer = document.getElementById('noteSourceLinks');
+  if (sourceContainer) {
+    sourceContainer.innerHTML = '<div class="source-link-row">' +
+      '<input type="text" class="form-input source-link-title" placeholder="链接标题（可选，如：小红书案例）">' +
+      '<input type="text" class="form-input source-link-url" placeholder="https://...">' +
+      '<button type="button" class="source-link-remove" onclick="removeSourceLinkRow(this)" title="删除">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>' +
+      '</button>' +
+    '</div>';
+  }
+  // Clear images
+  if (typeof initNoteImageContainer === 'function') {
+    initNoteImageContainer();
+  }
+}
+
+// Modal functions
+function openModal(modalId) {
+  var modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeModal(modalId) {
+  var modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
 // 获取平台信息（全局函数）
 function getPlatformInfo(url) {
   if (!url) return null;
@@ -600,23 +695,6 @@ function toggleMobileSidebar() {
   if (sidebar && overlay) {
     sidebar.classList.toggle('mobile-open');
     overlay.classList.toggle('active');
-  }
-}
-
-// Modal functions
-function openModal(modalId) {
-  var modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-  }
-}
-
-function closeModal(modalId) {
-  var modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.remove('active');
-    document.body.style.overflow = '';
   }
 }
 
@@ -1225,18 +1303,8 @@ function saveNoteEntry() {
     }
   }
   
-  closeModal('noteEntryModal');
+  closeNoteModal('noteEntryModal');
   showToast('已添加装修手册记录');
-  
-  // Reset form
-  var inputs = document.querySelectorAll('#noteEntryModal input, #noteEntryModal textarea, #noteEntryModal select');
-  inputs.forEach(function(input) {
-    if (input.tagName === 'SELECT') {
-      input.selectedIndex = 0;
-    } else {
-      input.value = '';
-    }
-  });
 }
 
 // Save progress task (via API)
@@ -4613,7 +4681,7 @@ function renderNoteEntry(note) {
     '</div>' +
     '<div class="manual-entry-header"><span class="manual-entry-date">' + today + '</span></div>' +
     '<div class="manual-entry-title">' + (note.title || '') + '</div>' +
-    '<div class="manual-entry-content">' + (note.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>' +
+    '<div class="manual-entry-content">' + escapeHtmlForDisplay(note.content || '') + '</div>' +
     sourceHtml +
     imagesHtml +
     tagsHtml +
@@ -4673,6 +4741,15 @@ function bindImageClickEvents(entry) {
 
 // Open new note modal for a specific stage
 function openNoteModalForStage(stage) {
+  // Auto-expand the chapter if it's collapsed
+  var chapterId = 'chapter-' + stage;
+  var chapter = document.getElementById(chapterId);
+  if (chapter && !chapter.classList.contains('open')) {
+    var toggle = chapter.querySelector('.manual-chapter-toggle svg');
+    chapter.classList.add('open');
+    if (toggle) toggle.style.transform = 'rotate(0deg)';
+  }
+
   var stageSelect = document.getElementById('noteStage');
   if (stageSelect) {
     for (var i = 0; i < stageSelect.options.length; i++) {
@@ -4767,16 +4844,9 @@ function saveNoteEntry() {
       showToast(data.message || '保存失败');
       return;
     }
-    closeModal('noteEntryModal');
+    closeNoteModal('noteEntryModal');
     showToast('手册记录已新增');
     loadNotesFromAPI();
-    // Reset image upload container (新布局)
-    var imgContainer = document.getElementById('noteImageContainer');
-    if (imgContainer) {
-      var addBtn = imgContainer.querySelector('.img-upload-add-btn');
-      var items = imgContainer.querySelectorAll('.img-upload-item');
-      items.forEach(function(item) { imgContainer.removeChild(item); });
-    }
   })
   .catch(function(err) {
     console.error('Failed to save note:', err);
@@ -4947,7 +5017,7 @@ function saveEditedNote() {
       showToast(data.message || '保存失败');
       return;
     }
-    closeModal('editNoteModal');
+    closeNoteModal('editNoteModal');
     showToast('手册记录已更新');
     loadNotesFromAPI();
   })
@@ -5226,20 +5296,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Close modal on overlay click
+  // Close modal on overlay click (skip protected modals like noteEntryModal/editNoteModal)
   document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
     overlay.addEventListener('click', function(e) {
       if (e.target === overlay) {
+        var shouldProtect = overlay.getAttribute('data-protect-close') === 'true';
+        if (shouldProtect && formHasChanges(overlay.id)) {
+          var confirmed = confirm('当前内容尚未保存，确定关闭吗？');
+          if (!confirmed) return;
+          // Clear form on confirmed close
+          if (overlay.id === 'noteEntryModal') resetNoteEntryForm();
+        }
         overlay.classList.remove('active');
         document.body.style.overflow = '';
       }
     });
   });
 
-  // Close modal on ESC key
+  // Close modal on ESC key (skip protected modals)
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
       document.querySelectorAll('.modal-overlay.active').forEach(function(modal) {
+        var shouldProtect = modal.getAttribute('data-protect-close') === 'true';
+        if (shouldProtect && formHasChanges(modal.id)) {
+          var confirmed = confirm('当前内容尚未保存，确定关闭吗？');
+          if (!confirmed) return;
+          if (modal.id === 'noteEntryModal') resetNoteEntryForm();
+        }
         modal.classList.remove('active');
       });
       document.body.style.overflow = '';

@@ -4,6 +4,245 @@
 
 ---
 
+## FIX: 装修手册阶段标题栏添加"添加内容"快捷按钮
+
+**日期**：2026-05-23
+**状态**：✅ 完成
+
+### 一、修复内容
+
+**问题**：每个阶段的"添加内容"按钮在阶段内容的最底部。如果该阶段已有大量笔记，用户必须滚动到底部才能新增笔记，体验不佳。
+
+**修复方案**：
+1. 在每个阶段卡片的标题栏右侧、折叠按钮左侧，增加一个"**+ 添加内容**"快捷按钮
+2. 按钮位于标题信息（阶段名 + 记录数）和折叠箭头之间
+3. 点击按钮会阻止冒泡，不会触发章节折叠/展开
+4. 如果章节处于折叠状态，点击按钮会先自动展开章节，再打开弹窗
+5. 底部原有的"添加内容"按钮保留不变
+
+**布局结构**：
+```
+[阶段图标] [设计阶段  0条记录]  [+ 添加内容]  [展开/收起箭头]
+```
+
+**修改文件**：
+- `templates/decoration/notes.html` — 每个 `.manual-chapter-header` 中增加按钮
+- `static/decoration/css/renovamate.css` — 新增 `.chapter-add-note-btn` 样式，调整 `.manual-chapter-info` 布局
+- `static/decoration/js/renovamate.js` — `openNoteModalForStage()` 增加章节自动展开逻辑
+
+### 二、CSS 样式
+
+```css
+.chapter-add-note-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-size: .8125rem;
+  font-weight: 600;
+  background: var(--accent-orange);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  margin-left: auto;
+}
+.chapter-add-note-btn:hover {
+  background: #D97706;
+  transform: translateY(-1px);
+}
+
+.manual-chapter-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.manual-chapter-title {
+  margin: 0;
+  white-space: nowrap;
+}
+```
+
+### 三、交互变化
+
+| 交互 | 修改前 | 修改后 |
+|------|--------|--------|
+| 新增笔记 | 必须滚动到阶段底部 | 直接点击标题栏右侧按钮 |
+| 折叠章节新增 | 章节折叠时无法新增 | 自动展开章节再打开弹窗 |
+| 点击标题区域 | 折叠/展开章节 | 折叠/展开章节（不变） |
+| 点击折叠箭头 | 折叠/展开章节 | 折叠/展开章节（不变） |
+
+### 四、手动验收方式
+
+1. 访问 `/decoration/notes`，不滚动页面，确认设计阶段标题栏右侧有"**+ 添加内容**"按钮
+2. 点击设计阶段顶部的"**+ 添加内容**"，确认弹窗打开且阶段自动为"设计阶段"
+3. 关闭弹窗，点击拆改阶段标题栏右侧"**+ 添加内容**"，确认阶段为"拆改阶段"
+4. 折叠任意阶段（如"木工阶段"），点击其标题栏右侧"**+ 添加内容**"，确认章节自动展开，弹窗正常打开
+5. 保持底部"添加内容"按钮可用（通过底部按钮新增笔记）
+6. 编辑已有笔记功能正常
+7. Console 无红色 JS 报错
+
+### 五、不影响的功能
+
+- 编辑记录
+- 删除记录
+- 笔记内容展示（换行、样式）
+- 弹窗交互保护（未保存内容确认）
+- 其他装修手册页面
+
+---
+
+## FIX: 装修手册笔记输入体验优化
+
+**日期**：2026-05-23
+**状态**：✅ 完成
+
+### 一、修复内容
+
+本次修复了装修手册笔记的新增/编辑弹窗和笔记内容展示体验的 3 个问题。
+
+#### 1. 修复笔记内容换行显示问题
+
+**问题**：用户在 textarea 中输入多行内容，保存后记录卡片展示为一行，换行丢失。
+
+**修复方案**：
+- CSS：`.manual-entry-content` 增加 `white-space: pre-wrap; word-break: break-word; line-height: 1.8;`
+- JS：`renderNoteEntry()` 中 content 渲染从简单的 `replace(/</g, '&lt;')` 改为 `escapeHtmlForDisplay()`，完整转义 `& < > " '`，保留原始换行符和空白
+
+**修改文件**：`static/decoration/css/renovamate.css`、`static/decoration/js/renovamate.js`
+
+**验收**：输入多行内容保存后，页面显示仍为多行。
+
+#### 2. 把新增/保存按钮固定在弹窗底部
+
+**问题**：输入内容多时，必须滚动到弹窗底部才能点击保存。
+
+**修复方案**：
+- CSS `.modal` 改为 flex column 布局：`display: flex; flex-direction: column; overflow: hidden;`
+- CSS `.modal-body` 可滚动：`overflow-y: auto; flex: 1; min-height: 0;`
+- CSS `.modal-footer` 固定底部：`position: sticky; bottom: 0; flex-shrink: 0;`
+- `.modal-lg` 也继承同样的 flex 布局
+
+**修改文件**：`static/decoration/css/renovamate.css`
+
+**验收**：新增/编辑弹窗内容很长时，不用滚到底部也能看到并点击保存按钮。
+
+#### 3. 防止误点外部关闭弹窗导致内容丢失
+
+**问题**：用户输入到一半，误点弹窗外部，弹窗关闭，内容丢失。
+
+**修复方案**：
+- HTML：新增/编辑弹窗添加 `data-protect-close="true"` 属性
+- JS 新增 `closeNoteModal()` 函数：关闭受保护弹窗时检查是否有未保存内容，有则弹出 `confirm('当前内容尚未保存，确定关闭吗？')`，用户选择取消则保持弹窗打开
+- 全局 overlay 点击处理器：对受保护弹窗进行同样检查
+- 全局 ESC 按键处理器：对受保护弹窗进行同样检查
+- 只有确认关闭时才清空表单（调用 `resetNoteEntryForm()`）
+- 保存成功后调用 `closeNoteModal()` → 自动清空表单
+
+**修改文件**：`templates/decoration/notes.html`、`static/decoration/js/renovamate.js`
+
+**验收**：
+- 正在输入时，点击弹窗外部不会直接关闭弹窗
+- 点击取消时，如果有未保存内容，会提示确认
+- 选择不关闭时，已输入内容仍然保留
+- 保存成功后弹窗关闭，内容正常显示
+
+#### 4. 保存成功后清空表单
+
+**修复**：移除了所有在 `closeModal()` 后手动清空表单的代码。表单清空统一由 `resetNoteEntryForm()` 处理，只在保存成功或用户确认关闭后才执行。
+
+### 二、修改文件
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `static/decoration/css/renovamate.css` | 修改 | modal flex 布局、footer sticky、content white-space |
+| `static/decoration/js/renovamate.js` | 修改 | 新增 4 个函数、修改全局事件处理器、移除重复函数 |
+| `templates/decoration/notes.html` | 修改 | 弹窗添加 `data-protect-close`、按钮改用 `closeNoteModal()` |
+| `.ai-workflow/07_iteration_log.md` | 修改 | 本次迭代日志 |
+
+### 三、交互变化
+
+| 交互 | 修改前 | 修改后 |
+|------|--------|--------|
+| 笔记内容换行 | 丢失换行，显示一行 | 保留换行，显示多行 |
+| 保存按钮位置 | 随内容滚动到底部 | 固定在弹窗底部，始终可见 |
+| 点击遮罩层 | 直接关闭弹窗，内容丢失 | 弹出确认框 |
+| ESC 关闭 | 直接关闭弹窗，内容丢失 | 弹出确认框 |
+| 取消按钮 | 直接关闭弹窗，内容丢失 | 弹出确认框 |
+
+### 四、手动验收方式
+
+1. 访问 `http://127.0.0.1:5000/decoration/notes`
+2. 点击"添加内容"
+3. 在内容区域输入多行文本（包含换行）
+4. 保存后确认页面显示仍为多行
+5. 再次打开新增弹窗，输入部分内容
+6. 点击弹窗外部遮罩层 → 确认弹出提示框 → 选择取消 → 确认内容保留
+7. 点击弹窗外部遮罩层 → 确认弹出提示框 → 选择确定 → 确认弹窗关闭
+8. 打开新增弹窗，输入内容 → 点击"取消" → 确认弹出提示
+9. 打开新增弹窗，输入内容 → 点击"保存记录" → 确认弹窗关闭，页面显示新记录
+10. 编辑已有记录 → 修改内容 → 点击遮罩层 → 确认弹出提示
+
+### 五、技术细节
+
+#### escapeHtmlForDisplay 函数
+
+```javascript
+function escapeHtmlForDisplay(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+```
+
+#### closeNoteModal 函数
+
+```javascript
+function closeNoteModal(modalId) {
+  var modal = document.getElementById(modalId);
+  if (!modal) return;
+  var shouldProtect = modal.getAttribute('data-protect-close') === 'true';
+  if (shouldProtect && formHasChanges(modalId)) {
+    var confirmed = confirm('当前内容尚未保存，确定关闭吗？');
+    if (!confirmed) return;
+  }
+  modal.classList.remove('active');
+  document.body.style.overflow = '';
+  if (modalId === 'noteEntryModal') {
+    resetNoteEntryForm();
+  }
+}
+```
+
+#### CSS modal 布局
+
+```css
+.modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.modal-footer {
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+}
+```
+
+---
+
 ## FIX: 装修手册多来源链接功能
 
 **日期**：2026-05-23
