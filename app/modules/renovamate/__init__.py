@@ -1157,6 +1157,32 @@ def api_create_note():
     elif not isinstance(tags, str):
         tags = '[]'
 
+    # 处理多来源链接（兼容旧数据）
+    # 优先使用 source_links，否则兼容旧 source_url
+    source_links = data.get('source_links')
+    source_url_old = data.get('source_url', '')
+
+    if source_links is not None:
+        # 新格式：source_links 数组
+        if isinstance(source_links, list) and len(source_links) > 0:
+            valid_links = []
+            for link in source_links:
+                if isinstance(link, dict) and link.get('url'):
+                    url = link.get('url', '').strip()
+                    if url:
+                        valid_links.append({
+                            'title': link.get('title', '').strip() or '',
+                            'url': url
+                        })
+            source_url = _json.dumps(valid_links, ensure_ascii=False)
+        else:
+            source_url = '[]'
+    elif isinstance(source_url_old, str) and source_url_old:
+        # 旧格式：单个 URL 字符串
+        source_url = _json.dumps([{'title': '', 'url': source_url_old.strip()}], ensure_ascii=False)
+    else:
+        source_url = '[]'
+
     image_urls = data.get('image_urls', [])
     if isinstance(image_urls, list):
         image_urls = _json.dumps(image_urls, ensure_ascii=False)
@@ -1170,7 +1196,7 @@ def api_create_note():
         compare_item_id=data.get('compare_item_id'),
         stage=DecorationNote().normalize_stage(data.get('stage', 'design')),
         title=title,
-        source_url=data.get('source_url', ''),
+        source_url=source_url,
         content=data.get('content', ''),
         tags=tags,
         image_urls=image_urls
@@ -1199,8 +1225,33 @@ def api_update_note(note_id):
         item.title = title
     if 'stage' in data:
         item.stage = DecorationNote().normalize_stage(data['stage'])
-    if 'source_url' in data:
-        item.source_url = data['source_url']
+    # 处理多来源链接
+    if 'source_links' in data or 'source_url' in data:
+        import json as _json
+        # 优先使用 source_links，否则兼容旧 source_url
+        source_links = data.get('source_links')
+        source_url_old = data.get('source_url', '')
+
+        if source_links is not None:
+            # 新格式：source_links 数组
+            if isinstance(source_links, list) and len(source_links) > 0:
+                valid_links = []
+                for link in source_links:
+                    if isinstance(link, dict) and link.get('url'):
+                        url = link.get('url', '').strip()
+                        if url:
+                            valid_links.append({
+                                'title': link.get('title', '').strip() or '',
+                                'url': url
+                            })
+                item.source_url = _json.dumps(valid_links, ensure_ascii=False)
+            else:
+                item.source_url = '[]'
+        elif isinstance(source_url_old, str) and source_url_old:
+            # 旧格式：单个 URL 字符串
+            item.source_url = _json.dumps([{'title': '', 'url': source_url_old.strip()}], ensure_ascii=False)
+        else:
+            item.source_url = '[]'
     if 'content' in data:
         item.content = data['content']
     if 'tags' in data:
@@ -1260,3 +1311,88 @@ def api_get_task_notes(task_id):
 # ═══════════════════════════════════════════
 
 # 此路由已移至 app.py 以避免与蓝图静态路由冲突
+
+
+# ═══════════════════════════════════════════
+# API: 多图上传 (Decoration Note Images - Multiple)
+# 支持一次上传多张图片
+# ═══════════════════════════════════════════
+
+@bp.route('/api/upload-note-images', methods=['POST'])
+def api_upload_note_images():
+    """
+    装修手册多图上传接口
+    - 使用 request.files.getlist('images') 接收多张图片
+    - 保存到 static/decoration/uploads/notes/
+    - 单张图片大小限制 10MB
+    - 最多支持 20 张图片
+    """
+    from uuid import uuid4
+    from app.utils.presets import ALLOWED_IMAGE_EXTENSIONS
+    
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    MAX_IMAGES = 20
+    
+    # 获取图片文件列表
+    files = request.files.getlist('images')
+    
+    if not files or len(files) == 0:
+        return jsonify({"success": False, "message": "未收到图片文件"}), 400
+    
+    if len(files) > MAX_IMAGES:
+        return jsonify({"success": False, "message": f"最多可上传 {MAX_IMAGES} 张图片"}), 400
+    
+    # 创建上传目录
+    upload_dir = os.path.join(_project_root, 'static', 'decoration', 'uploads', 'notes')
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    saved_urls = []
+    errors = []
+    
+    for file in files:
+        if not file or file.filename == "":
+            continue
+        
+        # 验证文件类型
+        original_filename = file.filename
+        ext = ""
+        if "." in original_filename:
+            ext = original_filename.rsplit(".", 1)[1].lower()
+        
+        if not ext or ext not in ALLOWED_IMAGE_EXTENSIONS:
+            errors.append(f"文件 '{original_filename}' 格式不支持")
+            continue
+        
+        # 验证文件大小
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset to start
+        
+        if file_size > MAX_FILE_SIZE:
+            errors.append(f"文件 '{original_filename}' 超过 10MB 限制")
+            continue
+        
+        # 生成唯一文件名
+        random_name = f"{uuid4().hex}.{ext}"
+        save_path = os.path.join(upload_dir, random_name)
+        
+        try:
+            file.save(save_path)
+            file_url = f"/static/decoration/uploads/notes/{random_name}"
+            saved_urls.append(file_url)
+        except Exception as e:
+            errors.append(f"文件 '{original_filename}' 保存失败: {str(e)}")
+    
+    if not saved_urls and errors:
+        return jsonify({
+            "success": False, 
+            "message": "; ".join(errors),
+            "errors": errors
+        }), 400
+    
+    return jsonify({
+        "success": True,
+        "urls": saved_urls,
+        "count": len(saved_urls),
+        "errors": errors if errors else None
+    })

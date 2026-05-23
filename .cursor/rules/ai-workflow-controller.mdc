@@ -1,0 +1,190 @@
+# AI Workflow 控制器
+
+本规则定义简单命令来触发多 Agent 工作流。
+
+## 命令定义
+
+### `pm` → Project Manager
+
+```
+pm
+```
+
+执行项目经理工作流：
+1. 读取 `.ai-workflow/01_requirements.md`
+2. 分析项目现状
+3. 拆分任务
+4. 输出到 `.ai-workflow/02_project_manager_output.md`
+
+### `arch` → Project Architect
+
+```
+arch
+```
+
+执行架构师工作流：
+1. 读取 `.ai-workflow/02_project_manager_output.md`
+2. 分析项目结构
+3. 设计技术方案
+4. 输出到 `.ai-workflow/03_architect_output.md`
+
+### `impl` → Code Implementer
+
+```
+impl
+```
+
+执行实现者工作流：
+1. 读取 `.ai-workflow/03_architect_output.md`
+2. 按方案实现代码
+3. 记录变更
+4. 输出到 `.ai-workflow/04_implementer_output.md`
+
+### `review` → Code Reviewer
+
+```
+review
+```
+
+执行代码审查工作流：
+1. 读取 `.ai-workflow/04_implementer_output.md`
+2. 审查代码质量
+3. 输出到 `.ai-workflow/05_reviewer_output.md`
+
+### `test` → Test Verifier
+
+```
+test
+```
+
+执行测试验证工作流：
+1. 读取 `.ai-workflow/04_implementer_output.md`
+2. 执行静态检查
+3. 输出到 `.ai-workflow/06_test_output.md`
+
+### `ui` → UI Reviewer
+
+```
+ui
+```
+
+执行 UI 审查工作流：
+1. 读取 `.ai-workflow/04_implementer_output.md`
+2. 检查页面布局和交互
+3. 输出到 `.ai-workflow/05_reviewer_output.md`
+
+### `full` → 完整工作流
+
+```
+full
+```
+
+执行完整一轮工作流：
+1. pm → arch → impl → review + ui → test
+2. 更新 `07_iteration_log.md`
+3. 输出总结
+
+### `next` → 下一轮迭代
+
+```
+next
+```
+
+继续下一轮迭代：
+1. 检查当前迭代状态
+2. 读取 `05_reviewer_output.md` 和 `06_test_output.md`
+3. 决定下一轮目标
+4. 从 impl 开始继续
+
+### `status` → 查看状态
+
+```
+status
+```
+
+查看当前迭代状态：
+1. 检查各文档完成情况
+2. 列出待解决问题
+3. 输出迭代进度
+
+---
+
+## 快捷命令
+
+| 命令 | 执行内容 |
+|------|----------|
+| `pm` | 项目经理 |
+| `arch` | 架构师 |
+| `impl` | 代码实现 |
+| `review` | 代码审查 |
+| `ui` | UI 审查 |
+| `test` | 测试验证 |
+| `full` | 完整一轮 |
+| `next` | 下一轮 |
+| `status` | 查看状态 |
+
+---
+
+## 工作流状态
+
+### 第一轮 (进行中)
+
+```
+[√] 01_requirements.md   - 已填写
+[ ] 02_project_manager   - 待执行
+[ ] 03_architect         - 待执行
+[ ] 04_implementer       - 待执行
+[ ] 05_reviewer          - 待执行
+[ ] 06_test              - 待执行
+[ ] 07_iteration_log     - 待更新
+```
+
+### 问题清单
+
+| 级别 | 数量 | 状态 |
+|------|------|------|
+| MUST | 0 | - |
+| SHOULD | 0 | - |
+| NICE | 0 | - |
+
+---
+
+## 使用示例
+
+### 启动新迭代
+
+1. 填写需求：`pm`
+2. 设计方案：`arch`
+3. 实现代码：`impl`
+4. 审查代码：`review`
+5. 测试验证：`test`
+6. 完整执行：`full`
+
+### 继续迭代
+
+1. 查看状态：`status`
+2. 修复问题：`impl`
+3. 重新审查：`review`
+4. 继续验证：`test`
+
+---
+
+## 硬性规则
+
+1. **需求不明确时停止**
+   - 不要猜测用户意图
+   - 将问题写入 `07_iteration_log.md`
+
+2. **只修复指定问题**
+   - 按照 reviewer 输出修复
+   - 不做额外改动
+
+3. **保持接口不变**
+   - 不改变 URL
+   - 不改变 JSON 格式
+   - 不改变数据库结构
+
+4. **完整代码**
+   - 不允许 TODO
+   - 不允许 NotImplementedError
+   - 所有功能必须完整可运行

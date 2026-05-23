@@ -469,6 +469,21 @@ body.sidebar-collapsed .nav-item svg { margin: 0; }
 .note-link-chip { font-size: .6875rem; font-weight: 500; padding: 2px 8px; border-radius: var(--radius-full); background: var(--accent-orange); color: #fff; cursor: pointer; }
 .note-link-chip:hover { opacity: .85; }
 .manual-entry-links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+/* 多来源链接容器 */
+.manual-entry-sources { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.manual-entry-sources:empty { display: none; }
+
+/* 弹窗中的来源链接输入样式 */
+.source-links-container { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.source-link-row { display: flex; gap: 8px; align-items: center; }
+.source-link-row .form-input { flex: 1; min-width: 0; }
+.source-link-title { width: 140px !important; flex: 0 0 140px !important; }
+.source-link-url { flex: 1 !important; }
+.source-link-remove { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: var(--bg-secondary); color: var(--text-muted); border-radius: var(--radius-md); cursor: pointer; flex-shrink: 0; transition: all var(--transition-fast); }
+.source-link-remove:hover { background: rgba(220,38,38,.1); color: var(--accent-red); }
+.source-link-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: .75rem; font-weight: 500; color: var(--accent-orange); background: rgba(234,88,12,.08); border: 1px dashed rgba(234,88,12,.3); border-radius: var(--radius-md); cursor: pointer; transition: all var(--transition-fast); }
+.source-link-add-btn:hover { background: rgba(234,88,12,.15); border-color: rgba(234,88,12,.5); }
 .note-card-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 14px; border-top: 1px solid var(--border-light); font-size: .75rem; color: var(--text-muted); }
 .note-favorite { color: var(--text-muted); cursor: pointer; transition: color var(--transition-fast); }
 .note-favorite:hover,.note-favorite.active { color: var(--accent-orange); }

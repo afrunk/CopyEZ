@@ -321,6 +321,262 @@ function removeNewImage(btn, hiddenInputId) {
   }
 }
 
+// Multi-image upload handler for decoration notes
+// containerId: the ID of the image container
+// fileInputId: the ID of the file input element
+var MAX_NOTE_IMAGES = 20;  // 最多 20 张图片
+
+function handleNewImageUploadMulti(fileInput) {
+  var files = fileInput.files;
+  if (!files || files.length === 0) return;
+
+  var containerId = 'noteImageContainer';
+  handleMultiImageUpload(files, containerId, fileInput);
+}
+
+function handleNewImageUploadMultiEdit(fileInput) {
+  var files = fileInput.files;
+  if (!files || files.length === 0) return;
+
+  var containerId = 'editNoteImageContainer';
+  handleMultiImageUpload(files, containerId, fileInput);
+}
+
+function handleMultiImageUpload(files, containerId, fileInput) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+
+  // 统计当前已有的图片数量
+  var existingItems = container.querySelectorAll('.img-upload-item');
+  var currentCount = existingItems.length;
+  var newFilesCount = files.length;
+  var totalAfterUpload = currentCount + newFilesCount;
+
+  // 检查是否超过限制
+  if (totalAfterUpload > MAX_NOTE_IMAGES) {
+    var allowed = MAX_NOTE_IMAGES - currentCount;
+    if (allowed <= 0) {
+      showToast('最多可上传 ' + MAX_NOTE_IMAGES + ' 张图片');
+      fileInput.value = '';
+      return;
+    }
+    showToast('最多可上传 ' + MAX_NOTE_IMAGES + ' 张图片，当前已选 ' + currentCount + ' 张，最多还能选 ' + allowed + ' 张');
+    // 只处理允许数量的文件
+    // 注意：由于浏览器安全限制，无法直接截断 FileList，所以这里仍然提示用户
+    fileInput.value = '';
+    return;
+  }
+
+  // 显示上传中状态
+  var addBtn = container.querySelector('.img-upload-add-btn');
+  var loadingHtml = '<div class="img-upload-item uploading" id="multiUploadLoading">' +
+    '<div class="img-upload-preview"><span class="img-upload-placeholder">上传中...</span></div>' +
+    '</div>';
+  container.insertBefore(document.createRange().createContextualFragment(loadingHtml), addBtn);
+
+  // 使用 FormData 准备上传
+  var formData = new FormData();
+  var validFiles = [];
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    if (file.type.startsWith('image/')) {
+      formData.append('images', file);
+      validFiles.push(file);
+    }
+  }
+
+  if (validFiles.length === 0) {
+    showToast('请选择图片文件');
+    var loading = document.getElementById('multiUploadLoading');
+    if (loading) container.removeChild(loading);
+    fileInput.value = '';
+    return;
+  }
+
+  // 调用多图上传 API
+  fetch(apiBase + '/api/upload-note-images', {
+    method: 'POST',
+    body: formData
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    // 移除 loading 状态
+    var loading = document.getElementById('multiUploadLoading');
+    if (loading) container.removeChild(loading);
+
+    if (!data.success) {
+      showToast(data.message || '图片上传失败');
+      fileInput.value = '';
+      return;
+    }
+
+    // 添加所有成功上传的图片
+    var urls = data.urls || [];
+    urls.forEach(function(url, idx) {
+      var index = containerId + '_img_' + Date.now() + '_' + idx;
+      var imgItem = document.createElement('div');
+      imgItem.className = 'img-upload-item';
+      imgItem.innerHTML =
+        '<input type="hidden" id="' + index + '" value="' + url + '">' +
+        '<div class="img-upload-preview has-image">' +
+          '<img src="' + url + '" alt="预览" onerror="this.parentElement.innerHTML=\'<span class=img-upload-placeholder>图片无法加载</span>\'">' +
+          '<button type="button" class="img-upload-remove" onclick="removeNewImage(this, \'' + index + '\')">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>' +
+          '</button>' +
+        '</div>';
+      container.insertBefore(imgItem, addBtn);
+    });
+
+    // 如果有错误，显示提示
+    if (data.errors && data.errors.length > 0) {
+      showToast('部分图片上传失败: ' + data.errors.join('; '));
+    } else if (urls.length > 0) {
+      showToast('已上传 ' + urls.length + ' 张图片');
+    }
+
+    // 清空 file input 以便选择相同文件
+    fileInput.value = '';
+  })
+  .catch(function(err) {
+    console.error('Image upload failed:', err);
+    var loading = document.getElementById('multiUploadLoading');
+    if (loading) container.removeChild(loading);
+    showToast('图片上传失败，请重试');
+    fileInput.value = '';
+  });
+}
+
+// 初始化新增记录弹窗的图片容器
+function initNoteImageContainer() {
+  var container = document.getElementById('noteImageContainer');
+  if (!container) return;
+  
+  // 保留添加按钮，移除其他元素
+  var addBtn = container.querySelector('.img-upload-add-btn');
+  var items = container.querySelectorAll('.img-upload-item');
+  items.forEach(function(item) { 
+    container.removeChild(item); 
+  });
+}
+
+// 初始化编辑记录弹窗的图片容器
+function initEditNoteImageContainer() {
+  var container = document.getElementById('editNoteImageContainer');
+  if (!container) return;
+
+  // 保留添加按钮，移除其他元素
+  var addBtn = container.querySelector('.img-upload-add-btn');
+  var items = container.querySelectorAll('.img-upload-item');
+  items.forEach(function(item) {
+    container.removeChild(item);
+  });
+}
+
+// 多来源链接管理
+var MAX_SOURCE_LINKS = 10;  // 最多 10 个链接
+
+// 添加链接行
+function addSourceLinkRow(containerId) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+
+  var rows = container.querySelectorAll('.source-link-row');
+  if (rows.length >= MAX_SOURCE_LINKS) {
+    showToast('最多添加 ' + MAX_SOURCE_LINKS + ' 个参考链接');
+    return;
+  }
+
+  var row = document.createElement('div');
+  row.className = 'source-link-row';
+  row.innerHTML =
+    '<input type="text" class="form-input source-link-title" placeholder="链接标题（可选）">' +
+    '<input type="text" class="form-input source-link-url" placeholder="https://...">' +
+    '<button type="button" class="source-link-remove" onclick="removeSourceLinkRow(this)" title="删除">' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>' +
+    '</button>';
+  container.appendChild(row);
+}
+
+// 删除链接行
+function removeSourceLinkRow(btn) {
+  var row = btn.closest('.source-link-row');
+  if (row) {
+    var container = row.parentElement;
+    var rows = container.querySelectorAll('.source-link-row');
+    // 至少保留一行
+    if (rows.length > 1) {
+      container.removeChild(row);
+    } else {
+      // 如果只剩一行，清空内容
+      var titleInput = row.querySelector('.source-link-title');
+      var urlInput = row.querySelector('.source-link-url');
+      if (titleInput) titleInput.value = '';
+      if (urlInput) urlInput.value = '';
+    }
+  }
+}
+
+// 收集链接数据
+function collectSourceLinks(containerId) {
+  var container = document.getElementById(containerId);
+  if (!container) return [];
+
+  var links = [];
+  var rows = container.querySelectorAll('.source-link-row');
+  rows.forEach(function(row) {
+    var urlInput = row.querySelector('.source-link-url');
+    var titleInput = row.querySelector('.source-link-title');
+    var url = urlInput ? urlInput.value.trim() : '';
+    if (url) {
+      links.push({
+        title: titleInput ? titleInput.value.trim() : '',
+        url: url
+      });
+    }
+  });
+  return links;
+}
+
+// 填充链接数据到容器
+function fillSourceLinks(containerId, links) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+
+  // 清空现有行
+  var existingRows = container.querySelectorAll('.source-link-row');
+  existingRows.forEach(function(row) { container.removeChild(row); });
+
+  if (!links || links.length === 0) {
+    // 添加一个空行
+    addSourceLinkRow(containerId);
+    return;
+  }
+
+  // 添加每个链接行
+  links.forEach(function(link) {
+    var row = document.createElement('div');
+    row.className = 'source-link-row';
+    row.innerHTML =
+      '<input type="text" class="form-input source-link-title" placeholder="链接标题（可选）" value="' + (link.title || '').replace(/"/g, '&quot;') + '">' +
+      '<input type="text" class="form-input source-link-url" placeholder="https://..." value="' + (link.url || '').replace(/"/g, '&quot;') + '">' +
+      '<button type="button" class="source-link-remove" onclick="removeSourceLinkRow(this)" title="删除">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>' +
+      '</button>';
+    container.appendChild(row);
+  });
+}
+
+// 初始化新增记录弹窗的链接容器
+function initNoteSourceLinks() {
+  var container = document.getElementById('noteSourceLinks');
+  if (!container) return;
+
+  // 清空并添加一个空行
+  var rows = container.querySelectorAll('.source-link-row');
+  rows.forEach(function(row) { container.removeChild(row); });
+  addSourceLinkRow('noteSourceLinks');
+}
+
 // Toggle sidebar collapse (PC/iPad only)
 function toggleSidebar() {
   // On mobile, sidebar is always collapsed - don't allow expand
@@ -4280,34 +4536,59 @@ function renderNoteEntry(note) {
     }).join('') + '</div>';
   }
 
-  var fixedSourceUrl = fixUrl(note.source_url);
-  var platformInfo = getPlatformInfo(note.source_url);
-  var sourceHtml = '';
-  if (platformInfo) {
-    sourceHtml = '<div class="manual-entry-source">' +
-      '<a href="' + fixedSourceUrl.replace(/"/g, '&quot;') + '" target="_blank" class="source-link-badge" ' +
-         'style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:16px;' +
-         'background:' + platformInfo.bg + ';color:' + platformInfo.color + ';' +
-         'font-size:12px;font-weight:500;text-decoration:none;transition:all 0.2s;" ' +
-         'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'" ' +
-         'title="打开 ' + platformInfo.name + ' 链接">' +
-        '<span>' + platformInfo.icon + '</span>' +
-        '<span>' + platformInfo.name + '</span>' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="opacity:0.6;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>' +
-      '</a>' +
-    '</div>';
-  } else if (note.source_url) {
-    // 不支持的平台，只显示链接按钮
-    sourceHtml = '<div class="manual-entry-source">' +
-      '<a href="' + fixedSourceUrl.replace(/"/g, '&quot;') + '" target="_blank" class="source-link-badge" ' +
-         'style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:16px;' +
-         'background:#F3F4F6;color:#6B7280;font-size:12px;font-weight:500;text-decoration:none;" ' +
-         'title="打开链接">' +
-        '<span>🔗</span><span>网页链接</span>' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="opacity:0.6;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>' +
-      '</a>' +
-    '</div>';
+  // 处理多来源链接（支持 JSON 数组和旧字符串格式）
+  var sourceLinks = [];
+  try {
+    // 尝试解析为 JSON 数组
+    var parsed = JSON.parse(note.source_url || '[]');
+    if (Array.isArray(parsed)) {
+      sourceLinks = parsed.filter(function(link) {
+        return link && link.url;
+      });
+    } else if (parsed && parsed.url) {
+      // 单个链接对象
+      sourceLinks = [parsed];
+    }
+  } catch(e) {
+    // 旧数据：普通 URL 字符串
+    if (note.source_url && note.source_url.trim() && !note.source_url.startsWith('[')) {
+      sourceLinks = [{title: '', url: note.source_url}];
+    }
   }
+
+  var sourceHtml = '';
+  if (sourceLinks.length > 0) {
+    sourceHtml = '<div class="manual-entry-sources">';
+    sourceLinks.forEach(function(link, idx) {
+      var url = link.url || '';
+      var title = link.title || ('来源链接 ' + (idx + 1));
+      var fixedUrl = fixUrl(url);
+      var platformInfo = getPlatformInfo(url);
+
+      if (platformInfo) {
+        sourceHtml += '<a href="' + fixedUrl.replace(/"/g, '&quot;') + '" target="_blank" class="source-link-badge" ' +
+           'style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:16px;' +
+           'background:' + platformInfo.bg + ';color:' + platformInfo.color + ';' +
+           'font-size:12px;font-weight:500;text-decoration:none;transition:all 0.2s;margin:2px;" ' +
+           'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'" ' +
+           'title="打开 ' + platformInfo.name + ' 链接">' +
+          '<span>' + platformInfo.icon + '</span>' +
+          '<span>' + (link.title || platformInfo.name) + '</span>' +
+          '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="opacity:0.6;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>' +
+        '</a>';
+      } else {
+        sourceHtml += '<a href="' + fixedUrl.replace(/"/g, '&quot;') + '" target="_blank" class="source-link-badge" ' +
+           'style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:16px;' +
+           'background:#F3F4F6;color:#6B7280;font-size:12px;font-weight:500;text-decoration:none;margin:2px;" ' +
+           'title="打开链接">' +
+          '<span>🔗</span><span>' + title + '</span>' +
+          '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="opacity:0.6;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>' +
+        '</a>';
+      }
+    });
+    sourceHtml += '</div>';
+  }
+
   var today = note.created_at ? note.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
 
   // 构建图片 HTML
@@ -4413,18 +4694,10 @@ function openNoteModalForStage(stage) {
   if (relatedCat) relatedCat.selectedIndex = 0;
   var relatedCi = document.getElementById('noteRelatedCompareItem');
   if (relatedCi) relatedCi.selectedIndex = 0;
-  // Clear image upload previews
-  for (var i = 1; i <= 3; i++) {
-    var fileInput = document.getElementById('noteImage' + i);
-    var urlInput = document.getElementById('noteImageUrl' + i);
-    var preview = document.getElementById('notePreview' + i);
-    if (fileInput) fileInput.value = '';
-    if (urlInput) urlInput.value = '';
-    if (preview) {
-      preview.innerHTML = '<span class="img-upload-placeholder">点击上传图片</span>';
-      preview.classList.remove('has-image');
-    }
-  }
+  // Clear image upload container (新布局：多图)
+  initNoteImageContainer();
+  // 初始化来源链接
+  initNoteSourceLinks();
   // Populate lookup dropdowns
   if (!window.renovaLookupData || !window.renovaLookupData.categories || window.renovaLookupData.categories.length === 0) {
     loadLookupData(function() { fillCategorySelects(); fillTaskSelects(); fillCompareItemSelects(); });
@@ -4440,7 +4713,6 @@ function openNoteModalForStage(stage) {
 function saveNoteEntry() {
   var title = document.getElementById('noteTitle').value.trim();
   var stage = document.getElementById('noteStage').value;
-  var source = fixUrl(document.getElementById('noteSource').value.trim());
   var tagsStr = document.getElementById('noteTags') ? document.getElementById('noteTags').value.trim() : '';
   var content = document.getElementById('noteContent').value.trim();
   var relatedTask = document.getElementById('noteRelatedTask');
@@ -4457,6 +4729,9 @@ function saveNoteEntry() {
     tagsList = tagsStr.split(/[,，]/).map(function(t) { return t.trim(); }).filter(function(t) { return t; });
   }
 
+  // 收集多来源链接
+  var sourceLinks = collectSourceLinks('noteSourceLinks');
+
   // 收集图片链接 (新布局)
   var imageUrls = [];
   var container = document.getElementById('noteImageContainer');
@@ -4472,7 +4747,7 @@ function saveNoteEntry() {
   var payload = {
     title: title,
     stage: stage,
-    source_url: source,
+    source_links: sourceLinks,
     content: content,
     tags: tagsList,
     image_urls: imageUrls,
@@ -4515,8 +4790,6 @@ function openEditNoteModal(noteId) {
   document.getElementById('editNoteId').value = noteId;
   var titleEl = document.getElementById('editNoteTitle');
   if (titleEl) titleEl.value = entry.dataset.title || '';
-  var sourceEl = document.getElementById('editNoteSource');
-  if (sourceEl) sourceEl.value = entry.dataset.source || '';
   var tagsEl = document.getElementById('editNoteTags');
   if (tagsEl) {
     // 正确解析 tags：可能是 JSON 数组字符串 ['tag1','tag2'] 或空数组 '[]'
@@ -4567,14 +4840,14 @@ function openEditNoteModal(noteId) {
       imgUrls = JSON.parse(entry.dataset.imageUrls);
     } catch(e) {}
   }
-  
-  var container = document.getElementById('editNoteImageContainer');
-  var addBtn = container.querySelector('.img-upload-add-btn');
-  
+
+  var imgContainer = document.getElementById('editNoteImageContainer');
+  var addBtn = imgContainer.querySelector('.img-upload-add-btn');
+
   // 清除旧图片（保留添加按钮）
-  var oldItems = container.querySelectorAll('.img-upload-item');
-  oldItems.forEach(function(item) { container.removeChild(item); });
-  
+  var oldItems = imgContainer.querySelectorAll('.img-upload-item');
+  oldItems.forEach(function(item) { imgContainer.removeChild(item); });
+
   // 添加已有图片
   imgUrls.forEach(function(url, idx) {
     if (url) {
@@ -4588,9 +4861,33 @@ function openEditNoteModal(noteId) {
             '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>' +
           '</button>' +
         '</div>';
-      container.insertBefore(imgItem, addBtn);
+      imgContainer.insertBefore(imgItem, addBtn);
     }
   });
+
+  // 回显来源链接
+  var sourceLinks = [];
+  if (entry.dataset.source) {
+    try {
+      // 尝试解析为 JSON 数组
+      var parsed = JSON.parse(entry.dataset.source);
+      if (Array.isArray(parsed)) {
+        sourceLinks = parsed;
+      } else if (parsed && parsed.url) {
+        // 单个链接对象
+        sourceLinks = [parsed];
+      } else {
+        // 旧数据：普通 URL 字符串
+        sourceLinks = [{title: '', url: entry.dataset.source}];
+      }
+    } catch(e) {
+      // 旧数据：普通 URL 字符串
+      if (entry.dataset.source && entry.dataset.source.trim()) {
+        sourceLinks = [{title: '', url: entry.dataset.source}];
+      }
+    }
+  }
+  fillSourceLinks('editNoteSourceLinks', sourceLinks);
 
   openModal('editNoteModal');
 }
@@ -4602,7 +4899,6 @@ function saveEditedNote() {
 
   var title = document.getElementById('editNoteTitle').value.trim();
   var stage = document.getElementById('editNoteStage').value;
-  var source = fixUrl(document.getElementById('editNoteSource').value.trim());
   var tagsStr = document.getElementById('editNoteTags') ? document.getElementById('editNoteTags').value.trim() : '';
   var content = document.getElementById('editNoteContent').value.trim();
 
@@ -4612,6 +4908,9 @@ function saveEditedNote() {
   if (tagsStr) {
     tagsList = tagsStr.split(/[,，]/).map(function(t) { return t.trim(); }).filter(function(t) { return t; });
   }
+
+  // 收集多来源链接
+  var sourceLinks = collectSourceLinks('editNoteSourceLinks');
 
   // 收集图片链接 (新布局)
   var imageUrls = [];
@@ -4628,7 +4927,7 @@ function saveEditedNote() {
   var payload = {
     title: title,
     stage: stage,
-    source_url: source,
+    source_links: sourceLinks,
     content: content,
     tags: tagsList,
     image_urls: imageUrls,
