@@ -991,7 +991,7 @@
           scrapeBtn.textContent = "提取中...";
           document.body.style.cursor = "wait";
 
-          fetch("{{ url_for('api_scrape') }}", {
+          fetch("{{ url_for('scrape.api_scrape') }}", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

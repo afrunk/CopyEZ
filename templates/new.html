@@ -10,7 +10,7 @@
       <div class="form-error">{{ error }}</div>
     {% endif %}
 
-    <form method="post" action="{{ url_for('new_note') }}" class="note-form" id="edit-form" novalidate>
+    <form method="post" action="{{ url_for('note_pages.new_note') }}" class="note-form" id="edit-form" novalidate>
       <div class="edit-layout">
         <aside class="edit-sidebar">
           <div class="edit-sidebar-section">
@@ -998,7 +998,7 @@
           scrapeBtn.textContent = "提取中...";
           document.body.style.cursor = "wait";
 
-          fetch("{{ url_for('api_scrape') }}", {
+          fetch("{{ url_for('scrape.api_scrape') }}", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

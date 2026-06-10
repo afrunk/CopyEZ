@@ -26,13 +26,13 @@
         </div>
         {% block header_search %}{% endblock %}
         <nav class="app-nav">
-          <a href="{{ url_for('memos_page') }}" class="nav-btn memo-nav-btn">
+          <a href="{{ url_for('memos.memos_page') }}" class="nav-btn memo-nav-btn">
             ⚡ 随心记
           </a>
-          <a href="{{ url_for('my_quotes_page') }}" class="nav-btn memo-nav-btn">
+          <a href="{{ url_for('quotes.my_quotes_page') }}" class="nav-btn memo-nav-btn">
             📂 语录本
           </a>
-          <a href="{{ url_for('new_note') }}" class="btn-icon-primary" title="新建素材">
+          <a href="{{ url_for('note_pages.new_note') }}" class="btn-icon-primary" title="新建素材">
             <span class="icon-plus"></span>
           </a>
           <button id="lock-screen-btn" class="btn-icon-primary" title="锁定屏幕">
