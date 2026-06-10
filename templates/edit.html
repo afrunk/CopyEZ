@@ -121,7 +121,7 @@
             <button type="submit" class="btn-primary" id="save-btn">保存</button>
             <button type="button" class="btn-secondary" id="format-btn" title="只整理格式，不保存到数据库">整理格式</button>
             <span id="save-status" class="save-status" style="display: none; margin-left: 12px; color: #666; font-size: 14px;"></span>
-        <a href="{{ url_for('view_note', note_id=note.id) }}" class="btn-secondary">取消</a>
+        <a href="{{ url_for('note_pages.view_note', note_id=note.id) }}" class="btn-secondary">取消</a>
           </div>
         </div>
       </div>

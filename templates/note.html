@@ -31,7 +31,7 @@
             {% if nav_prev %}
               <a
                 class="reader-nav-link reader-nav-prev"
-                href="{{ url_for('view_note', note_id=nav_prev.id, tag=current_tag) if current_tag else url_for('view_note', note_id=nav_prev.id) }}"
+                href="{{ url_for('note_pages.view_note', note_id=nav_prev.id, tag=current_tag) if current_tag else url_for('note_pages.view_note', note_id=nav_prev.id) }}"
                 title="上一篇：{{ nav_prev.title }}"
               >
                 上一篇：<span class="reader-nav-title">{{ nav_prev.title }}</span>
@@ -51,7 +51,7 @@
             {% if nav_next %}
               <a
                 class="reader-nav-link reader-nav-next"
-                href="{{ url_for('view_note', note_id=nav_next.id, tag=current_tag) if current_tag else url_for('view_note', note_id=nav_next.id) }}"
+                href="{{ url_for('note_pages.view_note', note_id=nav_next.id, tag=current_tag) if current_tag else url_for('note_pages.view_note', note_id=nav_next.id) }}"
                 title="下一篇：{{ nav_next.title }}"
               >
                 下一篇：<span class="reader-nav-title">{{ nav_next.title }}</span>
@@ -70,7 +70,7 @@
             {% if nav_prev %}
               <a
                 class="reader-nav-link reader-nav-prev"
-                href="{{ url_for('view_note', note_id=nav_prev.id, tag=current_tag) if current_tag else url_for('view_note', note_id=nav_prev.id) }}"
+                href="{{ url_for('note_pages.view_note', note_id=nav_prev.id, tag=current_tag) if current_tag else url_for('note_pages.view_note', note_id=nav_prev.id) }}"
                 title="上一篇：{{ nav_prev.title }}"
               >
                 上一篇：<span class="reader-nav-title">{{ nav_prev.title }}</span>
@@ -90,7 +90,7 @@
             {% if nav_next %}
               <a
                 class="reader-nav-link reader-nav-next"
-                href="{{ url_for('view_note', note_id=nav_next.id, tag=current_tag) if current_tag else url_for('view_note', note_id=nav_next.id) }}"
+                href="{{ url_for('note_pages.view_note', note_id=nav_next.id, tag=current_tag) if current_tag else url_for('note_pages.view_note', note_id=nav_next.id) }}"
                 title="下一篇：{{ nav_next.title }}"
               >
                 下一篇：<span class="reader-nav-title">{{ nav_next.title }}</span>

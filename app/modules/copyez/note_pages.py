@@ -437,10 +437,10 @@ def new_note_page():
                 "success": True,
                 "message": "创建成功",
                 "note_id": note.id,
-                "redirect_url": url_for("view_note", note_id=note.id),
+                "redirect_url": url_for("note_pages.view_note", note_id=note.id),
             }), 200
 
-        return redirect(url_for("view_note", note_id=note.id))
+        return redirect(url_for("note_pages.view_note", note_id=note.id))
 
     all_categories = CustomCategory.query.order_by(CustomCategory.name).all()
     categories_by_main = {}
@@ -573,10 +573,10 @@ def edit_note_page(note_id: int):
                 "success": True,
                 "message": "保存成功",
                 "note_id": note.id,
-                "redirect_url": url_for("view_note", note_id=note.id)
+                "redirect_url": url_for("note_pages.view_note", note_id=note.id)
             }), 200
 
-        return redirect(url_for("view_note", note_id=note.id))
+        return redirect(url_for("note_pages.view_note", note_id=note.id))
 
     tags_list = note.get_tags_list()
 
