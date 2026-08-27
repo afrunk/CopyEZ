@@ -75,6 +75,167 @@ def main():
                     db.session.rollback()
                     print(f"    ⚠️  新增列 {col_name} 失败（可能已存在）: {e}")
 
+        # ── 1b. 补 wechat_messages 缺失的列 ─────────────────────────────
+        print("\n    检查 wechat_messages 补列...")
+        existing_msg_cols = {c["name"] for c in inspector.get_columns("wechat_messages")}
+
+        MSG_COLUMNS_TO_ADD = [
+            ("content",       "TEXT NOT NULL DEFAULT ''"),
+            ("msg_type",      "TEXT NOT NULL DEFAULT 'text'"),
+            ("image_urls",    "TEXT"),
+            ("recalled",      "INTEGER NOT NULL DEFAULT 0"),
+            ("is_read",       "INTEGER NOT NULL DEFAULT 0"),
+            ("created_at",    "TIMESTAMP"),
+            # 关键：之前漏了 receiver_id，导致 chat 历史消息查询时所有消息都被过滤掉
+            ("receiver_id",   "INTEGER"),
+        ]
+
+        for col_name, col_def in MSG_COLUMNS_TO_ADD:
+            if col_name not in existing_msg_cols:
+                try:
+                    db.session.execute(
+                        db.text(f"ALTER TABLE wechat_messages ADD COLUMN {col_name} {col_def}")
+                    )
+                    db.session.commit()
+                    print(f"    ✅ 新增列: wechat_messages.{col_name}")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"    �️  新增列 wechat_messages.{col_name} 失败（可能已存在）: {e}")
+
+        # ── 1c. 数据回填（幂等）──────────────────────────────────────────
+        print("\n    数据回填...")
+        try:
+            # msg_type ← message_type（仅在历史数据 msg_type 为空时）
+            null_msg_type = db.session.execute(
+                db.text("SELECT COUNT(*) FROM wechat_messages WHERE msg_type IS NULL OR msg_type = ''")
+            ).scalar()
+            if null_msg_type and null_msg_type > 0:
+                db.session.execute(db.text("""
+                    UPDATE wechat_messages
+                    SET msg_type = CASE
+                        WHEN message_type IN ('text','image') THEN message_type
+                        ELSE 'text'
+                    END
+                    WHERE msg_type IS NULL OR msg_type = ''
+                """))
+                db.session.commit()
+                print(f"    ✅ 回填 msg_type: {null_msg_type} 行")
+
+            # is_read ← read_at NOT NULL
+            null_is_read = db.session.execute(
+                db.text("SELECT COUNT(*) FROM wechat_messages WHERE is_read = 0 AND read_at IS NOT NULL")
+            ).scalar()
+            if null_is_read and null_is_read > 0:
+                db.session.execute(db.text("""
+                    UPDATE wechat_messages SET is_read = 1
+                    WHERE is_read = 0 AND read_at IS NOT NULL
+                """))
+                db.session.commit()
+                print(f"    ✅ 回填 is_read: {null_is_read} 行")
+
+            # recalled ← is_deleted=1 OR recalled_at NOT NULL
+            null_recalled = db.session.execute(
+                db.text("SELECT COUNT(*) FROM wechat_messages WHERE recalled = 0 AND (is_deleted = 1 OR recalled_at IS NOT NULL)")
+            ).scalar()
+            if null_recalled and null_recalled > 0:
+                db.session.execute(db.text("""
+                    UPDATE wechat_messages SET recalled = 1
+                    WHERE recalled = 0 AND (is_deleted = 1 OR recalled_at IS NOT NULL)
+                """))
+                db.session.commit()
+                print(f"    ✅ 回填 recalled: {null_recalled} 行")
+
+            # receiver_id ← 推断：sender_id=1→2，sender_id=2→1
+            null_receiver = db.session.execute(
+                db.text("SELECT COUNT(*) FROM wechat_messages WHERE receiver_id IS NULL")
+            ).scalar()
+            if null_receiver and null_receiver > 0:
+                db.session.execute(db.text("""
+                    UPDATE wechat_messages
+                    SET receiver_id = CASE sender_id
+                        WHEN 1 THEN 2
+                        WHEN 2 THEN 1
+                        ELSE receiver_id
+                    END
+                    WHERE receiver_id IS NULL
+                """))
+                db.session.commit()
+                print(f"    ✅ 回填 receiver_id: {null_receiver} 行")
+
+            # image_urls ← content（旧实现把 url 存 content）
+            null_image = db.session.execute(
+                db.text("SELECT COUNT(*) FROM wechat_messages WHERE (msg_type = 'image' OR message_type = 'image' OR message_type IN ('burn_image','flash_image')) AND (image_urls IS NULL OR image_urls = '' OR image_urls = '[]') AND content IS NOT NULL AND content != ''")
+            ).scalar()
+            if null_image and null_image > 0:
+                db.session.execute(db.text("""
+                    UPDATE wechat_messages
+                    SET image_urls = '["' || content || '"]'
+                    WHERE (msg_type = 'image' OR message_type = 'image'
+                           OR message_type IN ('burn_image','flash_image'))
+                      AND (image_urls IS NULL OR image_urls = '' OR image_urls = '[]')
+                      AND content IS NOT NULL AND content != ''
+                """))
+                db.session.commit()
+                print(f"    ✅ 回填 image_urls: {null_image} 行")
+        except Exception as e:
+            db.session.rollback()
+            print(f"    ⚠️  数据回填失败: {e}")
+
+        # ── 1d. 旧列放宽 NOT NULL 约束（SQLite 重建表方案）─────────────
+        #     旧 message_type / is_deleted 列 NOT NULL 会让 SQLAlchemy 写新数据时报
+        #     IntegrityError，因为模型里没有这些列。
+        print("\n    检查旧列 NOT NULL 约束...")
+        try:
+            # PRAGMA table_info 的第 4 个字段：notnull (1=NOT NULL, 0=nullable)
+            info_rows = db.session.execute(db.text("PRAGMA table_info(wechat_messages)")).fetchall()
+            legacy_notnull = [row[1] for row in info_rows if row[1] in ("message_type", "is_deleted") and row[3] == 1]
+
+            if legacy_notnull:
+                print(f"    ⚠️  旧 NOT NULL 列: {legacy_notnull}，重建表...")
+                db.session.execute(db.text("""
+                    CREATE TABLE wechat_messages_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        sender_id INTEGER,
+                        receiver_id INTEGER,
+                        content TEXT,
+                        message_type VARCHAR(20),
+                        msg_type VARCHAR(20),
+                        image_urls TEXT,
+                        recalled INTEGER DEFAULT 0,
+                        is_read INTEGER DEFAULT 0,
+                        is_deleted INTEGER DEFAULT 0,
+                        recalled_at DATETIME,
+                        read_at TIMESTAMP,
+                        created_at DATETIME
+                    )
+                """))
+                # 按列存在性复制，缺失列填 NULL
+                col_names_in_old = {row[1] for row in info_rows}
+                select_parts = []
+                for tc in ("sender_id", "receiver_id", "content", "message_type",
+                          "msg_type", "image_urls", "recalled", "is_read",
+                          "is_deleted", "recalled_at", "read_at", "created_at"):
+                    if tc in col_names_in_old:
+                        select_parts.append(f'"{tc}"')
+                    else:
+                        select_parts.append("NULL")
+                db.session.execute(db.text(f"""
+                    INSERT INTO wechat_messages_new
+                        (sender_id, receiver_id, content, message_type,
+                         msg_type, image_urls, recalled, is_read,
+                         is_deleted, recalled_at, read_at, created_at)
+                    SELECT {", ".join(select_parts)} FROM wechat_messages
+                """))
+                db.session.execute(db.text("DROP TABLE wechat_messages"))
+                db.session.execute(db.text("ALTER TABLE wechat_messages_new RENAME TO wechat_messages"))
+                db.session.commit()
+                print("    ✅ 表重建完成")
+            else:
+                print("    ✅ 无需重建（约束已放宽或不存在）")
+        except Exception as e:
+            db.session.rollback()
+            print(f"    ⚠️  重建表失败: {e}")
+
         # ── 2. 定义要导入的账号 ─────────────────────────────────────────
         #    username  → 数据库里的登录名
         #    display   → 页面显示名

@@ -223,11 +223,13 @@ from app.utils.presets import PRESET_CATEGORIES, PRESET_TAGS
 
 @app.errorhandler(Exception)
 def handle_unexpected_error(e):
-    """开发环境：捕获所有未处理异常，在页面上直接输出 traceback 方便排查。"""
+    """捕获所有未处理异常：页面展示 traceback，同时写日志方便服务端排查。"""
     # 重要：不要把 404/400 等 HTTP 异常强行变成 500
-    # 否则像 favicon.ico、缺失静态资源都会被显示为 500，误导排查
     if isinstance(e, HTTPException):
         return e
+    # 写一份到日志（部署机用得上）
+    import logging
+    logging.getLogger("werkzeug").exception("Unhandled exception: %s", e)
     # 构造简单的纯文本调试页面（仅在本机使用，部署前请删除/注释）
     tb = traceback.format_exc()
     debug_html = f"""
@@ -252,6 +254,144 @@ def ensure_schema():
     insp = inspect(engine)
 
     table_names = insp.get_table_names()
+
+    # === WeChat messages 表的自修复迁移 ===
+    # 兼容老库：wechat_messages 表历史上经历过 schema 变更
+    # 旧 schema: sender_id, content, message_type, created_at, is_deleted, recalled_at, read_at
+    # 新 schema: + receiver_id, msg_type, image_urls, recalled, is_read
+    # 旧列上 NOT NULL 约束会导致 SQLAlchemy INSERT 新 schema 时报 IntegrityError，
+    # 因为模型里没有旧列，但表上旧列 NOT NULL。
+    if "wechat_messages" in table_names:
+        wechat_cols_raw = insp.get_columns("wechat_messages")
+        wechat_col_names = {c["name"] for c in wechat_cols_raw}
+        wechat_col_nullable = {c["name"]: c.get("nullable", True) for c in wechat_cols_raw}
+
+        # 1) 添加缺失的新列
+        with engine.begin() as conn:
+            if "receiver_id" not in wechat_col_names:
+                conn.execute(text("ALTER TABLE wechat_messages ADD COLUMN receiver_id INTEGER"))
+            if "msg_type" not in wechat_col_names:
+                conn.execute(text("ALTER TABLE wechat_messages ADD COLUMN msg_type VARCHAR(20)"))
+            if "image_urls" not in wechat_col_names:
+                conn.execute(text("ALTER TABLE wechat_messages ADD COLUMN image_urls JSON"))
+            if "recalled" not in wechat_col_names:
+                conn.execute(text("ALTER TABLE wechat_messages ADD COLUMN recalled BOOLEAN DEFAULT 0"))
+            if "is_read" not in wechat_col_names:
+                conn.execute(text("ALTER TABLE wechat_messages ADD COLUMN is_read BOOLEAN DEFAULT 0"))
+
+        # 2) 回填历史数据（仅在缺新数据时执行，避免每次启动都跑）
+        with engine.begin() as conn:
+            null_msg_type = conn.execute(text(
+                "SELECT COUNT(*) FROM wechat_messages WHERE msg_type IS NULL OR msg_type = ''"
+            )).scalar()
+            if null_msg_type and null_msg_type > 0:
+                # 映射旧 message_type → 新 msg_type
+                conn.execute(text("""
+                    UPDATE wechat_messages
+                    SET msg_type = CASE
+                        WHEN message_type IN ('text', 'image') THEN message_type
+                        ELSE 'text'
+                    END
+                    WHERE msg_type IS NULL OR msg_type = ''
+                """))
+
+                # is_read ← read_at NOT NULL
+                conn.execute(text("""
+                    UPDATE wechat_messages
+                    SET is_read = CASE WHEN read_at IS NOT NULL THEN 1 ELSE 0 END
+                    WHERE is_read = 0 OR is_read IS NULL
+                """))
+
+                # recalled ← is_deleted=1 OR recalled_at NOT NULL
+                conn.execute(text("""
+                    UPDATE wechat_messages
+                    SET recalled = CASE
+                        WHEN is_deleted = 1 OR recalled_at IS NOT NULL THEN 1
+                        ELSE 0
+                    END
+                    WHERE recalled = 0 OR recalled IS NULL
+                """))
+
+                # receiver_id 推断：sender_id=1→2，sender_id=2→1
+                conn.execute(text("""
+                    UPDATE wechat_messages
+                    SET receiver_id = CASE sender_id
+                        WHEN 1 THEN 2
+                        WHEN 2 THEN 1
+                        ELSE receiver_id
+                    END
+                    WHERE receiver_id IS NULL
+                """))
+
+                # image_msgs 的 image_urls 从 content 反推
+                conn.execute(text("""
+                    UPDATE wechat_messages
+                    SET image_urls = json_array(content)
+                    WHERE (msg_type = 'image' OR message_type = 'image'
+                           OR message_type IN ('burn_image','flash_image'))
+                      AND (image_urls IS NULL OR image_urls = '' OR image_urls = '[]')
+                      AND content IS NOT NULL AND content != ''
+                """))
+
+        # 3) 旧 NOT NULL 列需要放宽（SQLite 重建表方案）
+        legacy_notnull_cols = []
+        if "message_type" in wechat_col_names and wechat_col_nullable.get("message_type") is False:
+            legacy_notnull_cols.append("message_type")
+        if "is_deleted" in wechat_col_names and wechat_col_nullable.get("is_deleted") is False:
+            legacy_notnull_cols.append("is_deleted")
+
+        if legacy_notnull_cols:
+            import logging
+            logging.getLogger("wechat_migrate").warning(
+                "[wechat_migrate] 检测到旧 NOT NULL 列 %s，正在重建表以放宽约束...",
+                legacy_notnull_cols,
+            )
+
+            with engine.begin() as conn:
+                all_cols_info = conn.execute(text("PRAGMA table_info(wechat_messages)")).fetchall()
+                all_col_names = {row[1] for row in all_cols_info}
+
+                # 建新表（所有列 nullable）
+                conn.execute(text("""
+                    CREATE TABLE wechat_messages_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        sender_id INTEGER,
+                        receiver_id INTEGER,
+                        content TEXT,
+                        message_type VARCHAR(20),
+                        msg_type VARCHAR(20),
+                        image_urls JSON,
+                        recalled BOOLEAN DEFAULT 0,
+                        is_read BOOLEAN DEFAULT 0,
+                        is_deleted BOOLEAN DEFAULT 0,
+                        recalled_at DATETIME,
+                        read_at TIMESTAMP,
+                        created_at DATETIME
+                    )
+                """))
+
+                target_cols = ["sender_id", "receiver_id", "content", "message_type",
+                               "msg_type", "image_urls", "recalled", "is_read",
+                               "is_deleted", "recalled_at", "read_at", "created_at"]
+                select_parts = [
+                    f'"{tc}"' if tc in all_col_names else "NULL"
+                    for tc in target_cols
+                ]
+                conn.execute(text(f"""
+                    INSERT INTO wechat_messages_new
+                        (sender_id, receiver_id, content, message_type,
+                         msg_type, image_urls, recalled, is_read,
+                         is_deleted, recalled_at, read_at, created_at)
+                    SELECT {", ".join(select_parts)}
+                    FROM wechat_messages
+                """))
+
+                conn.execute(text("DROP TABLE wechat_messages"))
+                conn.execute(text("ALTER TABLE wechat_messages_new RENAME TO wechat_messages"))
+
+            logging.getLogger("wechat_migrate").warning(
+                "[wechat_migrate] 表重建完成，所有历史数据已迁移。"
+            )
 
     # 如果 notes 表还不存在，交给 create_all 去创建即可
     if "notes" not in table_names:
