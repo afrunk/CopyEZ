@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#FAF8F5">
+    <title>日志 · 小本本</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='diary/diary.css') }}">
+</head>
+<body>
+<div class="page">
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div class="site-header-left">
+                <a href="/diary/" class="site-wordmark">小本本<em>·</em></a>
+            </div>
+            <div class="site-header-right">
+                <span class="role-badge {{ user.role }}">{{ '主人' if user.role == 'master' else '母狗' }}</span>
+                <button class="icon-btn" id="logoutBtn" title="退出">✕</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="page-content">
+        <main class="detail-page">
+            <a href="/diary/" class="detail-back">← 返回时间线</a>
+
+            <div class="detail-hero" id="heroCard"></div>
+
+            <!-- 点评区 -->
+            <div class="comments-section" id="commentsSection">
+                <h2 class="comments-heading">
+                    点评
+                    <span class="comments-count" id="commentCount">0</span>
+                </h2>
+                <div id="commentList" class="comment-list"></div>
+
+                {% if user.role == 'master' %}
+                <form class="comment-form" id="commentForm">
+                    <p class="comment-form-title">写下你的点评</p>
+                    <textarea class="comment-textarea" id="commentTextarea"
+                        placeholder="写点什么…" rows="3"></textarea>
+                    <div class="comment-actions">
+                        <button type="submit" class="btn btn-primary"
+                            style="height:38px;font-size:13px;padding:0 20px">发送</button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+
+    <nav class="tabbar">
+        <div class="tabbar-inner">
+            <a href="/diary/" class="tabbar-item active">
+                <span class="tab-icon">—</span>
+                <span>时间线</span>
+            </a>
+            {% if user.role == 'master' %}
+            <a href="/diary/admin/sessions" class="tabbar-item">
+                <span class="tab-icon">●</span>
+                <span>登录情况</span>
+            </a>
+            {% endif %}
+        </div>
+    </nav>
+</div>
+
+<!-- 图片弹层 -->
+<div id="imgModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999;align-items:center;justify-content:center;cursor:pointer;" onclick="this.style.display='none'">
+    <img id="modalImg" src="" style="max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain;">
+</div>
+
+<script>
+(function() {
+    const userRole = '{{ user.role }}';
+    const entryId = {{ entry.id }};
+    const heroCard = document.getElementById('heroCard');
+
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s || '';
+        return div.innerHTML;
+    }
+
+    function formatFull(ts) {
+        if (!ts) return '';
+        return new Date(ts).toLocaleString('zh-CN', {
+            year:'numeric', month:'long', day:'numeric',
+            hour:'2-digit', minute:'2-digit',
+        });
+    }
+
+    function formatShort(ts) {
+        if (!ts) return '';
+        const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+        if (diff < 3600) return Math.floor(diff/60) + ' 分钟前';
+        if (diff < 86400) return Math.floor(diff/3600) + ' 小时前';
+        if (diff < 604800) return Math.floor(diff/86400) + ' 天前';
+        return new Date(ts).toLocaleDateString('zh-CN', { month:'long', day:'numeric' });
+    }
+
+    function renderEntry(entry) {
+        const moodHtml = entry.mood ? `<span class="mood-chip">${escapeHtml(entry.mood)}</span>` : '';
+        let imagesHtml = '';
+        if (entry.images && entry.images.length > 0) {
+            imagesHtml = `<div class="detail-images">${
+                entry.images.map(img =>
+                    `<img src="${escapeHtml(img.image_url)}" alt="附件" onclick="openImg('${escapeHtml(img.image_url)}')">`
+                ).join('')
+            }</div>`;
+        }
+
+        let actionsHtml = '';
+        if (userRole === 'master') {
+            actionsHtml = `
+                <button class="btn btn-ghost" id="pinBtn" data-pinned="${entry.is_pinned}">
+                    ${entry.is_pinned ? '✦ 取消置顶' : '✦ 置顶'}
+                </button>
+            `;
+        }
+        if (userRole === 'pup') {
+            actionsHtml = `
+                <a href="/diary/${entryId}/edit" class="btn btn-ghost">✎ 修改</a>
+                <button class="btn btn-danger" id="deleteBtn">✕ 删除</button>
+            `;
+        }
+
+        heroCard.innerHTML = `
+            <div class="detail-hero-header">
+                <div class="detail-author">${escapeHtml(entry.author_name || '未知')}</div>
+                <div class="detail-meta-row">
+                    ${moodHtml}
+                    <span class="detail-date">${formatFull(entry.created_at)}</span>
+                </div>
+            </div>
+            <div class="detail-hero-body">
+                <div class="detail-content">${escapeHtml(entry.content_text || '')}</div>
+                ${imagesHtml}
+            </div>
+            <div class="detail-hero-footer">
+                ${actionsHtml}
+            </div>
+        `;
+
+        const pinBtn = document.getElementById('pinBtn');
+        if (pinBtn) {
+            pinBtn.addEventListener('click', async () => {
+                const on = pinBtn.dataset.pinned !== 'true';
+                const r = await fetch(`/diary/api/entries/${entryId}/pin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ on }),
+                });
+                const d = await r.json();
+                if (r.ok) {
+                    entry.is_pinned = d.is_pinned;
+                    pinBtn.dataset.pinned = d.is_pinned;
+                    pinBtn.textContent = d.is_pinned ? '✦ 取消置顶' : '✦ 置顶';
+                }
+            });
+        }
+
+        const deleteBtn = document.getElementById('deleteBtn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async () => {
+                if (!confirm('确认删除这篇日志？')) return;
+                const r = await fetch(`/diary/api/entries/${entryId}`, { method: 'DELETE' });
+                if (r.ok) window.location.href = '/diary/';
+            });
+        }
+    }
+
+    function openImg(url) {
+        const modal = document.getElementById('imgModal');
+        document.getElementById('modalImg').src = url;
+        modal.style.display = 'flex';
+    }
+
+    async function loadComments() {
+        try {
+            const r = await fetch(`/diary/api/entries/${entryId}/comments`);
+            const data = await r.json();
+            const comments = data.comments || [];
+            document.getElementById('commentCount').textContent = comments.length;
+            const list = document.getElementById('commentList');
+            if (comments.length === 0) {
+                list.innerHTML = '<p class="empty-comments">还没有点评</p>';
+                return;
+            }
+            comments.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'comment-item';
+                item.innerHTML = `
+                    <div class="comment-meta">
+                        <span class="comment-author">${escapeHtml(c.master_name)}</span>
+                        <span class="comment-date">${formatShort(c.created_at)}</span>
+                    </div>
+                    <div class="comment-body">${escapeHtml(c.content_text)}</div>
+                `;
+                list.appendChild(item);
+            });
+        } catch {}
+    }
+
+    // Init
+    renderEntry({{ entry | tojson | safe }});
+    loadComments();
+
+    const commentForm = document.getElementById('commentForm');
+    if (commentForm) {
+        commentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ta = commentForm.querySelector('textarea');
+            const content = ta.value.trim();
+            if (!content) return;
+            const btn = commentForm.querySelector('button[type=submit]');
+            btn.disabled = true; btn.textContent = '发送中…';
+            try {
+                const r = await fetch(`/diary/api/comments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entry_id: entryId, content_text: content }),
+                });
+                const d = await r.json();
+                if (r.ok) { ta.value = ''; await loadComments(); }
+                else alert(d.error || '发送失败');
+            } finally { btn.disabled = false; btn.textContent = '发送'; }
+        });
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        fetch('/diary/auth/api/logout', { method: 'POST' })
+            .then(() => { window.location.href = '/diary/auth/login'; });
+    });
+})();
+</script>
+</body>
+</html>

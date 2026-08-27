@@ -1,0 +1,345 @@
+/* ============================================================
+   WeChat · 私密聊天 · 微信绿风格
+   ============================================================ */
+
+/* ── 变量 ─────────────────────────────────────────────── */
+:root {
+    --wechat-green: #07C160;
+    --wechat-green-dark: #059644;
+    --wechat-green-light: #E8F8EE;
+    --wechat-bg: #EDEDED;
+    --wechat-surface: #FFFFFF;
+    --wechat-header-bg: #2A2A2A;
+    --ink: #1A1A1A;
+    --ink-2: #888888;
+    --ink-3: #BBBBBB;
+    --ink-4: #DDDDDD;
+    --r-sm: 4px;
+    --r: 8px;
+    --r-lg: 16px;
+}
+
+/* ── Reset ────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
+                 "Helvetica Neue", sans-serif;
+    background: var(--wechat-bg);
+    color: var(--ink);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+/* ── 登录页 ───────────────────────────────────────────── */
+.wx-login-page {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--wechat-header-bg);
+    background-image:
+        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(7,193,96,0.2) 0%, transparent 60%);
+}
+
+.wx-login-card {
+    width: 100%;
+    max-width: 360px;
+    background: white;
+    border-radius: 16px;
+    padding: 40px 32px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    animation: fadeUp 0.6s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+.wx-login-logo {
+    width: 60px;
+    height: 60px;
+    background: var(--wechat-green);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 28px;
+    color: white;
+}
+
+.wx-login-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 4px;
+}
+
+.wx-login-sub {
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink-2);
+    margin-bottom: 32px;
+}
+
+.wx-login-error {
+    padding: 10px 14px;
+    background: #FFF0F0;
+    border: 1px solid #FFCCCC;
+    border-radius: var(--r-sm);
+    font-size: 13px;
+    color: #D44;
+    margin-bottom: 16px;
+    display: none;
+}
+.wx-login-error.show { display: block; }
+
+.wx-fg { margin-bottom: 14px; }
+.wx-label {
+    display: block;
+    font-size: 12px;
+    color: var(--ink-2);
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+.wx-input {
+    width: 100%;
+    height: 46px;
+    padding: 0 14px;
+    background: var(--wechat-bg);
+    border: 1.5px solid var(--ink-4);
+    border-radius: var(--r);
+    font-size: 15px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    font-family: inherit;
+}
+.wx-input::placeholder { color: var(--ink-3); }
+.wx-input:focus {
+    border-color: var(--wechat-green);
+    background: white;
+}
+
+.wx-btn {
+    width: 100%;
+    height: 48px;
+    border-radius: var(--r);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    -webkit-appearance: none;
+}
+.wx-btn-primary {
+    background: var(--wechat-green);
+    color: white;
+}
+.wx-btn-primary:hover { background: var(--wechat-green-dark); transform: translateY(-1px); }
+.wx-btn-primary:active { transform: translateY(0); }
+.wx-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* ── 聊天页整体布局 ───────────────────────────────────── */
+.wx-page {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--wechat-bg);
+}
+
+/* ── 顶部导航 ─────────────────────────────────────────── */
+.wx-header {
+    background: var(--wechat-header-bg);
+    color: white;
+    padding: env(safe-area-inset-top, 0) 16px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 56px;
+    flex-shrink: 0;
+}
+.wx-header-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: white;
+}
+.wx-header-back {
+    position: absolute;
+    left: 16px;
+    font-size: 24px;
+    color: white;
+    text-decoration: none;
+}
+
+/* ── 聊天区域 ─────────────────────────────────────────── */
+.wx-chat-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.wx-msg-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--ink-2);
+    font-size: 14px;
+}
+.wx-msg-empty-icon { font-size: 40px; opacity: 0.4; }
+
+/* ── 消息气泡 ─────────────────────────────────────────── */
+.wx-msg {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    animation: msgIn 0.3s ease both;
+}
+
+.wx-msg.mine {
+    flex-direction: row-reverse;
+}
+
+.wx-msg-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+}
+
+.wx-msg-content {
+    max-width: 72%;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.wx-msg.mine .wx-msg-content {
+    align-items: flex-end;
+}
+
+.wx-msg-bubble {
+    padding: 10px 14px;
+    border-radius: var(--r);
+    font-size: 15px;
+    line-height: 1.55;
+    word-break: break-word;
+    position: relative;
+}
+
+/* 对方气泡 */
+.wx-msg.partner .wx-msg-bubble {
+    background: white;
+    color: var(--ink);
+    border-top-left-radius: 4px;
+}
+
+/* 我的气泡 */
+.wx-msg.mine .wx-msg-bubble {
+    background: var(--wechat-green);
+    color: white;
+    border-top-right-radius: 4px;
+}
+
+.wx-msg-time {
+    font-size: 10px;
+    color: var(--ink-3);
+    padding: 0 4px;
+}
+
+/* 日期分割线 */
+.wx-date-divider {
+    text-align: center;
+    padding: 8px 0;
+}
+.wx-date-chip {
+    display: inline-block;
+    padding: 3px 10px;
+    background: rgba(0,0,0,0.08);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--ink-2);
+}
+
+/* ── 底部输入框 ───────────────────────────────────────── */
+.wx-input-bar {
+    background: var(--wechat-bg);
+    border-top: 1px solid #D8D8D8;
+    padding: 8px 12px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0));
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.wx-input-bar input {
+    flex: 1;
+    height: 38px;
+    padding: 0 14px;
+    background: white;
+    border: 1px solid #D8D8D8;
+    border-radius: 19px;
+    font-size: 15px;
+    color: var(--ink);
+    outline: none;
+    font-family: inherit;
+    -webkit-appearance: none;
+}
+.wx-input-bar input:focus {
+    border-color: var(--wechat-green);
+}
+
+.wx-send-btn {
+    width: 60px;
+    height: 38px;
+    background: var(--wechat-green);
+    color: white;
+    border: none;
+    border-radius: 19px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.wx-send-btn:hover { background: var(--wechat-green-dark); }
+.wx-send-btn:disabled {
+    background: var(--ink-4);
+    color: var(--ink-3);
+    cursor: not-allowed;
+}
+
+/* ── 动画 ─────────────────────────────────────────────── */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes msgIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 响应式 ───────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .wx-page { max-width: 100%; }
+}

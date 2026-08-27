@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#FAFAF8">
+    <title>{{ message or '无权限' }} · 小本本</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='diary/diary.css') }}">
+</head>
+<body>
+<div class="page">
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div class="site-header-left">
+                <a href="/diary/" class="site-wordmark">小本本<span>·</span></a>
+            </div>
+            <div class="site-header-right">
+                <span class="role-badge {{ user.role }}">{{ '主人' if user.role == 'master' else '母狗' }}</span>
+                <button class="icon-btn" id="logoutBtn" title="退出">✕</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="page-content">
+        <div class="placeholder-page">
+            <div style="margin-bottom:24px">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="24" cy="24" r="23" stroke="#E8E0D4" stroke-width="2"/>
+                    <path d="M16 24C16 20.686 18.686 18 22 18H26C29.314 18 32 20.686 32 24V28H16V24Z" stroke="#D8CCBE" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M20 28V32" stroke="#D8CCBE" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M28 28V32" stroke="#D8CCBE" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <h1 class="placeholder-title">{{ message or '这里还不能访问' }}</h1>
+            <p class="placeholder-sub">{{ message or '你暂时没有权限进入这个页面' }}</p>
+        </div>
+    </div>
+
+    <nav class="tabbar">
+        <div class="tabbar-inner">
+            <a href="/diary/" class="tabbar-item active">
+                <span class="tab-icon">&#8212;</span>
+                <span>时间线</span>
+            </a>
+            {% if user.role == 'master' %}
+            <a href="/diary/admin/sessions" class="tabbar-item">
+                <span class="tab-icon">&#9679;</span>
+                <span>登录情况</span>
+            </a>
+            {% endif %}
+        </div>
+    </nav>
+</div>
+
+<script>
+document.getElementById('logoutBtn').addEventListener('click', () => {
+    fetch('/diary/auth/api/logout', { method: 'POST' })
+        .then(() => { window.location.href = '/diary/auth/login'; });
+});
+</script>
+</body>
+</html>

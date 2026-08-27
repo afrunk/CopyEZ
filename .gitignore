@@ -5,6 +5,8 @@ __pycache__/
 # 忽略虚拟环境
 venv/
 .venv/
+node_modules/
+package-lock.json
 
 # 💡 核心：忽略用户上传的图片文件夹（假设你的路径是 static/uploads）
 static/uploads/*
@@ -22,3 +24,10 @@ logs/
 # 忽略系统文件
 .DS_Store
 Thumbs.db
+
+# 忽略临时文件
+diary_server.log
+master.txt
+pup.txt
+nul
+test-results/

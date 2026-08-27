@@ -19,4 +19,35 @@ from app.models.ledger_category import LedgerCategory
 from app.models.ledger_transaction import Transaction
 from app.models.ledger_user import User
 
-__all__ = ["Note", "Memo", "CustomCategory", "Account", "LedgerCategory", "Transaction", "User"]
+# BondageDiary (Phase 7)
+from app.models.bondage_diary import (
+    DiaryUser,
+    DiaryEntry,
+    DiaryImage,
+    DiaryComment,
+    DiaryEntryRevision,
+    DiaryAccessLog,
+    DiaryLoginAttempt,
+)
+
+# WeChat (私密聊天)
+from app.models.wechat import WeChatUser, WeChatMessage
+
+__all__ = [
+    "Note",
+    "Memo",
+    "CustomCategory",
+    "Account",
+    "LedgerCategory",
+    "Transaction",
+    "User",
+    "DiaryUser",
+    "DiaryEntry",
+    "DiaryImage",
+    "DiaryComment",
+    "DiaryEntryRevision",
+    "DiaryAccessLog",
+    "DiaryLoginAttempt",
+    "WeChatUser",
+    "WeChatMessage",
+]

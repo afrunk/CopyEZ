@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#FAF8F5">
+    <title>{{ '写日志' if mode == 'create' else '修改日志' }} · 小本本</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='diary/diary.css') }}">
+</head>
+<body>
+<div class="page">
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div class="site-header-left">
+                <a href="/diary/" class="site-wordmark">小本本<em>·</em></a>
+            </div>
+            <div class="site-header-right">
+                <span class="role-badge pup">母狗</span>
+                <button class="icon-btn" id="logoutBtn" title="退出">✕</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="page-content">
+        <main class="form-page">
+            <a href="/diary/" class="detail-back">← 返回</a>
+            <h1 class="form-page-title">{{ '写日志' if mode == 'create' else '修改日志' }}</h1>
+
+            <div class="form-success" id="successMsg">已保存，2秒后返回…</div>
+
+            <div class="form-card">
+                <div class="form-section">
+                    <label class="form-section-label">正文</label>
+                    <textarea class="form-textarea" id="contentText"
+                        placeholder="今天发生了什么…"
+                        maxlength="10000">{{ entry.content_text if entry else '' }}</textarea>
+                    <p class="form-hint" id="charCount"></p>
+                </div>
+
+                <div class="form-section">
+                    <label class="form-section-label">心情</label>
+                    <div class="mood-options" id="moodOptions">
+                        {% for m in ['开心','期待','兴奋','满足','平静','疲惫','委屈','难过','害怕','羞愧'] %}
+                        <button class="mood-opt{{ ' sel' if entry and entry.mood == m else '' }}"
+                            type="button" data-mood="{{ m }}">{{ m }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label class="form-section-label">附件图片</label>
+                    <div class="form-images-grid" id="imagesGrid">
+                        {% if entry and entry.images %}
+                        {% for img in entry.images %}
+                        <div class="img-thumb" data-url="{{ img.url }}">
+                            <img src="{{ img.url }}" alt="">
+                            <button type="button" class="img-thumb-rm" onclick="rmImg(this)">✕</button>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                        <button type="button" class="upload-btn" id="uploadBtn">
+                            <span class="upload-btn-icon">+</span>
+                            <span>添加图片</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="/diary/" class="btn btn-ghost">取消</a>
+                <button class="btn btn-primary" id="saveBtn">{{ '发布' if mode == 'create' else '保存' }}</button>
+            </div>
+        </main>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+</div>
+
+<script>
+(function() {
+    const mode = '{{ mode }}';
+    const entryId = {{ entry.id if entry else 'null' }};
+    const textarea = document.getElementById('contentText');
+    const charCount = document.getElementById('charCount');
+    const moodOptions = document.getElementById('moodOptions');
+    const imagesGrid = document.getElementById('imagesGrid');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileInput = document.getElementById('fileInput');
+    const saveBtn = document.getElementById('saveBtn');
+    const successMsg = document.getElementById('successMsg');
+
+    let selectedMood = '{{ entry.mood if entry else '' }}';
+
+    function updateCharCount() {
+        charCount.textContent = textarea.value.length + ' / 10000';
+    }
+    textarea.addEventListener('input', updateCharCount);
+    updateCharCount();
+
+    moodOptions.querySelectorAll('.mood-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mood = btn.dataset.mood;
+            if (selectedMood === mood) {
+                selectedMood = '';
+                btn.classList.remove('sel');
+            } else {
+                moodOptions.querySelectorAll('.mood-opt').forEach(b => b.classList.remove('sel'));
+                btn.classList.add('sel');
+                selectedMood = mood;
+            }
+        });
+    });
+
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = '上传中…';
+        for (const file of files) {
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const r = await fetch('/diary/api/upload/image', { method: 'POST', body: formData });
+                const d = await r.json();
+                if (r.ok && d.url) addImgThumb(d.url);
+            } catch {}
+        }
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<span class="upload-btn-icon">+</span><span>添加图片</span>';
+        fileInput.value = '';
+    });
+
+    function addImgThumb(url) {
+        const div = document.createElement('div');
+        div.className = 'img-thumb';
+        div.dataset.url = url;
+        div.innerHTML = `<img src="${escapeHtml(url)}" alt=""><button type="button" class="img-thumb-rm" onclick="rmImg(this)">✕</button>`;
+        imagesGrid.insertBefore(div, uploadBtn);
+    }
+
+    window.rmImg = function(btn) { btn.closest('.img-thumb').remove(); };
+
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s || '';
+        return div.innerHTML;
+    }
+
+    function getAllUrls() {
+        const urls = [];
+        imagesGrid.querySelectorAll('.img-thumb[data-url]').forEach(thumb => urls.push(thumb.dataset.url));
+        return urls;
+    }
+
+    saveBtn.addEventListener('click', async () => {
+        const content = textarea.value.trim();
+        if (!content) { alert('请写点什么'); textarea.focus(); return; }
+        saveBtn.disabled = true; saveBtn.textContent = '保存中…';
+        try {
+            const payload = {
+                content_text: content,
+                mood: selectedMood || null,
+                image_urls: getAllUrls(),
+            };
+            const r = mode === 'create'
+                ? await fetch('/diary/api/entries', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                : await fetch(`/diary/api/entries/${entryId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+            const d = await r.json();
+            if (r.ok) {
+                successMsg.classList.add('show');
+                setTimeout(() => { window.location.href = '/diary/'; }, 2000);
+            } else { alert(d.error || '保存失败'); saveBtn.disabled = false; saveBtn.textContent = mode === 'create' ? '发布' : '保存'; }
+        } catch { alert('网络异常'); saveBtn.disabled = false; saveBtn.textContent = mode === 'create' ? '发布' : '保存'; }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        fetch('/diary/auth/api/logout', { method:'POST' }).then(() => { window.location.href = '/diary/auth/login'; });
+    });
+})();
+</script>
+</body>
+</html>

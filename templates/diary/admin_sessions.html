@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#FAF8F5">
+    <title>登录情况 · 小本本</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='diary/diary.css') }}">
+</head>
+<body>
+<div class="page">
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div class="site-header-left">
+                <a href="/diary/" class="site-wordmark">小本本<em>·</em></a>
+            </div>
+            <div class="site-header-right">
+                <span class="role-badge master">主人</span>
+                <button class="icon-btn" id="logoutBtn" title="退出">✕</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="page-content">
+        <main class="sessions-page">
+
+            <!-- 三格统计 -->
+            <div class="s-stats">
+                <div class="s-stat">
+                    <div class="s-stat-value ok" id="statSuccess">–</div>
+                    <div class="s-stat-label">总成功</div>
+                </div>
+                <div class="s-stat">
+                    <div class="s-stat-value danger" id="statFailed">–</div>
+                    <div class="s-stat-label">总失败</div>
+                </div>
+                <div class="s-stat">
+                    <div class="s-stat-value warn" id="statFailed30d">–</div>
+                    <div class="s-stat-label">30天失败</div>
+                </div>
+            </div>
+
+            <!-- 母狗账号 -->
+            <div class="s-card">
+                <div class="s-card-header">
+                    <span class="s-card-title">母狗账号</span>
+                </div>
+                <div class="s-card-body">
+                    <div id="pupList" class="s-pup-list"></div>
+                </div>
+            </div>
+
+            <!-- 登录记录 -->
+            <div class="s-card">
+                <div class="s-card-header">
+                    <span class="s-card-title">登录记录</span>
+                    <label class="s-toggle">
+                        <input type="checkbox" id="includeFailed" checked>
+                        含失败
+                    </label>
+                </div>
+                <div class="s-card-body">
+                    <div id="attemptList" class="s-attempt-list"></div>
+                    <p id="attemptEmpty" class="s-empty" hidden>暂无记录</p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <nav class="tabbar">
+        <div class="tabbar-inner">
+            <a href="/diary/" class="tabbar-item">
+                <span class="tab-icon">—</span>
+                <span>时间线</span>
+            </a>
+            <a href="/diary/admin/sessions" class="tabbar-item active">
+                <span class="tab-icon">●</span>
+                <span>登录情况</span>
+            </a>
+        </div>
+    </nav>
+</div>
+
+<script>
+(function() {
+    const statSuccess = document.getElementById('statSuccess');
+    const statFailed = document.getElementById('statFailed');
+    const statFailed30d = document.getElementById('statFailed30d');
+    const pupListEl = document.getElementById('pupList');
+    const attemptListEl = document.getElementById('attemptList');
+    const attemptEmptyEl = document.getElementById('attemptEmpty');
+    const includeFailedCb = document.getElementById('includeFailed');
+
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s || '';
+        return div.innerHTML;
+    }
+
+    function formatTime(ts) {
+        if (!ts) return '–';
+        return new Date(ts).toLocaleString('zh-CN', {
+            month:'short', day:'numeric', hour:'2-digit', minute:'2-digit',
+        });
+    }
+
+    function timeAgo(ts) {
+        if (!ts) return '–';
+        const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+        if (diff < 3600) return Math.floor(diff/60) + ' 分钟前';
+        if (diff < 86400) return Math.floor(diff/3600) + ' 小时前';
+        if (diff < 2592000) return Math.floor(diff/86400) + ' 天前';
+        return new Date(ts).toLocaleDateString('zh-CN', { month:'short', day:'numeric' });
+    }
+
+    function renderPup(p) {
+        const lockedBadge = p.is_locked
+            ? `<span class="badge danger">已锁定</span>`
+            : `<span class="badge ok">正常</span>`;
+        const pwdBadge = p.must_change_password
+            ? `<span class="badge warn">需改密</span>`
+            : `<span class="badge">密码正常</span>`;
+        const failedBadge = p.failed_attempts > 0
+            ? `<span class="badge danger">${p.failed_attempts}次失败</span>`
+            : '';
+        return `
+            <div class="s-pup-item">
+                <div class="s-pup-name">
+                    ${escapeHtml(p.display_name)} ${lockedBadge} ${pwdBadge} ${failedBadge}
+                </div>
+                <div class="s-pup-meta">
+                    <span>上次改密：${escapeHtml(formatTime(p.password_changed_at))}</span>
+                    ${p.is_locked ? `<span>锁定至：${escapeHtml(formatTime(p.locked_until))}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderAttempt(a) {
+        const cls = a.success ? 'ok' : 'fail';
+        const txt = a.success ? '成功' : '失败';
+        return `
+            <div class="s-attempt-row ${cls}">
+                <span class="s-attempt-result ${cls}">${txt}</span>
+                <span class="s-attempt-role">${escapeHtml(a.attempted_role || '?')}</span>
+                <span class="s-attempt-ip">${escapeHtml(a.ip_address || '?')}</span>
+                <span class="s-attempt-time" title="${escapeHtml(formatTime(a.created_at))}">${timeAgo(a.created_at)}</span>
+            </div>
+        `;
+    }
+
+    async function load() {
+        const params = new URLSearchParams({ limit: '50' });
+        if (!includeFailedCb.checked) params.set('include_failed', 'false');
+        attemptListEl.innerHTML = '';
+        try {
+            const r = await fetch('/diary/api/admin/sessions?' + params);
+            const data = await r.json();
+            if (!r.ok) { alert(data.error || '加载失败'); return; }
+
+            statSuccess.textContent = data.stats.total_success;
+            statFailed.textContent = data.stats.total_failed;
+            statFailed30d.textContent = data.stats.failed_30d;
+
+            pupListEl.innerHTML = (data.pup_status || []).map(renderPup).join('');
+            if (!data.pup_status || data.pup_status.length === 0)
+                pupListEl.innerHTML = '<p class="s-empty">未找到母狗账号</p>';
+
+            const attempts = data.attempts || [];
+            if (attempts.length === 0) { attemptEmptyEl.hidden = false; }
+            else {
+                attemptEmptyEl.hidden = true;
+                attemptListEl.innerHTML = attempts.map(renderAttempt).join('');
+            }
+        } catch { alert('网络异常'); }
+    }
+
+    includeFailedCb.addEventListener('change', load);
+    load();
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        fetch('/diary/auth/api/logout', { method: 'POST' })
+            .then(() => { window.location.href = '/diary/auth/login'; });
+    });
+})();
+</script>
+</body>
+</html>

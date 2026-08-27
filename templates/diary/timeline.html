@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#FAF8F5">
+    <title>时间线 · 小本本</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='diary/diary.css') }}">
+</head>
+<body>
+<div class="page">
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div class="site-header-left">
+                <a href="/diary/" class="site-wordmark">小本本<em>·</em></a>
+            </div>
+            <div class="site-header-right">
+                <span class="role-badge {{ user.role }}">{{ '主人' if user.role == 'master' else '母狗' }}</span>
+                <button class="icon-btn" id="logoutBtn" title="退出">✕</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="page-content">
+        <main class="timeline-page">
+            <div id="emptyState" class="tl-empty" hidden>
+                <p class="tl-empty-title">还没有日志</p>
+                {% if user.role == 'pup' %}
+                <p class="tl-empty-sub">点下方按钮写第一篇</p>
+                {% else %}
+                <p class="tl-empty-sub">等母狗写第一篇</p>
+                {% endif %}
+            </div>
+            <div id="entryList" class="tl-list"></div>
+            <div id="loadingMore" class="loading-more" hidden>加载中</div>
+        </main>
+    </div>
+
+    {% if user.role == 'pup' %}
+    <a href="/diary/new" class="fab-write" title="写日志">+</a>
+    {% endif %}
+
+    <nav class="tabbar">
+        <div class="tabbar-inner">
+            <a href="/diary/" class="tabbar-item active">
+                <span class="tab-icon">—</span>
+                <span>时间线</span>
+            </a>
+            {% if user.role == 'master' %}
+            <a href="/diary/admin/sessions" class="tabbar-item">
+                <span class="tab-icon">●</span>
+                <span>登录情况</span>
+            </a>
+            {% endif %}
+        </div>
+    </nav>
+</div>
+
+<!-- 图片灯箱 -->
+<div id="imgLightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="图片查看器">
+    <div class="lightbox-backdrop"></div>
+    <button class="lightbox-close" id="lbClose" aria-label="关闭">✕</button>
+    <button class="lightbox-prev" id="lbPrev" aria-label="上一张">‹</button>
+    <div class="lightbox-stage">
+        <img id="lbImg" src="" alt="">
+    </div>
+    <button class="lightbox-next" id="lbNext" aria-label="下一张">›</button>
+    <div class="lightbox-counter" id="lbCounter"></div>
+</div>
+
+<script>
+(function() {
+    const container = document.getElementById('entryList');
+    const emptyState = document.getElementById('emptyState');
+    const loadingMore = document.getElementById('loadingMore');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    let offset = 0;
+    let loading = false;
+    let hasMore = true;
+    let currentDateGroup = null;
+
+    // ── 工具 ────────────────────────────────────────────
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s || '';
+        return div.innerHTML;
+    }
+
+    function formatDateGroup(ts) {
+        const d = new Date(ts);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today.getTime() - 86400000);
+        const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        if (dateOnly.getTime() === today.getTime()) return '今天';
+        if (dateOnly.getTime() === yesterday.getTime()) return '昨天';
+        return d.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+    }
+
+    function formatTime(ts) {
+        return new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function makeDateGroup(ts) {
+        const d = new Date(ts);
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    }
+
+    function ensureDateGroup(ts) {
+        const key = makeDateGroup(ts);
+        if (key === currentDateGroup) return null;
+        currentDateGroup = key;
+        const el = document.createElement('div');
+        el.className = 'date-group-label';
+        el.innerHTML = `<span>${formatDateGroup(ts)}</span>`;
+        return el;
+    }
+
+    // ── 灯箱 ────────────────────────────────────────────
+    const lightbox = document.getElementById('imgLightbox');
+    const lbImg = document.getElementById('lbImg');
+    const lbCounter = document.getElementById('lbCounter');
+    const lbClose = document.getElementById('lbClose');
+    const lbPrev = document.getElementById('lbPrev');
+    const lbNext = document.getElementById('lbNext');
+
+    let _lightboxImages = [];
+    let _lightboxIndex = 0;
+
+    function openLightbox(images, startIndex) {
+        _lightboxImages = images;
+        _lightboxIndex = startIndex;
+        lbCounter.textContent = `${_lightboxIndex + 1} / ${_lightboxImages.length}`;
+        showLightboxImage();
+        lightbox.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        lbClose.focus();
+    }
+
+    function showLightboxImage() {
+        const img = _lightboxImages[_lightboxIndex];
+        lbCounter.textContent = `${_lightboxIndex + 1} / ${_lightboxImages.length}`;
+        lbImg.style.opacity = '0.35';
+        lbImg.onload = () => {
+            if (lbImg.naturalWidth === 1 && lbImg.naturalHeight === 1) {
+                lbImg.style.opacity = '0';
+                lbImg.style.display = 'none';
+                showPlaceholder();
+            } else {
+                lbImg.style.display = 'block';
+                lbImg.style.opacity = '1';
+                const ph = lightbox.querySelector('.lb-placeholder');
+                if (ph) ph.style.display = 'none';
+            }
+        };
+        lbImg.onerror = () => {
+            lbImg.style.opacity = '0';
+            lbImg.style.display = 'none';
+            showPlaceholder();
+        };
+        lbImg.src = '';
+        lbImg.src = img.image_url;
+        lbPrev.style.visibility = _lightboxImages.length > 1 ? 'visible' : 'hidden';
+        lbNext.style.visibility = _lightboxImages.length > 1 ? 'visible' : 'hidden';
+    }
+
+    function showPlaceholder() {
+        let ph = lightbox.querySelector('.lb-placeholder');
+        if (!ph) {
+            ph = document.createElement('div');
+            ph.className = 'lb-placeholder';
+            ph.textContent = '图片无法显示';
+            lightbox.querySelector('.lightbox-stage').appendChild(ph);
+        }
+        ph.style.display = 'flex';
+    }
+
+    function closeLightbox() {
+        lightbox.style.display = 'none';
+        document.body.style.overflow = '';
+        _lightboxImages = [];
+        _lightboxIndex = 0;
+    }
+
+    lbClose.addEventListener('click', closeLightbox);
+    lightbox.querySelector('.lightbox-backdrop').addEventListener('click', closeLightbox);
+    lbPrev.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _lightboxIndex = (_lightboxIndex - 1 + _lightboxImages.length) % _lightboxImages.length;
+        showLightboxImage();
+    });
+    lbNext.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _lightboxIndex = (_lightboxIndex + 1) % _lightboxImages.length;
+        showLightboxImage();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (lightbox.style.display !== 'flex') return;
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); _lightboxIndex = (_lightboxIndex - 1 + _lightboxImages.length) % _lightboxImages.length; showLightboxImage(); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); _lightboxIndex = (_lightboxIndex + 1) % _lightboxImages.length; showLightboxImage(); }
+    });
+
+    // ── 渲染条目 ────────────────────────────────────────
+    function renderEntry(e) {
+        const item = document.createElement('div');
+        item.className = 'tl-item' + (e.is_pinned ? ' pinned' : '');
+        item.style.animationDelay = (offset * 0.04) + 's';
+
+        const moodHtml = e.mood ? `<span class="mood-chip">${escapeHtml(e.mood)}</span>` : '';
+        const cmTag = e.comment_count > 0 ? `<span class="tl-tag">✎ ${e.comment_count}</span>` : '';
+        const pinTag = e.is_pinned ? `<span class="tl-tag gold-tag">✦ 置顶</span>` : '';
+        const body = escapeHtml(e.content_text).replace(/\n/g, '<br>');
+
+        // 图片缩略图网格
+        let thumbsHtml = '';
+        if (e.images && e.images.length > 0) {
+            const visibleThumbs = e.images.slice(0, 3);
+            const extraCount = e.images.length - 3;
+            thumbsHtml = `<div class="tl-thumbs" data-images='${JSON.stringify(e.images).replace(/'/g, "\\'")}'>`;
+            visibleThumbs.forEach((img, i) => {
+                thumbsHtml += `<img class="tl-thumb" src="${escapeHtml(img.image_url)}" alt="附件" data-index="${i}" onerror="this.style.opacity='0.25';this.title='图片加载失败';">`;
+            });
+            if (extraCount > 0) {
+                thumbsHtml += `<div class="tl-thumb-more">+${extraCount}</div>`;
+            }
+            thumbsHtml += `</div>`;
+        }
+
+        item.innerHTML = `
+            <div class="tl-dot"></div>
+            <div class="tl-card">
+                <header class="tl-card-header">
+                    <span class="tl-author">${escapeHtml(e.author_name || '未知')}</span>
+                    <div class="tl-meta">
+                        ${moodHtml}
+                        <span class="tl-time">${formatTime(e.created_at)}</span>
+                    </div>
+                </header>
+                <div class="tl-body">${body}</div>
+                ${thumbsHtml}
+                <footer class="tl-footer">
+                    ${e.image_count > 0 ? `<span class="tl-tag">📷 ${e.image_count}</span>` : ''}${cmTag}${pinTag}
+                </footer>
+            </div>
+        `;
+
+        // 阻止点击卡片时跳页（只有点击图片/缩略图才打开灯箱）
+        const card = item.querySelector('.tl-card');
+        const thumbs = item.querySelector('.tl-thumbs');
+        if (thumbs) {
+            thumbs.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const images = JSON.parse(thumbs.dataset.images);
+                const idx = parseInt(ev.target.dataset.index || '0', 10);
+                openLightbox(images, idx);
+            });
+            // 隐藏时清理
+            const observer = new IntersectionObserver(([entry]) => {
+                if (entry.isIntersecting) {
+                    thumbs.querySelectorAll('.tl-thumb').forEach(t => {
+                        t.style.opacity = '1';
+                    });
+                }
+            });
+            observer.observe(item);
+        }
+
+        item.addEventListener('click', () => { window.location.href = '/diary/' + e.id; });
+        return item;
+    }
+
+    // ── 加载 ────────────────────────────────────────────
+    async function loadPage() {
+        if (loading || !hasMore) return;
+        loading = true;
+        loadingMore.hidden = false;
+
+        const params = new URLSearchParams({ limit: '20', offset: String(offset) });
+        try {
+            const r = await fetch('/diary/api/entries?' + params, { credentials: 'same-origin' });
+            const data = await r.json();
+            if (!r.ok) { alert(data.error || '加载失败'); return; }
+            const entries = data.entries || [];
+
+            if (entries.length === 0 && offset === 0) {
+                emptyState.hidden = false;
+            } else {
+                emptyState.hidden = true;
+                entries.forEach(e => {
+                    const group = ensureDateGroup(e.created_at);
+                    if (group) container.appendChild(group);
+                    container.appendChild(renderEntry(e));
+                });
+                offset += entries.length;
+            }
+            hasMore = data.has_more;
+        } catch { alert('网络异常'); }
+        finally {
+            loading = false;
+            loadingMore.hidden = true;
+        }
+    }
+
+    window.addEventListener('scroll', () => {
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) loadPage();
+    });
+
+    logoutBtn.addEventListener('click', () => {
+        fetch('/diary/auth/api/logout', { method: 'POST' })
+            .then(() => { window.location.href = '/diary/auth/login'; });
+    });
+
+    loadPage();
+})();
+</script>
+</body>
+</html>

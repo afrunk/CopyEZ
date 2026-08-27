@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>聊天 · 私密聊天</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='wechat/wechat.css') }}">
+</head>
+<body>
+    <div class="wx-page">
+        <!-- 顶部 -->
+        <div class="wx-header">
+            <span class="wx-header-title">私密聊天</span>
+        </div>
+
+        <!-- 聊天内容 -->
+        <div class="wx-chat-body" id="chatBody">
+            <div class="wx-msg-empty" id="emptyState">
+                <div class="wx-msg-empty-icon">💬</div>
+                <div>暂无消息，开始聊天吧</div>
+            </div>
+        </div>
+
+        <!-- 底部输入 -->
+        <div class="wx-input-bar">
+            <input type="text" id="msgInput" placeholder="输入消息…" autocomplete="off" autofocus>
+            <button class="wx-send-btn" id="sendBtn">发送</button>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        const chatBody = document.getElementById('chatBody');
+        const emptyState = document.getElementById('emptyState');
+        const msgInput = document.getElementById('msgInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        let myId = null;
+        let partnerInfo = null;
+        let messages = [];
+        let prevDate = '';
+
+        // 初始化加载
+        init();
+
+        async function init() {
+            try {
+                const r = await fetch('/wechat/api/me');
+                if (!r.ok) { window.location.href = '/wechat/auth/login'; return; }
+                const me = await r.json();
+                myId = me.id;
+            } catch {
+                window.location.href = '/wechat/auth/login';
+                return;
+            }
+            await loadMessages();
+        }
+
+        async function loadMessages() {
+            try {
+                const r = await fetch('/wechat/api/messages');
+                if (!r.ok) return;
+                const data = await r.json();
+                messages = data.messages || [];
+                partnerInfo = data.partner;
+                renderMessages();
+            } catch (e) {
+                console.error('load messages failed', e);
+            }
+        }
+
+        function renderMessages() {
+            if (messages.length === 0) {
+                emptyState.style.display = 'flex';
+                return;
+            }
+            emptyState.style.display = 'none';
+
+            // 保留滚动位置
+            const wasAtBottom = chatBody.scrollHeight - chatBody.scrollTop <= chatBody.clientHeight + 80;
+
+            // 清除旧消息（保留空状态占位）
+            const existing = chatBody.querySelectorAll('.wx-msg, .wx-date-divider');
+            existing.forEach(el => el.remove());
+
+            messages.forEach(msg => {
+                const dateKey = msg.created_at.split('T')[0];
+                if (dateKey !== prevDate) {
+                    prevDate = dateKey;
+                    const divider = document.createElement('div');
+                    divider.className = 'wx-date-divider';
+                    divider.innerHTML = `<span class="wx-date-chip">${dateKey}</span>`;
+                    chatBody.appendChild(divider);
+                }
+
+                const el = document.createElement('div');
+                el.className = 'wx-msg ' + (msg.is_mine ? 'mine' : 'partner');
+
+                const avatarColor = msg.is_mine ? '#07C160' : '#576B95';
+                const avatarInitial = (msg.is_mine
+                    ? (me_name ? me_name[0] : '我')
+                    : (partnerInfo ? partnerInfo.display_name[0] : '对')
+                ).toUpperCase();
+                const me_name = messages.find(m => m.is_mine)?.sender_name || '我';
+
+                const time = new Date(msg.created_at).toLocaleTimeString('zh-CN', {
+                    hour: '2-digit', minute: '2-digit', hour12: false
+                });
+
+                el.innerHTML = `
+                    <div class="wx-msg-avatar" style="background:${avatarColor}">
+                        ${msg.is_mine ? '我' : (partnerInfo ? partnerInfo.display_name[0] : '对')}
+                    </div>
+                    <div class="wx-msg-content">
+                        <div class="wx-msg-bubble">${escapeHtml(msg.content)}</div>
+                        <div class="wx-msg-time">${time}</div>
+                    </div>
+                `;
+                chatBody.appendChild(el);
+            });
+
+            if (wasAtBottom) scrollToBottom();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function scrollToBottom() {
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        // 发送消息
+        async function sendMessage() {
+            const content = msgInput.value.trim();
+            if (!content) return;
+
+            sendBtn.disabled = true;
+            msgInput.value = '';
+
+            try {
+                const r = await fetch('/wechat/api/messages/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content }),
+                });
+                const data = await r.json();
+                if (!r.ok) {
+                    alert(data.error || '发送失败');
+                    return;
+                }
+                messages.push(data.message);
+                prevDate = '';
+                renderMessages();
+                scrollToBottom();
+            } catch {
+                alert('发送失败，请重试');
+            } finally {
+                sendBtn.disabled = false;
+                msgInput.focus();
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        msgInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // 定时刷新（每5秒）
+        let pollInterval = setInterval(loadMessages, 5000);
+
+        // WebSocket 可选（先用轮询）
+        // 页面隐藏时暂停轮询
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(pollInterval);
+            } else {
+                pollInterval = setInterval(loadMessages, 5000);
+                loadMessages();
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

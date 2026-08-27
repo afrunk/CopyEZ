@@ -175,6 +175,31 @@ app.register_blueprint(note_pages_bp)
 # RenovaMate Blueprint
 app.register_blueprint(renovamate_bp)
 
+# BondageDiary Blueprint (Phase 7)
+from app.modules.bondage_diary import (
+    diary_auth_bp,
+    diary_entries_bp,
+    diary_comments_bp,
+    diary_access_bp,
+    diary_upload_bp,
+    diary_pages_bp,
+    diary_dashboard_bp,
+    diary_notifications_bp,
+)
+app.register_blueprint(diary_auth_bp)
+app.register_blueprint(diary_entries_bp)
+app.register_blueprint(diary_comments_bp)
+app.register_blueprint(diary_access_bp)
+app.register_blueprint(diary_upload_bp)
+app.register_blueprint(diary_pages_bp)
+app.register_blueprint(diary_dashboard_bp)
+app.register_blueprint(diary_notifications_bp)
+
+# WeChat Blueprint (私密聊天)
+from app.modules.wechat import wechat_auth_bp, wechat_chat_bp
+app.register_blueprint(wechat_auth_bp)
+app.register_blueprint(wechat_chat_bp)
+
 # ── 模板过滤器 ───────────────────────────────────────────────────────────────
 from app.utils.filters import register_filters, urlquote_filter
 register_filters(app)
@@ -365,6 +390,34 @@ def ensure_schema():
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE ledger_accounts ADD COLUMN owner_id INTEGER REFERENCES ledger_users(id)"))
                 conn.execute(text("UPDATE ledger_accounts SET owner_id = 1 WHERE owner_id IS NULL"))
+
+    # === BondageDiary 表的自修复迁移 ===
+    # 首次启动时：依次创建 7 张表（diary_users / diary_entries / diary_images /
+    #  diary_comments / diary_entry_revisions / diary_access_logs / diary_login_attempts）
+    diary_tables = [
+        ("diary_users", "DiaryUser"),
+        ("diary_entries", "DiaryEntry"),
+        ("diary_images", "DiaryImage"),
+        ("diary_comments", "DiaryComment"),
+        ("diary_entry_revisions", "DiaryEntryRevision"),
+        ("diary_access_logs", "DiaryAccessLog"),
+        ("diary_login_attempts", "DiaryLoginAttempt"),
+    ]
+
+    for table_name, model_name in diary_tables:
+        if table_name not in table_names:
+            # 强制导入模型，使 SQLAlchemy 知道要创建的表结构
+            from app.models.bondage_diary import (
+                DiaryUser,
+                DiaryEntry,
+                DiaryImage,
+                DiaryComment,
+                DiaryEntryRevision,
+                DiaryAccessLog,
+                DiaryLoginAttempt,
+            )  # noqa: F401
+            db.create_all()
+            break  # create_all 一次性建完所有已注册的表，跳出循环
 
 _schema_ensured = False
 
