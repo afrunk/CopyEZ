@@ -56,14 +56,6 @@ body {
     animation: fadeUp 0.6s cubic-bezier(0.22,1,0.36,1) both;
 }
 
-.wx-login-title {
-    text-align: center;
-    font-size: 22px;
-    font-weight: 600;
-    color: var(--ink);
-    margin-bottom: 28px;
-}
-
 .wx-login-error {
     padding: 10px 14px;
     background: #FFF0F0;
