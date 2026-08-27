@@ -99,6 +99,16 @@ def api_me():
     return jsonify(user.to_dict())
 
 
+@wechat_auth_bp.route("/api/heartbeat", methods=["POST"])
+@login_required
+def api_heartbeat():
+    """30秒心跳保活，更新 last_seen"""
+    user = get_current_user()
+    user.update_last_seen()
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
 @wechat_auth_bp.route("/logout", methods=["GET"])
 def logout_page():
     """GET 登出"""

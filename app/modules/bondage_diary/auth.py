@@ -19,6 +19,7 @@ from flask import (
 from app.extensions import db
 from app.models.bondage_diary import DiaryUser, DiaryAccessLog
 from app.modules.bondage_diary.security import (
+    authenticate_by_credentials,
     authenticate_by_password,
     fake_delay,
     record_login_attempt,
@@ -110,9 +111,11 @@ def change_password_page():
 def api_login():
     """登录
 
-    body: { password: "xxx" }
+    优先使用账号+密码: { username, password }
+    兼容旧字段: { password }  (按密码识别用户)
     """
     data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
     password = data.get("password", "") or ""
 
     ip = request.headers.get("X-Forwarded-For", request.remote_addr)
@@ -123,7 +126,16 @@ def api_login():
         return jsonify({"error": GENERIC_LOGIN_ERROR, "locked": True}), 423
 
     # 2) 尝试登录（恒定时间近似）
-    user = authenticate_by_password(password)
+    # 注意：用户传了 username 但为空 ≠ 旧接口,应当直接视为无效
+    if username:
+        user = authenticate_by_credentials(username, password)
+    elif "username" in data:
+        # 显式传空 username → 拒绝
+        fake_delay()
+        return jsonify({"error": GENERIC_LOGIN_ERROR}), 401
+    else:
+        # 兼容旧版"只输密码"接口
+        user = authenticate_by_password(password)
 
     # 3) 无论成功失败都延迟
     fake_delay()
@@ -191,9 +203,11 @@ def api_change_password():
         fake_delay()
         return jsonify({"error": "旧密码错误"}), 401
 
-    ok, reason = password_strength_ok(new)
-    if not ok:
-        return jsonify({"error": reason}), 400
+    # 历史 demo 账号(S/M)允许短密码，其他账号仍走强度策略
+    if user.username not in DiaryUser.SHORT_PWD_USERNAMES:
+        ok, reason = password_strength_ok(new)
+        if not ok:
+            return jsonify({"error": reason}), 400
 
     user.set_password(new)
     db.session.commit()
@@ -242,7 +256,11 @@ def api_reset_pup_password():
         return jsonify({"error": "找不到母狗账号"}), 404
 
     target.set_password(new_pwd)
-    target.must_change_password = True  # 强制母狗下次登录改密
+    # 历史 demo 账号(S/M)允许短密码，跳过 must_change 强制
+    if target.username in DiaryUser.SHORT_PWD_USERNAMES:
+        target.must_change_password = False
+    else:
+        target.must_change_password = True  # 强制母狗下次登录改密
     log_action(user.id, "reset_pup_password", target_id=target.id)
     db.session.commit()
     return jsonify({

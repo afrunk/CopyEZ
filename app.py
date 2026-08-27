@@ -50,6 +50,7 @@ db.init_app(app)
 
 # 从 app/models 导入模型类
 from app.models import Note, Memo, CustomCategory
+from app.models.wechat import WeChatUser, WeChatMessage  # noqa: F401
 
 # 从 app/routes 导入已迁移的路由和 Blueprint
 from app.routes import portal_index, guide_page, orc_documents_page, ledger_bp, search_page
@@ -196,9 +197,13 @@ app.register_blueprint(diary_dashboard_bp)
 app.register_blueprint(diary_notifications_bp)
 
 # WeChat Blueprint (私密聊天)
-from app.modules.wechat import wechat_auth_bp, wechat_chat_bp
+from app.modules.wechat import wechat_auth_bp, wechat_chat_bp, wechat_upload_bp, avatar_bp, wechat_settings_bp, me_bp
 app.register_blueprint(wechat_auth_bp)
 app.register_blueprint(wechat_chat_bp)
+app.register_blueprint(wechat_upload_bp)
+app.register_blueprint(avatar_bp)
+app.register_blueprint(wechat_settings_bp)
+app.register_blueprint(me_bp)
 
 # ── 模板过滤器 ───────────────────────────────────────────────────────────────
 from app.utils.filters import register_filters, urlquote_filter

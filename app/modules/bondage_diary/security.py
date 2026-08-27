@@ -126,6 +126,28 @@ def user_is_locked(user: DiaryUser) -> bool:
     return user.is_locked()
 
 
+def authenticate_by_credentials(raw_username: str, raw_password: str) -> Optional[DiaryUser]:
+    """
+    根据账号+密码识别用户。
+
+    调用方必须：
+    - 无论成功失败都调 fake_delay()
+    - 用通用错误信息返回
+    """
+    if not raw_username or not raw_password:
+        return None
+    user = DiaryUser.query.filter_by(
+        username=raw_username.strip(), is_active=True,
+    ).first()
+    if not user:
+        return None
+    if user.is_locked():
+        return None
+    if user.check_password(raw_password):
+        return user
+    return None
+
+
 def authenticate_by_password(raw_password: str) -> Optional[DiaryUser]:
     """
     根据密码识别用户。

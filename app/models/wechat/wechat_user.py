@@ -15,7 +15,14 @@ class WeChatUser(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False, index=True)
     display_name = db.Column(db.String(50), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    avatar_color = db.Column(db.String(7), nullable=False, default="#07C160")
+    # 头像类型: color | emoji | image
+    avatar_type = db.Column(db.String(20), default="color", nullable=False)
+    # avatar_type=color 时用 avatar_color
+    avatar_color = db.Column(db.String(7), nullable=False, default="#6366F1")
+    # avatar_type=emoji 时用 avatar_emoji
+    avatar_emoji = db.Column(db.String(8), nullable=True)
+    # avatar_type=image 时用 avatar_url
+    avatar_url = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=now_bj, nullable=False)
     last_seen = db.Column(db.DateTime, nullable=True)
 
@@ -35,7 +42,10 @@ class WeChatUser(db.Model):
             "id": self.id,
             "username": self.username,
             "display_name": self.display_name,
-            "avatar_color": self.avatar_color,
+            "avatar_type": self.avatar_type or "color",
+            "avatar_color": self.avatar_color or "#6366F1",
+            "avatar_emoji": self.avatar_emoji or None,
+            "avatar_url": self.avatar_url or None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "last_seen": self.last_seen.isoformat() if self.last_seen else None,
         }

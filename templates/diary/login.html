@@ -18,9 +18,14 @@
 
             <form id="loginForm" autocomplete="off">
                 <div class="fg">
-                    <label class="fg-label" for="passwordInput">密钥</label>
+                    <label class="fg-label" for="usernameInput">账号</label>
+                    <input type="text" id="usernameInput" class="fg-input"
+                        placeholder="主人 M 或 母狗 S" autocomplete="username" autofocus required>
+                </div>
+                <div class="fg">
+                    <label class="fg-label" for="passwordInput">密码</label>
                     <input type="password" id="passwordInput" class="fg-input"
-                        placeholder="请输入密钥" autocomplete="current-password" autofocus required>
+                        placeholder="请输入密码" autocomplete="current-password" required>
                 </div>
                 <button type="submit" class="btn btn-primary" id="submitBtn">进入</button>
             </form>
@@ -34,7 +39,8 @@
         const form = document.getElementById('loginForm');
         const errorEl = document.getElementById('loginError');
         const submitBtn = document.getElementById('submitBtn');
-        const input = document.getElementById('passwordInput');
+        const usernameInput = document.getElementById('usernameInput');
+        const passwordInput = document.getElementById('passwordInput');
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -42,24 +48,34 @@
             submitBtn.textContent = '验证中…';
             submitBtn.disabled = true;
 
-            const password = input.value.trim();
-            if (!password) { showError('请输入密钥'); return; }
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            if (!username) { showError('请输入账号'); return; }
+            if (!password) { showError('请输入密码'); return; }
 
             try {
                 const r = await fetch('/diary/auth/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password }),
+                    body: JSON.stringify({ username, password }),
                 });
-                const data = await r.json();
-                if (!r.ok || !data.ok) { showError(data.error || '密钥错误'); return; }
+                const data = await r.json().catch(() => ({}));
+                const isSuccess = data.ok === true;
+                if (!isSuccess) {
+                    showError(data.error || '账号或密码错误');
+                    return;
+                }
                 submitBtn.textContent = '进入中…';
                 window.location.href = data.next || '/diary/';
-            } catch { showError('网络异常，请重试'); }
+            } catch {
+                showError('网络异常，请重试');
+            }
         });
 
-        input.addEventListener('input', () => {
-            if (errorEl.classList.contains('show')) errorEl.classList.remove('show');
+        [usernameInput, passwordInput].forEach(el => {
+            el.addEventListener('input', () => {
+                if (errorEl.classList.contains('show')) errorEl.classList.remove('show');
+            });
         });
 
         function showError(msg) {
@@ -67,8 +83,8 @@
             errorEl.className = 'login-error show';
             submitBtn.textContent = '进入';
             submitBtn.disabled = false;
-            input.value = '';
-            input.focus();
+            passwordInput.value = '';
+            passwordInput.focus();
         }
     })();
     </script>

@@ -19,11 +19,10 @@ BJ_TZ = timezone(timedelta(hours=8))
 
 def now_bj():
     """
-    返回当前北京时间（不带时区信息的 datetime 对象）。
+    返回当前北京时间（naive datetime，不带时区信息）。
 
     用于 SQLAlchemy 模型的 default 参数，避免使用 utcnow 导致 ±8h 误差。
 
-    Usage:
-        created_at = db.Column(db.DateTime, default=now_bj)
+    返回 naive datetime 便于与 SQLite DATETIME 列直接比较与减法。
     """
-    return datetime.now(BJ_TZ)
+    return datetime.now(BJ_TZ).replace(tzinfo=None)

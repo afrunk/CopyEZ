@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>设置 · 私密聊天</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='wechat/wechat.css') }}">
+    <style>
+        body { overflow-y: auto; height: auto; }
+        .wx-settings-page { min-height: 100dvh; }
+    </style>
+</head>
+<body>
+    <div class="wx-settings-page">
+        <div class="wx-settings-header">
+            <button class="wx-settings-back" id="backBtn">&#8592;</button>
+            <div class="wx-settings-title">设置</div>
+        </div>
+
+        <div class="wx-settings-content">
+            <!-- ── 头像设置 ── -->
+            <div class="wx-settings-section">
+                <div class="wx-settings-section-title">头像</div>
+                <div class="wx-avatar-editor">
+                    <div class="wx-avatar-preview" id="avatarPreview" style="background:#6366F1">笨</div>
+
+                    <div class="wx-avatar-tabs">
+                        <button class="wx-avatar-tab active" data-tab="color">颜色</button>
+                        <button class="wx-avatar-tab" data-tab="emoji">Emoji</button>
+                        <button class="wx-avatar-tab" data-tab="image">图片</button>
+                    </div>
+
+                    <!-- Color swatches -->
+                    <div class="wx-avatar-tab-content" id="tab-color">
+                        <div class="wx-avatar-colors" id="colorList"></div>
+                    </div>
+
+                    <!-- Emoji grid -->
+                    <div class="wx-avatar-tab-content" id="tab-emoji" style="display:none">
+                        <div class="wx-emoji-grid" id="emojiList"></div>
+                    </div>
+
+                    <!-- Image upload -->
+                    <div class="wx-avatar-tab-content" id="tab-image" style="display:none">
+                        <button class="wx-avatar-upload-btn" id="uploadAvatarBtn">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/></svg>
+                            上传头像图片
+                        </button>
+                        <input type="file" id="avatarUploadInput" accept="image/*" style="display:none">
+                        <p class="wx-form-hint">支持 JPG/PNG/GIF/WebP，不超过 2MB，自动压缩为 256×256</p>
+                    </div>
+
+                    <button class="wx-save-btn" id="saveAvatarBtn">保存头像</button>
+                </div>
+            </div>
+
+            <!-- ── 账号信息 ── -->
+            <div class="wx-settings-section">
+                <div class="wx-settings-section-title">账号信息</div>
+                <div class="wx-form-group">
+                    <label class="wx-form-label">显示名称</label>
+                    <input type="text" class="wx-form-input" id="displayNameInput" maxlength="20" placeholder="输入显示名称…">
+                    <span class="wx-form-hint" id="displayNameHint">0 / 20</span>
+                </div>
+                <div class="wx-form-group">
+                    <label class="wx-form-label">用户名（登录账号）</label>
+                    <input type="text" class="wx-form-input" id="usernameInput" maxlength="20" placeholder="用户名（不可更改）" readonly style="opacity:0.5; cursor:not-allowed">
+                </div>
+                <button class="wx-save-btn" id="saveProfileBtn">保存信息</button>
+            </div>
+
+            <!-- ── 修改密码 ── -->
+            <div class="wx-settings-section">
+                <div class="wx-settings-section-title">修改密码</div>
+                <div class="wx-form-group">
+                    <label class="wx-form-label">当前密码</label>
+                    <input type="password" class="wx-form-input" id="oldPwInput" placeholder="输入当前密码" autocomplete="off">
+                </div>
+                <div class="wx-form-group">
+                    <label class="wx-form-label">新密码</label>
+                    <input type="password" class="wx-form-input" id="newPwInput" placeholder="输入新密码（至少 8 位）" autocomplete="off">
+                    <div class="wx-strength" id="pwStrength">
+                        <div class="wx-strength-bar"><div class="wx-strength-fill" id="pwFill"></div></div>
+                        <div class="wx-strength-bar"><div class="wx-strength-fill" id="pwFill2"></div></div>
+                        <div class="wx-strength-bar"><div class="wx-strength-fill" id="pwFill3"></div></div>
+                    </div>
+                    <span class="wx-form-hint" id="pwHint"></span>
+                </div>
+                <div class="wx-form-group">
+                    <label class="wx-form-label">确认新密码</label>
+                    <input type="password" class="wx-form-input" id="confirmPwInput" placeholder="再次输入新密码" autocomplete="off">
+                </div>
+                <button class="wx-save-btn" id="savePwBtn">修改密码</button>
+            </div>
+
+            <!-- ── 登出 ── -->
+            <div class="wx-settings-section">
+                <button class="wx-save-btn" id="logoutBtn" style="background:var(--danger); margin-top:0">退出登录</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toastContainer"></div>
+
+    <script>
+    (() => {
+        const AVATAR_COLORS = [
+            {color:'#6366F1', label:'靛蓝'},
+            {color:'#10B981', label:'翠绿'},
+            {color:'#F59E0B', label:'琥珀'},
+            {color:'#EF4444', label:'朱红'},
+            {color:'#EC4899', label:'品红'},
+            {color:'#06B6D4', label:'青色'},
+            {color:'#8B5CF6', label:'紫罗兰'},
+            {color:'#F97316', label:'橙色'},
+            {color:'#14B8A6', label:'青绿'},
+            {color:'#84CC16', label:'酸橙'},
+        ];
+        const AVATAR_EMOJIS = [
+            '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯',
+            '🦁','🐮','🐷','🐸','🐵','🙈','🐔','🦆','🦅','🦉',
+            '🐝','🦋','🌸','🌻','🍀','🌺','🎄','🍰','🎁','💎',
+        ];
+
+        let myUser = null;
+        let selectedColor = '#6366F1';
+        let selectedEmoji = null;
+        let selectedType = 'color';
+        let avatarChanged = false;
+
+        // Load current user
+        async function loadUser() {
+            const r = await fetch('/wechat/auth/api/me');
+            if (!r.ok) { window.location.href='/wechat/auth/login'; return; }
+            myUser = await r.json();
+            selectedColor = myUser.avatar_color || '#6366F1';
+            selectedEmoji = myUser.avatar_emoji;
+            selectedType = myUser.avatar_type || 'color';
+            renderAll();
+        }
+
+        function renderAll() {
+            renderAvatarPreview();
+            renderColorSwatches();
+            renderEmojiGrid();
+            document.getElementById('displayNameInput').value = myUser.display_name || '';
+            document.getElementById('displayNameHint').textContent = `${(myUser.display_name||'').length} / 20`;
+            document.getElementById('usernameInput').value = myUser.username || '';
+            // Switch tab
+            switchTab(selectedType);
+        }
+
+        function renderAvatarPreview() {
+            const el = document.getElementById('avatarPreview');
+            el.style.background = '';
+            el.innerHTML = '';
+            el.style.border = '';
+            el.style.fontSize = '';
+            if (selectedType === 'image' && myUser.avatar_url) {
+                el.innerHTML = `<img src="${myUser.avatar_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            } else if (selectedType === 'emoji' && selectedEmoji) {
+                el.style.background = 'transparent';
+                el.style.border = 'none';
+                el.style.fontSize = '40px';
+                el.textContent = selectedEmoji;
+            } else {
+                el.style.background = selectedColor;
+                el.style.fontSize = '32px';
+                el.textContent = (myUser.display_name||'?')[0].toUpperCase();
+            }
+        }
+
+        function renderColorSwatches() {
+            const list = document.getElementById('colorList');
+            list.innerHTML = AVATAR_COLORS.map(c =>
+                `<div class="wx-color-swatch${c.color===selectedColor?' active':''}"
+                     data-color="${c.color}" title="${c.label}"
+                     style="background:${c.color}"></div>`
+            ).join('');
+            list.querySelectorAll('.wx-color-swatch').forEach(sw => {
+                sw.addEventListener('click', () => {
+                    selectedColor = sw.dataset.color;
+                    selectedType = 'color';
+                    avatarChanged = true;
+                    document.querySelectorAll('.wx-color-swatch').forEach(s => s.classList.remove('active'));
+                    sw.classList.add('active');
+                    renderAvatarPreview();
+                    switchTab('color');
+                });
+            });
+        }
+
+        function renderEmojiGrid() {
+            const list = document.getElementById('emojiList');
+            list.innerHTML = AVATAR_EMOJIS.map(e =>
+                `<button class="wx-emoji-option${e===selectedEmoji?' active':''}" data-emoji="${e}">${e}</button>`
+            ).join('');
+            list.querySelectorAll('.wx-emoji-option').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    selectedEmoji = btn.dataset.emoji;
+                    selectedType = 'emoji';
+                    avatarChanged = true;
+                    list.querySelectorAll('.wx-emoji-option').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderAvatarPreview();
+                    switchTab('emoji');
+                });
+            });
+        }
+
+        function switchTab(tab) {
+            selectedType = tab;
+            document.querySelectorAll('.wx-avatar-tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+            document.querySelectorAll('.wx-avatar-tab-content').forEach(c => c.style.display='none');
+            document.getElementById('tab-'+tab).style.display = tab==='image'?'block':'grid';
+        }
+
+        document.querySelectorAll('.wx-avatar-tab').forEach(t => {
+            t.addEventListener('click', () => switchTab(t.dataset.tab));
+        });
+
+        // Upload avatar
+        const uploadBtn = document.getElementById('uploadAvatarBtn');
+        const uploadInput = document.getElementById('avatarUploadInput');
+        uploadBtn.addEventListener('click', () => uploadInput.click());
+        uploadInput.addEventListener('change', async () => {
+            const file = uploadInput.files[0];
+            if (!file) return;
+            const fd = new FormData();
+            fd.append('avatar', file);
+            try {
+                showToast('上传中…', 'default');
+                const r = await fetch('/wechat/api/upload/avatar', {method:'POST', body:fd});
+                const d = await r.json();
+                if (!r.ok) { showToast(d.error||'上传失败', 'error'); return; }
+                myUser.avatar_url = d.avatar_url;
+                myUser.avatar_type = 'image';
+                selectedType = 'image';
+                avatarChanged = true;
+                renderAvatarPreview();
+                switchTab('image');
+                showToast('头像已更新', 'success');
+            } catch { showToast('上传失败', 'error'); }
+        });
+
+        // Save avatar
+        document.getElementById('saveAvatarBtn').addEventListener('click', async () => {
+            try {
+                const r = await fetch('/wechat/api/me/avatar', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        type: selectedType,
+                        color: selectedColor,
+                        emoji: selectedEmoji,
+                    }),
+                });
+                const d = await r.json();
+                if (!r.ok) { showToast(d.error||'保存失败', 'error'); return; }
+                myUser = d;
+                avatarChanged = false;
+                showToast('头像已保存', 'success');
+                window.dispatchEvent(new CustomEvent('wechat-avatar-updated', { detail: d }));
+            } catch { showToast('保存失败', 'error'); }
+        });
+
+        // Display name
+        const dnInput = document.getElementById('displayNameInput');
+        const dnHint = document.getElementById('displayNameHint');
+        dnInput.addEventListener('input', () => {
+            dnHint.textContent = `${dnInput.value.length} / 20`;
+        });
+        document.getElementById('saveProfileBtn').addEventListener('click', async () => {
+            const display_name = dnInput.value.trim();
+            if (!display_name) { showToast('显示名称不能为空', 'error'); return; }
+            if (display_name.length > 20) { showToast('名称不超过 20 字符', 'error'); return; }
+            try {
+                const r = await fetch('/wechat/api/me/profile', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({display_name}),
+                });
+                const d = await r.json();
+                if (!r.ok) { showToast(d.error||'保存失败', 'error'); return; }
+                myUser = d;
+                document.getElementById('headerName')?.textContent && (document.getElementById('headerName').textContent = display_name);
+                showToast('信息已保存', 'success');
+            } catch { showToast('保存失败', 'error'); }
+        });
+
+        // Password strength
+        const newPwInput = document.getElementById('newPwInput');
+        const pwFill = [document.getElementById('pwFill'), document.getElementById('pwFill2'), document.getElementById('pwFill3')];
+        const pwHint = document.getElementById('pwHint');
+        function checkStrength(pw) {
+            const score = pw.length >= 8 ? (/\d/.test(pw)?1:0) + (/[A-Za-z]/.test(pw)?1:0) + (/[^A-Za-z0-9]/.test(pw)?1:0) : 0;
+            const len = Math.min(3, Math.max(1, pw.length >= 12 ? 3 : pw.length >= 8 ? 2 : pw.length >= 4 ? 1 : 0));
+            const level = score >= 3 ? 'strong' : score >= 2 ? 'medium' : pw.length >= 4 ? 'weak' : '';
+            pwFill.forEach((f,i) => {
+                f.className = 'wx-strength-fill';
+                if (i < len) f.classList.add(level);
+            });
+            pwHint.textContent = level==='strong'?'强' : level==='medium'?'中' : level==='weak'?'弱' : '';
+            pwHint.className = 'wx-form-hint' + (level ? ' ' + level : '');
+        }
+        newPwInput.addEventListener('input', () => checkStrength(newPwInput.value));
+
+        document.getElementById('savePwBtn').addEventListener('click', async () => {
+            const oldPw = document.getElementById('oldPwInput').value;
+            const newPw = document.getElementById('newPwInput').value;
+            const confirmPw = document.getElementById('confirmPwInput').value;
+            if (!oldPw) { showToast('请输入当前密码', 'error'); return; }
+            if (!newPw) { showToast('请输入新密码', 'error'); return; }
+            if (newPw.length < 8) { showToast('新密码至少 8 位', 'error'); return; }
+            if (newPw === oldPw) { showToast('新密码不能与当前密码相同', 'error'); return; }
+            if (newPw !== confirmPw) { showToast('两次新密码不一致', 'error'); return; }
+            try {
+                const r = await fetch('/wechat/api/me/password', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({old_password: oldPw, new_password: newPw, confirm_password: confirmPw}),
+                });
+                const d = await r.json().catch(() => ({}));
+                // 按业务语义判断成功: 兼容 {ok:true}, {success:true}, {code:200}
+                const isSuccess = d.ok === true || d.success === true || d.code === 200;
+                if (isSuccess) {
+                    showToast(d.message || '密码已修改,请重新登录', 'success');
+                    document.getElementById('oldPwInput').value = '';
+                    document.getElementById('newPwInput').value = '';
+                    document.getElementById('confirmPwInput').value = '';
+                    checkStrength('');
+                    setTimeout(() => { window.location.href='/wechat/auth/login'; }, 2000);
+                } else {
+                    // 提取后端真实错误信息,不写死"修改失败"
+                    const errMsg = d.error || d.message || `修改失败 (HTTP ${r.status})`;
+                    showToast(errMsg, 'error');
+                }
+            } catch {
+                // 区分网络错误 vs 业务错误
+                showToast('网络错误,请检查网络连接', 'error');
+            }
+        });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await fetch('/wechat/auth/api/logout', {method:'POST'});
+            window.location.href = '/wechat/auth/login';
+        });
+
+        // Back
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.location.href = '/wechat/';
+        });
+
+        // Toast helper
+        function showToast(msg, type='default') {
+            const c = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = `wx-toast ${type}`;
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        loadUser();
+    })();
+    </script>
+</body>
+</html>

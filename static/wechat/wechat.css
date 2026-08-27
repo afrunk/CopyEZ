@@ -1,200 +1,473 @@
 /* ============================================================
-   WeChat · 私密聊天 · 微信绿风格
+   CopyEZ · 私密聊天 · 2025 极简高级感
    ============================================================ */
 
-/* ── 变量 ─────────────────────────────────────────────── */
-:root {
-    --wechat-green: #07C160;
-    --wechat-green-dark: #059644;
-    --wechat-green-light: #E8F8EE;
-    --wechat-bg: #EDEDED;
-    --wechat-surface: #FFFFFF;
-    --wechat-header-bg: #2A2A2A;
-    --ink: #1A1A1A;
-    --ink-2: #888888;
-    --ink-3: #BBBBBB;
-    --ink-4: #DDDDDD;
-    --r-sm: 4px;
-    --r: 8px;
-    --r-lg: 16px;
+/* ── Design Tokens: Dark（默认） ───────────────────────── */
+:root,
+:root[data-theme="dark"] {
+    /* 色彩 */
+    --bg:            #0A0A0B;
+    --surface:       #141416;
+    --surface-hi:    #1C1C1F;
+    --surface-glass: rgba(20, 20, 22, 0.82);
+    --accent:        #6366F1;
+    --accent-dim:    rgba(99, 102, 241, 0.15);
+    --accent-hover:  #818CF8;
+    --accent-press:  #4F46E5;
+    --mine-bg:       #6366F1;
+    --partner-bg:    rgba(255, 255, 255, 0.07);
+    --partner-border:rgba(255, 255, 255, 0.10);
+    --text:          #FAFAFA;
+    --text-2:        #A1A1AA;
+    --text-3:        #52525B;
+    --divider:       rgba(255, 255, 255, 0.07);
+    --header-glass:  rgba(10, 10, 11, 0.80);
+    --input-bg:      rgba(255, 255, 255, 0.06);
+    --input-focus:   rgba(99, 102, 241, 0.30);
+    --btn-glass:     rgba(255, 255, 255, 0.08);
+    --btn-glass-hi:  rgba(255, 255, 255, 0.14);
+    --danger:        #EF4444;
+    --success:       #22C55E;
+    --toast-bg:      rgba(28, 28, 31, 0.96);
+
+    /* 圆角 */
+    --r-xs:  4px;
+    --r-sm:  8px;
+    --r:     12px;
+    --r-lg:  16px;
+    --r-xl:  20px;
+    --r-pill:999px;
+
+    /* 字号 */
+    --fs-xs:  10px;
+    --fs-sm:  12px;
+    --fs:     14px;
+    --fs-md:  15px;
+    --fs-lg:  16px;
+    --fs-xl:  18px;
+
+    /* 间距 */
+    --gap-xs: 4px;
+    --gap-sm: 8px;
+    --gap:    12px;
+    --gap-lg: 16px;
+    --gap-xl: 24px;
+
+    /* 动效 */
+    --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-out:    cubic-bezier(0.0, 0.0, 0.2, 1);
+    --ease-in-out: cubic-bezier(0.4, 0.0, 0.2, 1);
+    --dur-fast:  0.10s;
+    --dur:      0.18s;
+    --dur-slow: 0.30s;
 }
 
-/* ── Reset ────────────────────────────────────────────── */
+/* ── Design Tokens: Light ────────────────────────────── */
+:root[data-theme="light"] {
+    --bg:            #F8F8FA;
+    --surface:       #FFFFFF;
+    --surface-hi:     #F4F4F6;
+    --surface-glass: rgba(248, 248, 250, 0.85);
+    --accent:        #4F46E5;
+    --accent-dim:    rgba(79, 70, 229, 0.10);
+    --accent-hover:  #6366F1;
+    --accent-press:  #4338CA;
+    --mine-bg:       #4F46E5;
+    --partner-bg:    rgba(0, 0, 0, 0.04);
+    --partner-border:rgba(0, 0, 0, 0.08);
+    --text:          #18181B;
+    --text-2:        #71717A;
+    --text-3:        #A1A1AA;
+    --divider:       rgba(0, 0, 0, 0.07);
+    --header-glass:  rgba(248, 248, 250, 0.85);
+    --input-bg:      rgba(0, 0, 0, 0.04);
+    --input-focus:   rgba(79, 70, 229, 0.15);
+    --btn-glass:     rgba(0, 0, 0, 0.05);
+    --btn-glass-hi:  rgba(0, 0, 0, 0.09);
+    --danger:        #DC2626;
+    --success:       #16A34A;
+    --toast-bg:      rgba(255, 255, 255, 0.96);
+}
+
+/* ── Reset ───────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
                  "Helvetica Neue", sans-serif;
-    background: var(--wechat-bg);
-    color: var(--ink);
+    background: var(--bg);
+    color: var(--text);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     height: 100dvh;
     overflow: hidden;
+    transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
 }
 
-/* ── 登录页 ───────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════
+   LOGIN PAGE — Apple / Linear / Vercel 极简克制
+   ═══════════════════════════════════════════════════════════ */
+
 .wx-login-page {
     min-height: 100dvh;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: var(--wechat-header-bg);
-    background-image:
-        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(7,193,96,0.2) 0%, transparent 60%);
+    background: #FFFFFF;
 }
 
-.wx-login-card {
-    width: 100%;
-    max-width: 360px;
-    background: white;
-    border-radius: 16px;
-    padding: 36px 32px 32px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-    animation: fadeUp 0.6s cubic-bezier(0.22,1,0.36,1) both;
+/* Brand: 静默标题，无任何装饰 */
+.wx-login-brand {
+    text-align: center;
+    margin-bottom: 32px;
 }
-
-.wx-login-error {
-    padding: 10px 14px;
-    background: #FFF0F0;
-    border: 1px solid #FFCCCC;
-    border-radius: var(--r-sm);
-    font-size: 13px;
-    color: #D44;
-    margin-bottom: 16px;
+.wx-login-logo {
     display: none;
 }
-.wx-login-error.show { display: block; }
+.wx-login-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1D1D1F;
+    letter-spacing: 0;
+    text-transform: none;
+}
+.wx-login-slogan {
+    display: none;
+}
 
-.wx-fg { margin-bottom: 14px; }
+/* Card: 纯白容器，无背景无边框无阴影 */
+.wx-login-card {
+    width: 100%;
+    max-width: 320px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    animation: none;
+}
+
+/* Error: 系统红文字，无背景无边框无动画 */
+.wx-login-toast {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #FF3B30;
+    display: none;
+    animation: none;
+}
+.wx-login-toast.show { display: block; }
+
+/* Form group */
+.wx-fg { margin-bottom: 16px; position: relative; }
+
+/* Label: 普通小号说明文字 */
 .wx-label {
     display: block;
-    font-size: 12px;
-    color: var(--ink-2);
+    font-size: 13px;
+    font-weight: 400;
+    color: #86868B;
+    letter-spacing: 0;
+    text-transform: none;
     margin-bottom: 6px;
-    font-weight: 500;
-}
-.wx-input {
-    width: 100%;
-    height: 46px;
-    padding: 0 14px;
-    background: var(--wechat-bg);
-    border: 1.5px solid var(--ink-4);
-    border-radius: var(--r);
-    font-size: 15px;
-    color: var(--ink);
-    outline: none;
-    transition: border-color 0.2s;
-    -webkit-appearance: none;
-    font-family: inherit;
-}
-.wx-input::placeholder { color: var(--ink-3); }
-.wx-input:focus {
-    border-color: var(--wechat-green);
-    background: white;
 }
 
+/* Input wrap: 胶囊容器 */
+.wx-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* 隐藏输入框前的图标（保留元素不影响布局） */
+.wx-input-icon {
+    display: none;
+}
+
+/* Input: macOS 浅灰胶囊，仅背景色过渡 */
+.wx-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    background: #F5F5F7;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    color: #1D1D1F;
+    outline: none;
+    transition: background 150ms ease;
+    font-family: inherit;
+    -webkit-appearance: none;
+}
+.wx-input::placeholder { color: #86868B; }
+.wx-input:focus {
+    background: #EFEFF1;
+    border: none;
+    padding: 0 14px;
+    box-shadow: none;
+}
+
+/* Focus-bar 隐藏 */
+.wx-input-focus-bar {
+    display: none;
+}
+
+/* Password toggle: 隐藏（保留元素） */
+.wx-pw-toggle {
+    display: none;
+}
+
+/* Shake: 保留动画但只在登录失败时触发 */
+@keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%      { transform: translateX(-6px); }
+    40%      { transform: translateX(6px); }
+    60%      { transform: translateX(-4px); }
+    80%      { transform: translateX(4px); }
+}
+.wx-input-wrap.shake { animation: shake 0.45s ease; }
+
+/* Button: 纯黑实色，仅背景色过渡，无 transform */
 .wx-btn {
     width: 100%;
-    height: 48px;
-    border-radius: var(--r);
+    height: 44px;
+    border-radius: 10px;
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 500;
     font-family: inherit;
     cursor: pointer;
     border: none;
-    transition: all 0.2s;
+    transition: background 150ms ease;
     -webkit-appearance: none;
 }
 .wx-btn-primary {
-    background: var(--wechat-green);
-    color: white;
+    background: #1D1D1F;
+    color: #FFFFFF;
+    box-shadow: none;
+    letter-spacing: 0;
 }
-.wx-btn-primary:hover { background: var(--wechat-green-dark); transform: translateY(-1px); }
-.wx-btn-primary:active { transform: translateY(0); }
-.wx-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.wx-btn-primary:hover {
+    background: #000000;
+    transform: none;
+    box-shadow: none;
+}
+.wx-btn-primary:active {
+    background: #2C2C2E;
+    transform: none;
+    box-shadow: none;
+}
+.wx-btn-primary:disabled {
+    background: #D2D2D7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
 
-/* ── 聊天页整体布局 ───────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════
+   CHAT PAGE LAYOUT
+   ═══════════════════════════════════════════════════════════ */
+
 .wx-page {
     display: flex;
     flex-direction: column;
     height: 100dvh;
     max-width: 480px;
     margin: 0 auto;
-    background: var(--wechat-bg);
+    background: var(--bg);
+    position: relative;
 }
 
-/* ── 顶部导航 ─────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER — glass morphism
+   ═══════════════════════════════════════════════════════════ */
+
 .wx-header {
-    background: var(--wechat-header-bg);
-    color: white;
-    padding: env(safe-area-inset-top, 0) 16px 0;
+    background: var(--header-glass);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    color: var(--text);
+    padding: env(safe-area-inset-top, 0) var(--gap-lg) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--gap);
+    height: 60px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 20;
+    border-bottom: 1px solid var(--divider);
+}
+
+.wx-header-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--gap);
+    min-width: 0;
+}
+
+/* Avatar */
+.wx-header-avatar,
+.wx-msg-avatar {
+    border-radius: 50%;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 56px;
-    flex-shrink: 0;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    font-size: 13px;
+    color: rgba(255,255,255,0.95);
+    border: 1px solid rgba(255,255,255,0.08);
+    user-select: none;
 }
-.wx-header-title {
-    font-size: 17px;
-    font-weight: 600;
-    color: white;
+.wx-header-avatar {
+    width: 36px;
+    height: 36px;
 }
-.wx-header-back {
-    position: absolute;
-    left: 16px;
-    font-size: 24px;
-    color: white;
-    text-decoration: none;
+.wx-msg-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+}
+/* Image avatar */
+.wx-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
-/* ── 聊天区域 ─────────────────────────────────────────── */
+.wx-header-text {
+    min-width: 0;
+    flex: 1;
+}
+.wx-header-name {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+}
+.wx-header-status {
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+    line-height: 1.2;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Unread badge */
+.wx-header-badge {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--r-pill);
+    background: var(--danger);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    position: absolute;
+    right: 52px;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    animation: badgePop 0.3s var(--ease-spring) both;
+}
+@keyframes badgePop {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+}
+
+/* Header action buttons */
+.wx-header-action {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--r-sm);
+    background: var(--btn-glass);
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur-fast) var(--ease-out);
+    flex-shrink: 0;
+}
+.wx-header-action:hover {
+    background: var(--btn-glass-hi);
+    color: var(--text);
+}
+.wx-header-action:active { transform: scale(0.88); }
+
+
+/* ═══════════════════════════════════════════════════════════
+   CHAT BODY
+   ═══════════════════════════════════════════════════════════ */
+
 .wx-chat-body {
     flex: 1;
     overflow-y: auto;
-    padding: 12px 14px;
+    padding: var(--gap-lg) var(--gap);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 2px;
+    scroll-behavior: smooth;
+}
+.wx-chat-body::-webkit-scrollbar { width: 4px; }
+.wx-chat-body::-webkit-scrollbar-track { background: transparent; }
+.wx-chat-body::-webkit-scrollbar-thumb {
+    background: var(--text-3);
+    border-radius: var(--r-pill);
+    opacity: 0.4;
 }
 
+/* Empty state */
 .wx-msg-empty {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    color: var(--ink-2);
-    font-size: 14px;
+    gap: var(--gap);
+    color: var(--text-3);
+    font-size: var(--fs);
+    pointer-events: none;
 }
-.wx-msg-empty-icon { font-size: 40px; opacity: 0.4; }
+.wx-msg-empty-icon { font-size: 48px; opacity: 0.3; }
 
-/* ── 消息气泡 ─────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════
+   MESSAGE BUBBLES
+   ═══════════════════════════════════════════════════════════ */
+
 .wx-msg {
     display: flex;
     align-items: flex-end;
-    gap: 8px;
-    animation: msgIn 0.3s ease both;
+    gap: var(--gap-sm);
+    padding: 1px 0;
+    animation: msgIn var(--dur-slow) var(--ease-spring) both;
 }
-
 .wx-msg.mine {
     flex-direction: row-reverse;
-}
-
-.wx-msg-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 600;
-    color: white;
 }
 
 .wx-msg-content {
@@ -203,115 +476,1065 @@ body {
     flex-direction: column;
     gap: 3px;
 }
+.wx-msg.mine .wx-msg-content { align-items: flex-end; }
 
-.wx-msg.mine .wx-msg-content {
-    align-items: flex-end;
-}
-
+/* Bubble base */
 .wx-msg-bubble {
-    padding: 10px 14px;
-    border-radius: var(--r);
-    font-size: 15px;
-    line-height: 1.55;
+    padding: 9px 13px;
+    border-radius: var(--r-lg);
+    font-size: var(--fs-md);
+    line-height: 1.6;
     word-break: break-word;
     position: relative;
+    letter-spacing: -0.01em;
+    max-width: 100%;
+    transition: background var(--dur) var(--ease-out);
 }
 
-/* 对方气泡 */
+/* Partner bubble — frosted glass */
 .wx-msg.partner .wx-msg-bubble {
-    background: white;
-    color: var(--ink);
-    border-top-left-radius: 4px;
+    background: var(--partner-bg);
+    border: 1px solid var(--partner-border);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
 }
 
-/* 我的气泡 */
+/* Mine bubble — accent solid */
 .wx-msg.mine .wx-msg-bubble {
-    background: var(--wechat-green);
-    color: white;
-    border-top-right-radius: 4px;
+    background: var(--mine-bg);
+    color: rgba(255,255,255,0.97);
+    border-bottom-right-radius: 4px;
 }
 
+/* Emoji message bubble (no text) */
+.wx-msg-bubble:empty { display: none; }
+
+/* Message meta (time + read status) */
+.wx-msg-meta {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity var(--dur);
+}
+.wx-msg:hover .wx-msg-meta { opacity: 1; }
 .wx-msg-time {
-    font-size: 10px;
-    color: var(--ink-3);
-    padding: 0 4px;
+    font-size: var(--fs-xs);
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+}
+.wx-msg-read { font-size: var(--fs-xs); color: var(--text-3); }
+.wx-msg.mine .wx-msg-meta { justify-content: flex-end; }
+
+/* Recalled */
+.wx-msg-recalled {
+    font-size: var(--fs-sm);
+    color: var(--text-3);
+    padding: 5px 10px;
+    text-align: center;
+    font-style: italic;
+    background: var(--surface-hi);
+    border-radius: var(--r);
+    max-width: 200px;
+    opacity: 0.7;
 }
 
-/* 日期分割线 */
+
+/* ═══════════════════════════════════════════════════════════
+   DATE DIVIDER — thin line style
+   ═══════════════════════════════════════════════════════════ */
+
 .wx-date-divider {
-    text-align: center;
-    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    padding: var(--gap-lg) 0 var(--gap);
+    gap: var(--gap);
+}
+.wx-date-divider::before,
+.wx-date-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--divider);
 }
 .wx-date-chip {
-    display: inline-block;
-    padding: 3px 10px;
-    background: rgba(0,0,0,0.08);
-    border-radius: 4px;
-    font-size: 11px;
-    color: var(--ink-2);
+    font-size: var(--fs-xs);
+    color: var(--text-3);
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    font-weight: 500;
 }
 
-/* ── 底部输入框 ───────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════
+   INPUT BAR — glass morphism
+   ═══════════════════════════════════════════════════════════ */
+
 .wx-input-bar {
-    background: var(--wechat-bg);
-    border-top: 1px solid #D8D8D8;
-    padding: 8px 12px;
-    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0));
+    background: var(--surface-glass);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-top: 1px solid var(--divider);
+    padding: var(--gap-sm) var(--gap);
+    padding-bottom: calc(var(--gap-sm) + env(safe-area-inset-bottom, 0));
     display: flex;
     align-items: flex-end;
-    gap: 8px;
+    gap: var(--gap-sm);
     flex-shrink: 0;
+    position: relative;
+    z-index: 10;
 }
 
-.wx-input-bar input {
+.wx-extra-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--btn-glass);
+    border: 1px solid var(--divider);
+    color: var(--text-2);
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur-fast) var(--ease-out);
+    -webkit-appearance: none;
+    padding: 0;
+}
+.wx-extra-btn:hover {
+    background: var(--btn-glass-hi);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.wx-extra-btn:active { transform: scale(0.88); }
+
+/* Text input */
+.wx-input-bar input[type="text"] {
     flex: 1;
     height: 38px;
     padding: 0 14px;
-    background: white;
-    border: 1px solid #D8D8D8;
-    border-radius: 19px;
-    font-size: 15px;
-    color: var(--ink);
+    background: var(--input-bg);
+    border: 1px solid transparent;
+    border-radius: var(--r-pill);
+    font-size: var(--fs-md);
+    color: var(--text);
     outline: none;
     font-family: inherit;
     -webkit-appearance: none;
+    transition: all var(--dur) var(--ease-out);
+    letter-spacing: -0.01em;
 }
-.wx-input-bar input:focus {
-    border-color: var(--wechat-green);
+.wx-input-bar input[type="text"]::placeholder { color: var(--text-3); }
+.wx-input-bar input[type="text"]:focus {
+    background: var(--input-focus);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
+/* Send button */
 .wx-send-btn {
-    width: 60px;
-    height: 38px;
-    background: var(--wechat-green);
+    height: 36px;
+    padding: 0 16px;
+    background: var(--accent);
     color: white;
     border: none;
-    border-radius: 19px;
-    font-size: 14px;
+    border-radius: var(--r-pill);
+    font-size: var(--fs-sm);
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--dur) var(--ease-out);
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.01em;
 }
-.wx-send-btn:hover { background: var(--wechat-green-dark); }
+.wx-send-btn:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 3px 12px rgba(99,102,241,0.35);
+    transform: translateY(-0.5px);
+}
+.wx-send-btn:active { transform: scale(0.96); box-shadow: none; }
 .wx-send-btn:disabled {
-    background: var(--ink-4);
-    color: var(--ink-3);
+    background: var(--surface-hi);
+    color: var(--text-3);
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
-/* ── 动画 ─────────────────────────────────────────────── */
+/* Send icon (shown when empty text, hidden when has text) */
+.wx-send-btn .wx-send-icon { display: none; }
+.wx-send-btn .wx-send-text { display: inline; }
+.wx-send-btn:disabled .wx-send-icon { display: none; }
+.wx-send-btn:disabled .wx-send-text { display: inline; }
+
+
+/* ═══════════════════════════════════════════════════════════
+   IMAGE PREVIEW BAR
+   ═══════════════════════════════════════════════════════════ */
+
+.wx-preview-bar {
+    position: fixed;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0));
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 480px;
+    width: 100%;
+    background: var(--surface-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--divider);
+    padding: var(--gap-sm) var(--gap);
+    display: flex;
+    gap: var(--gap-sm);
+    align-items: center;
+    z-index: 15;
+    animation: slideUp var(--dur) var(--ease-spring) both;
+}
+.wx-preview-list {
+    flex: 1;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.wx-preview-list::-webkit-scrollbar { display: none; }
+.wx-preview-item {
+    position: relative;
+    flex-shrink: 0;
+    width: 60px;
+    height: 60px;
+    border-radius: var(--r-sm);
+    overflow: hidden;
+    background: var(--surface-hi);
+    border: 1px solid var(--divider);
+}
+.wx-preview-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wx-preview-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.65);
+    color: white;
+    border: none;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.wx-preview-clear {
+    background: transparent;
+    color: var(--text-3);
+    border: none;
+    font-size: var(--fs-xs);
+    cursor: pointer;
+    padding: 4px 6px;
+    flex-shrink: 0;
+    transition: color var(--dur-fast);
+}
+.wx-preview-clear:hover { color: var(--text-2); }
+
+
+/* ═══════════════════════════════════════════════════════════
+   EMOJI PANEL
+   ═══════════════════════════════════════════════════════════ */
+
+.wx-emoji-panel {
+    position: fixed;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0));
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 480px;
+    width: 100%;
+    background: var(--surface-glass);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid var(--divider);
+    padding: var(--gap-sm);
+    z-index: 15;
+    max-height: 240px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    animation: slideUp var(--dur) var(--ease-spring) both;
+}
+.wx-emoji {
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--r-sm);
+    transition: background var(--dur-fast);
+    font-family: -apple-system, "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+.wx-emoji:hover { background: var(--btn-glass); }
+.wx-emoji:active { transform: scale(0.85); }
+
+
+/* ═══════════════════════════════════════════════════════════
+   SEARCH OVERLAY
+   ═══════════════════════════════════════════════════════════ */
+
+.wx-search-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn var(--dur) var(--ease-out) both;
+}
+.wx-search-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--divider);
+    padding: calc(env(safe-area-inset-top, 0) + 12px) var(--gap-lg) 12px;
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+.wx-search-bar input {
+    flex: 1;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--divider);
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: var(--fs-md);
+    outline: none;
+    font-family: inherit;
+    transition: all var(--dur) var(--ease-out);
+    letter-spacing: -0.01em;
+}
+.wx-search-bar input:focus {
+    border-color: var(--accent);
+    background: var(--input-focus);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.wx-search-bar input::placeholder { color: var(--text-3); }
+.wx-search-close {
+    background: transparent;
+    color: var(--accent);
+    border: none;
+    padding: 6px 10px;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity var(--dur-fast);
+}
+.wx-search-close:hover { opacity: 0.7; }
+
+.wx-search-results { flex: 1; overflow-y: auto; padding: var(--gap-sm) 0; }
+.wx-search-empty {
+    padding: 60px var(--gap-lg);
+    text-align: center;
+    color: var(--text-3);
+    font-size: var(--fs);
+}
+.wx-search-item {
+    padding: var(--gap) var(--gap-lg);
+    border-bottom: 1px solid var(--divider);
+    cursor: pointer;
+    transition: background var(--dur-fast);
+}
+.wx-search-item:hover { background: var(--surface-hi); }
+.wx-search-item-meta { font-size: var(--fs-xs); color: var(--text-3); margin-bottom: 3px; }
+.wx-search-item-content { font-size: var(--fs); color: var(--text); word-break: break-word; }
+.wx-search-item-content mark {
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 0 2px;
+    border-radius: 3px;
+    font-style: normal;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   IMAGE MESSAGE BUBBLES
+   ═══════════════════════════════════════════════════════════ */
+
+.wx-msg-bubble-image { padding: 3px; background: transparent !important; border: none !important; }
+.wx-msg.mine .wx-msg-bubble-image { background: transparent !important; }
+
+.wx-msg-image-grid {
+    display: grid;
+    gap: 2px;
+    border-radius: var(--r-sm);
+    overflow: hidden;
+    transition: transform var(--dur) var(--ease-out);
+}
+.wx-msg-image-grid:hover { transform: scale(1.01); }
+
+.wx-msg-image-grid.count-1 { grid-template-columns: 1fr; max-width: 240px; }
+.wx-msg-image-grid.count-2 { grid-template-columns: 1fr 1fr; max-width: 220px; }
+.wx-msg-image-grid.count-3 { grid-template-columns: 1fr 1fr 1fr; max-width: 220px; }
+.wx-msg-image-grid.count-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; max-width: 220px; }
+.wx-msg-image-grid.count-5,
+.wx-msg-image-grid.count-6 { grid-template-columns: 1fr 1fr 1fr; max-width: 220px; }
+.wx-msg-image-grid.count-7,
+.wx-msg-image-grid.count-8,
+.wx-msg-image-grid.count-9 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; max-width: 220px; }
+
+.wx-msg-image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+    cursor: zoom-in;
+    background: var(--surface-hi);
+    transition: opacity var(--dur-fast);
+}
+.wx-msg-image:hover { opacity: 0.92; }
+.wx-msg-image-grid.count-1 .wx-msg-image { aspect-ratio: 4 / 3; max-height: 200px; }
+
+
+/* ═══════════════════════════════════════════════════════════
+   LONG-PRESS MENU
+   ═══════════════════════════════════════════════════════════ */
+
+.wx-msg-menu {
+    position: fixed;
+    background: var(--surface-glass);
+    backdrop-filter: blur(20px) saturate(200%);
+    -webkit-backdrop-filter: blur(20px) saturate(200%);
+    border: 1px solid var(--divider);
+    border-radius: var(--r-lg);
+    padding: 6px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 200;
+    animation: menuIn var(--dur) var(--ease-spring) both;
+}
+.wx-msg-menu button {
+    display: block;
+    width: 100%;
+    padding: 10px 20px;
+    background: transparent;
+    color: var(--text);
+    border: none;
+    font-size: var(--fs);
+    cursor: pointer;
+    border-radius: var(--r-sm);
+    white-space: nowrap;
+    font-family: inherit;
+    transition: background var(--dur-fast);
+    text-align: left;
+}
+.wx-msg-menu button:hover { background: var(--surface-hi); }
+.wx-msg-menu button.danger { color: var(--danger); }
+
+
+/* ═══════════════════════════════════════════════════════════
+   LIGHTBOX (Phase 2 — upgraded separately)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Lightbox v2 — Quick Look style ──────────────────────── */
+.wx-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(4, 4, 6, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.wx-lb-bg { position: absolute; inset: 0; cursor: pointer; }
+
+/* Top bar */
+.wx-lb-topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+    background: linear-gradient(rgba(4,4,6,0.7) 0%, transparent 100%);
+    pointer-events: none;
+}
+.wx-lb-counter {
+    font-size: 13px; color: rgba(255,255,255,0.65);
+    letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+}
+.wx-lb-top-actions { display: flex; gap: 8px; pointer-events: all; }
+.wx-lb-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.10);
+    color: rgba(255,255,255,0.80); font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+}
+.wx-lb-btn:hover { background: rgba(255,255,255,0.16); color: white; }
+.wx-lb-close { font-size: 16px; }
+
+/* Image stage */
+.wx-lb-stage {
+    position: relative; z-index: 5;
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: grab; user-select: none;
+}
+.wx-lb-stage:active { cursor: grabbing; }
+.wx-lb-img-wrap {
+    max-width: 92vw; max-height: 78vh;
+    display: flex; align-items: center; justify-content: center;
+    will-change: transform;
+}
+.wx-lb-img {
+    max-width: 92vw; max-height: 78vh;
+    object-fit: contain; user-select: none;
+    -webkit-user-drag: none;
+    border-radius: 6px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+
+/* Loading */
+.wx-lb-loading {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 32px; height: 32px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-top-color: rgba(255,255,255,0.7);
+    border-radius: 50%;
+    animation: lbSpin 0.8s linear infinite;
+}
+@keyframes lbSpin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+
+/* Info panel */
+.wx-lb-info {
+    position: absolute; bottom: 80px; right: 16px;
+    background: rgba(20,20,22,0.92);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 14px 18px; min-width: 200px; z-index: 20;
+    animation: menuIn 0.15s ease both;
+}
+.wx-lb-info-title {
+    font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.4);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px;
+}
+.wx-lb-info-row {
+    display: flex; justify-content: space-between; gap: 20px;
+    font-size: 12px; color: rgba(255,255,255,0.55); padding: 3px 0;
+}
+.wx-lb-info-row span:last-child { color: rgba(255,255,255,0.85); font-variant-numeric: tabular-nums; }
+
+/* Thumbnail strip */
+.wx-lb-thumbstrip {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(10,10,12,0.7);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0));
+}
+.wx-lb-thumbs {
+    display: flex; gap: 6px; overflow-x: auto; justify-content: center; scrollbar-width: none;
+}
+.wx-lb-thumbs::-webkit-scrollbar { display: none; }
+.wx-lb-thumb {
+    width: 52px; height: 52px; border-radius: 6px; object-fit: cover;
+    cursor: pointer; opacity: 0.5; border: 2px solid transparent; flex-shrink: 0;
+    transition: all 0.15s; background: var(--surface-hi);
+}
+.wx-lb-thumb:hover { opacity: 0.75; }
+.wx-lb-thumb.active {
+    opacity: 1; border-color: rgba(255,255,255,0.7);
+    box-shadow: 0 0 0 1px rgba(99,102,241,0.8);
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+   ═══════════════════════════════════════════════════════════ */
+
+.wx-toast {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 16px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--toast-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--divider);
+    border-radius: var(--r-lg);
+    padding: 10px 18px;
+    font-size: var(--fs-sm);
+    color: var(--text);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+    animation: toastIn var(--dur) var(--ease-spring) both;
+    pointer-events: none;
+    white-space: nowrap;
+}
+.wx-toast.success { border-color: rgba(34,197,94,0.3); color: var(--success); }
+.wx-toast.error   { border-color: rgba(239,68,68,0.3);  color: var(--danger); }
+@keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(-12px) scale(0.95); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS PAGE (Phase 3 & 4)
+   ═══════════════════════════════════════════════════════════ */
+
+.wx-settings-page {
+    min-height: 100dvh;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+}
+.wx-settings-header {
+    background: var(--header-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--divider);
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) var(--gap-lg) 16px;
+    display: flex;
+    align-items: center;
+    gap: var(--gap);
+}
+.wx-settings-back {
+    background: var(--btn-glass);
+    border: 1px solid var(--divider);
+    border-radius: var(--r-sm);
+    color: var(--text-2);
+    cursor: pointer;
+    padding: 6px 10px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur-fast);
+}
+.wx-settings-back:hover { background: var(--btn-glass-hi); color: var(--text); }
+.wx-settings-title {
+    font-size: var(--fs-lg);
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+}
+.wx-settings-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--gap-xl) var(--gap-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xl);
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.wx-settings-section {}
+.wx-settings-section-title {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--gap);
+}
+
+.wx-avatar-editor {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--gap-lg);
+    padding: var(--gap-xl) 0;
+}
+.wx-avatar-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.95);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    border: 2px solid rgba(255,255,255,0.12);
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: all var(--dur);
+}
+.wx-avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+.wx-avatar-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface-hi);
+    border-radius: var(--r-pill);
+    padding: 3px;
+}
+.wx-avatar-tab {
+    padding: 5px 14px;
+    border-radius: var(--r-pill);
+    border: none;
+    background: transparent;
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all var(--dur-fast);
+}
+.wx-avatar-tab.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.wx-avatar-colors {
+    display: flex;
+    gap: var(--gap-sm);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.wx-color-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all var(--dur-fast);
+    position: relative;
+}
+.wx-color-swatch:hover { transform: scale(1.12); }
+.wx-color-swatch.active {
+    border-color: var(--text);
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor;
+}
+
+.wx-emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+}
+.wx-emoji-option {
+    aspect-ratio: 1;
+    border-radius: var(--r-sm);
+    border: 2px solid transparent;
+    background: var(--surface-hi);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--dur-fast);
+    font-family: -apple-system, "Segoe UI Emoji", sans-serif;
+}
+.wx-emoji-option:hover { background: var(--btn-glass-hi); transform: scale(1.1); }
+.wx-emoji-option.active { border-color: var(--accent); background: var(--accent-dim); }
+
+.wx-avatar-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: var(--r-pill);
+    border: 1px dashed var(--divider);
+    background: transparent;
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all var(--dur-fast);
+}
+.wx-avatar-upload-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+/* Profile form */
+.wx-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+}
+.wx-form-label {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-2);
+}
+.wx-form-input {
+    height: 44px;
+    padding: 0 14px;
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: var(--r);
+    font-size: var(--fs-md);
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+    transition: all var(--dur) var(--ease-out);
+    letter-spacing: -0.01em;
+}
+.wx-form-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.wx-form-hint {
+    font-size: var(--fs-xs);
+    color: var(--text-3);
+}
+.wx-form-hint.error { color: var(--danger); }
+.wx-form-hint.ok { color: var(--success); }
+
+/* Password strength */
+.wx-strength {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+}
+.wx-strength-bar {
+    flex: 1;
+    height: 3px;
+    border-radius: var(--r-pill);
+    background: var(--surface-hi);
+    overflow: hidden;
+}
+.wx-strength-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: var(--r-pill);
+    transition: width 0.3s var(--ease-out), background 0.3s;
+}
+.wx-strength-fill.weak   { width: 33%; background: var(--danger); }
+.wx-strength-fill.medium { width: 66%; background: #F59E0B; }
+.wx-strength-fill.strong { width: 100%; background: var(--success); }
+
+/* Settings save button */
+.wx-save-btn {
+    height: 44px;
+    border-radius: var(--r-lg);
+    background: var(--accent);
+    color: white;
+    border: none;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    width: 100%;
+    transition: all var(--dur) var(--ease-out);
+    letter-spacing: 0.01em;
+    margin-top: var(--gap-lg);
+}
+.wx-save-btn:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 4px 16px rgba(99,102,241,0.35);
+    transform: translateY(-1px);
+}
+.wx-save-btn:active { transform: scale(0.98); }
+.wx-save-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
+
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(20px); }
     to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
 @keyframes msgIn {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes menuIn {
+    from { opacity: 0; transform: scale(0.92) translateY(-4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 
-/* ── 响应式 ───────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
+
 @media (max-width: 480px) {
     .wx-page { max-width: 100%; }
+    .wx-login-card {
+        max-width: 92vw;
+    }
+}
+
+/* Dark mode via prefers-color-scheme (fallback for no JS) */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg:            #0A0A0B;
+        --surface:       #141416;
+        --surface-hi:    #1C1C1F;
+        --surface-glass: rgba(20, 20, 22, 0.82);
+        --accent:        #6366F1;
+        --accent-dim:    rgba(99, 102, 241, 0.15);
+        --accent-hover:  #818CF8;
+        --accent-press:  #4F46E5;
+        --mine-bg:       #6366F1;
+        --partner-bg:    rgba(255, 255, 255, 0.07);
+        --partner-border:rgba(255, 255, 255, 0.10);
+        --text:          #FAFAFA;
+        --text-2:        #A1A1AA;
+        --text-3:        #52525B;
+        --divider:       rgba(255, 255, 255, 0.07);
+        --header-glass:  rgba(10, 10, 11, 0.80);
+        --input-bg:      rgba(255, 255, 255, 0.06);
+        --input-focus:   rgba(99, 102, 241, 0.30);
+        --btn-glass:     rgba(255, 255, 255, 0.08);
+        --btn-glass-hi:  rgba(255, 255, 255, 0.14);
+        --danger:        #EF4444;
+        --success:       #22C55E;
+        --toast-bg:      rgba(28, 28, 31, 0.96);
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        --bg:            #F8F8FA;
+        --surface:       #FFFFFF;
+        --surface-hi:     #F4F4F6;
+        --surface-glass: rgba(248, 248, 250, 0.85);
+        --accent:        #4F46E5;
+        --accent-dim:    rgba(79, 70, 229, 0.10);
+        --accent-hover:  #6366F1;
+        --accent-press:  #4338CA;
+        --mine-bg:       #4F46E5;
+        --partner-bg:    rgba(0, 0, 0, 0.04);
+        --partner-border:rgba(0, 0, 0, 0.08);
+        --text:          #18181B;
+        --text-2:        #71717A;
+        --text-3:        #A1A1AA;
+        --divider:       rgba(0, 0, 0, 0.07);
+        --header-glass:  rgba(248, 248, 250, 0.85);
+        --input-bg:      rgba(0, 0, 0, 0.04);
+        --input-focus:   rgba(79, 70, 229, 0.15);
+        --btn-glass:     rgba(0, 0, 0, 0.05);
+        --btn-glass-hi:  rgba(0, 0, 0, 0.09);
+        --danger:        #DC2626;
+        --success:       #16A34A;
+        --toast-bg:      rgba(255, 255, 255, 0.96);
+    }
+}
+
+
+
+
+/* ── Lightbox global gallery ───────────────────────────── */
+.wx-lb-meta {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: var(--fs-xs);
+    color: rgba(255,255,255,0.85);
+    pointer-events: none;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE BUTTON POLISH (≤480px)
+   让主按钮 / 危险按钮 / 登录按钮 缩进左右 8px，高度更矮，
+   不再贴边撑满。桌面端 (≥481px) 完全不受影响。
+   ═══════════════════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+    /* 收起外层左右 padding，让按钮缩进直接吃到 viewport 宽度 */
+    .wx-settings-content {
+        padding-left: 0;
+        padding-right: 0;
+    }
+    .wx-login-card {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    /* 设置页保存按钮（紫色 / 红色通用 .wx-save-btn） */
+    .wx-save-btn {
+        height: 38px;
+        font-size: 14px;
+        border-radius: 8px;
+        width: calc(100% - 16px);
+        margin-left: 8px;
+        margin-right: 8px;
+        margin-top: 12px;
+    }
+
+    /* 相邻 wx-save-btn 间距收紧 */
+    .wx-save-btn + .wx-save-btn {
+        margin-top: 12px;
+    }
+
+    /* 退出登录按钮 (style="background:var(--danger)") - 已被 .wx-save-btn 覆盖，保持视觉一致 */
+    .wx-save-btn[style*="--danger"] {
+        height: 38px;
+        font-size: 14px;
+        border-radius: 8px;
+        width: calc(100% - 16px);
+        margin: 12px 8px 0;
+    }
+
+    /* 登录按钮 (.wx-btn.wx-btn-primary) */
+    .wx-btn-primary,
+    .wx-btn.wx-btn-primary {
+        height: 38px;
+        font-size: 14px;
+        border-radius: 8px;
+        width: calc(100% - 16px);
+        margin: 16px 8px 0;
+        letter-spacing: 0;
+    }
+}
+
+/* 超小屏 ≤360px 进一步收紧左右缩进到 12px */
+@media (max-width: 360px) {
+    .wx-save-btn {
+        width: calc(100% - 24px);
+        margin-left: 12px;
+        margin-right: 12px;
+    }
+    .wx-save-btn[style*="--danger"] {
+        width: calc(100% - 24px);
+        margin: 12px 12px 0;
+    }
+    .wx-btn-primary,
+    .wx-btn.wx-btn-primary {
+        width: calc(100% - 24px);
+        margin: 16px 12px 0;
+    }
 }

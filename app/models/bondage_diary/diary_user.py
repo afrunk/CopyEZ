@@ -15,6 +15,7 @@ class DiaryUser(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     display_name = db.Column(db.String(50), nullable=False)
+    username = db.Column(db.String(50), unique=True, nullable=False, index=True)
     role = db.Column(db.String(20), nullable=False, index=True)  # 'master' | 'pup'
 
     password_hash = db.Column(db.String(255), nullable=False)
@@ -38,6 +39,9 @@ class DiaryUser(db.Model):
         (ROLE_MASTER, "master"),
         (ROLE_PUP, "pup"),
     ]
+
+    # 历史 demo 账号（密码可短于强度策略，方便记忆）
+    SHORT_PWD_USERNAMES = {"S", "M"}
 
     def set_password(self, raw_password: str) -> None:
         """设置密码（bcrypt 哈希）"""
@@ -72,6 +76,7 @@ class DiaryUser(db.Model):
         data = {
             "id": self.id,
             "display_name": self.display_name,
+            "username": self.username,
             "role": self.role,
             "avatar": self.avatar,
             "must_change_password": self.must_change_password,
