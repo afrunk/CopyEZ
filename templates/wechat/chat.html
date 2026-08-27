@@ -45,7 +45,7 @@
 
         async function init() {
             try {
-                const r = await fetch('/wechat/api/me');
+                const r = await fetch('/wechat/auth/api/me');
                 if (!r.ok) { window.location.href = '/wechat/auth/login'; return; }
                 const me = await r.json();
                 myId = me.id;
