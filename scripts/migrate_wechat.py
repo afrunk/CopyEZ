@@ -47,6 +47,34 @@ def main():
         except Exception as e:
             print(f"    ⚠️  建表异常（可能已存在）: {e}")
 
+        # 增量补列：表已存在但缺新字段时，用 ALTER TABLE 追加
+        print("    检查并补列...")
+        inspector = db.inspect(db.engine)
+        existing_columns = {c["name"] for c in inspector.get_columns("wechat_users")}
+
+        COLUMNS_TO_ADD = [
+            ("display_name",   "TEXT NOT NULL DEFAULT ''"),
+            ("password_hash",  "TEXT NOT NULL DEFAULT ''"),
+            ("avatar_type",    "TEXT NOT NULL DEFAULT 'color'"),
+            ("avatar_color",   "TEXT NOT NULL DEFAULT '#6366F1'"),
+            ("avatar_emoji",   "TEXT"),
+            ("avatar_url",     "TEXT"),
+            ("created_at",     "TIMESTAMP"),
+            ("last_seen",      "TIMESTAMP"),
+        ]
+
+        for col_name, col_def in COLUMNS_TO_ADD:
+            if col_name not in existing_columns:
+                try:
+                    db.session.execute(
+                        db.text(f"ALTER TABLE wechat_users ADD COLUMN {col_name} {col_def}")
+                    )
+                    db.session.commit()
+                    print(f"    ✅ 新增列: {col_name}")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"    ⚠️  新增列 {col_name} 失败（可能已存在）: {e}")
+
         # ── 2. 定义要导入的账号 ─────────────────────────────────────────
         #    username  → 数据库里的登录名
         #    display   → 页面显示名
