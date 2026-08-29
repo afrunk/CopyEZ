@@ -1,0 +1,61 @@
+
+/* Login history modal */
+.wx-history-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--gap-lg);
+    background: rgba(0, 0, 0, 0.58);
+}
+.wx-history-card {
+    position: relative;
+    width: min(100%, 440px);
+    max-height: min(70dvh, 560px);
+    overflow: auto;
+    padding: var(--gap-xl);
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: var(--r-lg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.wx-history-title {
+    margin-bottom: var(--gap-lg);
+    font-size: var(--fs-lg);
+    font-weight: 650;
+}
+.wx-history-close {
+    position: absolute;
+    top: var(--gap-sm);
+    right: var(--gap-sm);
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: var(--btn-glass);
+    color: var(--text-2);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+.wx-history-entry {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--gap);
+    padding: 10px 0;
+    border-top: 1px solid var(--divider);
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+}
+.wx-history-entry span:first-child {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+.wx-history-empty,
+.wx-history-loading {
+    padding: var(--gap-xl) 0;
+    color: var(--text-3);
+    text-align: center;
+}

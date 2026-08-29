@@ -244,8 +244,8 @@ def main():
         #    ⚠️  注意：请根据实际情况修改这里的密码。
         #        如果账号已在数据库里（已修改过密码），这个脚本不会覆盖它。
         ACCOUNTS = [
-            {"username": "benben", "display": "笨笨",   "password": "123456"},
-            {"username": "dandan", "display": "蛋蛋",   "password": "123456"},
+            {"username": "笨笨", "display": "笨笨", "password": "123456"},
+            {"username": "蛋蛋", "display": "蛋蛋", "password": "123456"},
         ]
 
         # ── 3. 幂等导入账号 ─────────────────────────────────────────────

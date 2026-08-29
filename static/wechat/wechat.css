@@ -430,7 +430,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
 }
 .wx-chat-body::-webkit-scrollbar { width: 4px; }
 .wx-chat-body::-webkit-scrollbar-track { background: transparent; }
@@ -895,6 +895,7 @@ body {
     display: block;
     cursor: zoom-in;
     background: var(--surface-hi);
+    background-image: linear-gradient(135deg, var(--surface-hi), var(--divider));
     transition: opacity var(--dur-fast);
 }
 .wx-msg-image:hover { opacity: 0.92; }
@@ -1337,7 +1338,10 @@ body {
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
-    width: 100%;
+    width: min(100%, 260px);
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
     transition: all var(--dur) var(--ease-out);
     letter-spacing: 0.01em;
     margin-top: var(--gap-lg);
@@ -1385,6 +1389,29 @@ body {
     .wx-page { max-width: 100%; }
     .wx-login-card {
         max-width: 92vw;
+    }
+
+    .wx-settings-content {
+        width: calc(100% - 32px);
+        max-width: 480px;
+        padding: var(--gap-xl) var(--gap-lg) calc(var(--gap-xl) + env(safe-area-inset-bottom, 0px));
+        margin: var(--gap-lg) auto;
+        background: var(--surface);
+        border: 1px solid var(--divider);
+        border-radius: var(--r);
+    }
+
+    .wx-settings-section {
+        min-width: 0;
+    }
+
+    .wx-emoji-grid {
+        width: 100%;
+    }
+
+    .wx-form-input,
+    .wx-save-btn {
+        max-width: 100%;
     }
 }
 
@@ -1474,42 +1501,46 @@ body {
    ═══════════════════════════════════════════════════════════ */
 
 @media (max-width: 480px) {
-    /* 收起外层左右 padding，让按钮缩进直接吃到 viewport 宽度 */
+    /* Keep the content inset so headings, fields, and buttons stay inside the card. */
     .wx-settings-content {
-        padding-left: 0;
-        padding-right: 0;
-    }
-    .wx-login-card {
-        padding-left: 0;
-        padding-right: 0;
+        padding: var(--gap-xl) var(--gap-lg) calc(var(--gap-xl) + env(safe-area-inset-bottom, 0px));
     }
 
-    /* 设置页保存按钮（紫色 / 红色通用 .wx-save-btn） */
+    .wx-settings-section {
+        min-width: 0;
+        overflow: visible;
+    }
+
+    .wx-settings-section-title {
+        font-size: 11px;
+        line-height: 1.4;
+        overflow: visible;
+    }
+
+    /* Align save actions with the fields through the content padding. */
     .wx-save-btn {
         height: 38px;
         font-size: 14px;
         border-radius: 8px;
-        width: calc(100% - 16px);
-        margin-left: 8px;
-        margin-right: 8px;
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
         margin-top: 12px;
     }
 
-    /* 相邻 wx-save-btn 间距收紧 */
     .wx-save-btn + .wx-save-btn {
         margin-top: 12px;
     }
 
-    /* 退出登录按钮 (style="background:var(--danger)") - 已被 .wx-save-btn 覆盖，保持视觉一致 */
     .wx-save-btn[style*="--danger"] {
         height: 38px;
         font-size: 14px;
         border-radius: 8px;
-        width: calc(100% - 16px);
-        margin: 12px 8px 0;
+        width: 100%;
+        margin: 12px 0 0;
     }
 
-    /* 登录按钮 (.wx-btn.wx-btn-primary) */
+    /* Login actions keep their own card padding and remain inset from its edge. */
     .wx-btn-primary,
     .wx-btn.wx-btn-primary {
         height: 38px;
@@ -1521,17 +1552,8 @@ body {
     }
 }
 
-/* 超小屏 ≤360px 进一步收紧左右缩进到 12px */
+/* 超小屏保持与输入框一致的左右留白 */
 @media (max-width: 360px) {
-    .wx-save-btn {
-        width: calc(100% - 24px);
-        margin-left: 12px;
-        margin-right: 12px;
-    }
-    .wx-save-btn[style*="--danger"] {
-        width: calc(100% - 24px);
-        margin: 12px 12px 0;
-    }
     .wx-btn-primary,
     .wx-btn.wx-btn-primary {
         width: calc(100% - 24px);
