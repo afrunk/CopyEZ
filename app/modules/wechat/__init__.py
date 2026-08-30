@@ -5,6 +5,7 @@ from app.modules.wechat.upload import wechat_upload_bp
 from app.modules.wechat.avatar import avatar_bp
 from app.modules.wechat.settings_page import wechat_settings_bp
 from app.modules.wechat.me_api import me_bp
+from app.modules.wechat.push import wechat_push_bp
 
 __all__ = [
     "wechat_auth_bp",
@@ -13,4 +14,5 @@ __all__ = [
     "avatar_bp",
     "wechat_settings_bp",
     "me_bp",
+    "wechat_push_bp",
 ]

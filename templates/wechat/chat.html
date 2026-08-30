@@ -14,6 +14,18 @@
 
     <link rel="stylesheet" href="{{ url_for('static', filename='wechat/login-history.css') }}">
 
+    <link rel="manifest" href="{{ url_for('static', filename='wechat/manifest.json') }}">
+
+    <meta name="theme-color" content="#6366F1">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <meta name="apple-mobile-web-app-title" content="CopyEZ">
+
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='wechat/icon-192.png') }}">
+
 </head>
 
 <body>
@@ -43,6 +55,12 @@
             <button type="button" class="wx-header-action" id="settingsBtn" title="设置">
 
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.488.488 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.04.31-.06.63-.06.94 0 .31.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
+
+            </button>
+
+            <button type="button" class="wx-header-action" id="pushBtn" title="手机提醒" style="display:none">
+
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
 
             </button>
 
@@ -1793,6 +1811,100 @@
         });
 
         init();
+
+        /* ── Web Push 订阅（iPhone 添加到主屏幕后可用） ─────────────── */
+        (function setupPush(){
+            const pushBtn = document.getElementById('pushBtn');
+            if (!pushBtn) return;
+            pushBtn.style.display = 'inline-flex';
+
+            const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                || window.navigator.standalone === true;
+
+            async function refreshStatus() {
+                try {
+                    const r = await fetch('/wechat/push/api/status');
+                    if (!r.ok) { pushBtn.style.display='none'; return; }
+                    const s = await r.json();
+                    pushBtn.dataset.subscribed = s.subscribed ? '1' : '0';
+                    pushBtn.title = s.subscribed ? '已开启手机提醒' : '开启手机提醒';
+                    pushBtn.style.opacity = s.subscribed ? '1' : '0.6';
+                } catch (e) { pushBtn.style.display='none'; }
+            }
+
+            function urlB64ToUint8Array(b64) {
+                const pad = '='.repeat((4 - b64.length % 4) % 4);
+                const b = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+                const raw = atob(b);
+                return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+            }
+
+            async function subscribe() {
+                if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                    showToast('当前浏览器不支持推送，请用 Safari 并添加到主屏幕', 'error'); return;
+                }
+                if (isIOS && !isStandalone) {
+                    showToast('iPhone 用户请先把网页「添加到主屏幕」，再点这个按钮', 'error'); return;
+                }
+                const perm = await Notification.requestPermission();
+                if (perm !== 'granted') { showToast('请允许通知权限', 'error'); return; }
+
+                const reg = await navigator.serviceWorker.ready;
+                const keyResp = await fetch('/wechat/push/api/vapid_public_key');
+                const { key } = await keyResp.json();
+
+                let sub = await reg.pushManager.getSubscription();
+                if (!sub) {
+                    sub = await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlB64ToUint8Array(key),
+                    });
+                }
+                const r = await fetch('/wechat/push/api/subscribe', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify(sub),
+                });
+                if (r.ok) {
+                    showToast('已开启,试试看能不能收到提醒', 'default');
+                    refreshStatus();
+                    // 立刻推一条测试
+                    await fetch('/wechat/push/api/test', {method:'POST'});
+                } else {
+                    showToast('订阅失败,请重试', 'error');
+                }
+            }
+
+            async function unsubscribe() {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
+                if (!sub) { refreshStatus(); return; }
+                await sub.unsubscribe();
+                await fetch('/wechat/push/api/unsubscribe', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({endpoint: sub.endpoint}),
+                });
+                showToast('已关闭手机提醒', 'default');
+                refreshStatus();
+            }
+
+            pushBtn.addEventListener('click', () => {
+                if (pushBtn.dataset.subscribed === '1') {
+                    if (confirm('确定关闭手机提醒吗？')) unsubscribe();
+                } else {
+                    subscribe();
+                }
+            });
+
+            // 注册 Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/static/wechat/sw.js', {scope: '/static/wechat/'})
+                    .catch(()=>{});
+            }
+            refreshStatus();
+        })();
 
     })();
 
