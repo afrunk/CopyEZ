@@ -32,7 +32,7 @@ from flask import (
 
 from app.extensions import db
 
-from app.models.wechat import WeChatUser, WeChatLoginHistory, WeChatLoginHistory
+from app.models.wechat import WeChatUser, WeChatLoginHistory
 
 from app.utils.datetime_utils import now_bj
 
@@ -145,10 +145,14 @@ def api_login():
 
     # 写入登录历史（表结构异常时不影响登录成功）
     try:
+        _now = now_bj()
         db.session.add(WeChatLoginHistory(
             user_id=user.id,
+            event_type="login",
             ip_address=request.headers.get("X-Forwarded-For", request.remote_addr),
             user_agent=request.headers.get("User-Agent"),
+            created_at=_now,
+            logged_in_at=_now,
         ))
         db.session.commit()
     except Exception as e:
