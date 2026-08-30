@@ -138,18 +138,26 @@ def api_login():
 
 
 
-    user.update_last_seen()
-
-    db.session.add(WeChatLoginHistory(
-        user_id=user.id,
-        ip_address=request.headers.get("X-Forwarded-For", request.remote_addr),
-        user_agent=request.headers.get("User-Agent"),
-    ))
-    db.session.commit()
-
-
-
-    session.permanent = True
+    user.update_last_seen()
+
+    # 写入登录历史（表结构异常时不影响登录成功）
+    try:
+        db.session.add(WeChatLoginHistory(
+            user_id=user.id,
+            ip_address=request.headers.get("X-Forwarded-For", request.remote_addr),
+            user_agent=request.headers.get("User-Agent"),
+        ))
+        db.session.commit()
+    except Exception as e:
+        # 表缺列等异常不应该阻塞登录，只记录
+        db.session.rollback()
+        try:
+            from flask import current_app
+            current_app.logger.warning("写入登录历史失败（不影响登录）: %s", e)
+        except Exception:
+            pass
+
+session.permanent = True
 
     session["wechat_user_id"] = user.id
 

@@ -100,7 +100,36 @@ def main():
                     print(f"    ✅ 新增列: wechat_messages.{col_name}")
                 except Exception as e:
                     db.session.rollback()
-                    print(f"    �️  新增列 wechat_messages.{col_name} 失败（可能已存在）: {e}")
+                    print(f"    ⚠️  新增列 wechat_messages.{col_name} 失败（可能已存在）: {e}")
+
+        # ── 1b-2. 补 wechat_login_history 缺失的列 ─────────────────────────
+        #     服务器上早期版本的表只有 user_id / login_at 列，
+        #     写入时缺少 logged_in_at 会直接 500，导致登录接口看起来"账号不存在"。
+        print("\n    检查 wechat_login_history 补列...")
+        try:
+            existing_login_cols = {c["name"] for c in inspector.get_columns("wechat_login_history")}
+        except Exception:
+            # 表都不存在就让 create_all 处理
+            existing_login_cols = set()
+
+        LOGIN_HISTORY_COLUMNS_TO_ADD = [
+            ("user_id",       "INTEGER"),
+            ("logged_in_at",  "TIMESTAMP"),
+            ("ip_address",    "TEXT"),
+            ("user_agent",    "TEXT"),
+        ]
+
+        for col_name, col_def in LOGIN_HISTORY_COLUMNS_TO_ADD:
+            if col_name not in existing_login_cols:
+                try:
+                    db.session.execute(
+                        db.text(f"ALTER TABLE wechat_login_history ADD COLUMN {col_name} {col_def}")
+                    )
+                    db.session.commit()
+                    print(f"    ✅ 新增列: wechat_login_history.{col_name}")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"    ⚠️  新增列 wechat_login_history.{col_name} 失败（可能已存在）: {e}")
 
         # ── 1c. 数据回填（幂等）──────────────────────────────────────────
         print("\n    数据回填...")
