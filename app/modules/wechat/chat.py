@@ -1,5 +1,7 @@
 """WeChat chat routes."""
-from flask import Blueprint, render_template, request, jsonify, current_app
+import os
+
+from flask import Blueprint, render_template, request, jsonify, current_app, send_from_directory
 
 from app.extensions import db
 from app.models.wechat import WeChatUser, WeChatMessage, WeChatLoginHistory
@@ -260,3 +262,24 @@ def _do_recall(msg_id):
     msg.recalled = True
     db.session.commit()
     return jsonify({"ok": True, "message": msg.to_dict()})
+
+
+# ── PWA 资源（iOS 16.4+ 需要 SW 与 manifest 与 PWA 同 scope） ─────────
+# 服务端动态路由 /wechat/sw.js 与 /wechat/manifest.json
+# 这样 SW 路径落在 manifest 的 scope=/wechat/ 内，iOS PWA 才能 push
+_PWA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "static", "wechat")
+
+
+@wechat_chat_bp.route("/sw.js")
+def pwa_service_worker():
+    """Service Worker — 必须与 manifest scope 同级，iOS PWA 必需"""
+    response = send_from_directory(_PWA_DIR, "sw.js", mimetype="application/javascript")
+    # 不允许缓存，调试期间能看到最新
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
+@wechat_chat_bp.route("/manifest.json")
+def pwa_manifest():
+    """PWA Manifest — start_url 必须与 scope 同级"""
+    return send_from_directory(_PWA_DIR, "manifest.json", mimetype="application/manifest+json")

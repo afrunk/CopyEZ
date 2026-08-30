@@ -14,7 +14,10 @@
 
     <link rel="stylesheet" href="{{ url_for('static', filename='wechat/login-history.css') }}">
 
-    <link rel="manifest" href="{{ url_for('static', filename='wechat/manifest.json') }}">
+    <link rel="manifest" href="/wechat/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CopyEZ">
 
     <meta name="theme-color" content="#6366F1">
 
@@ -1821,10 +1824,12 @@
             const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches
                 || window.navigator.standalone === true;
+            // 始终带 cookie（iOS PWA 首次启动不会自动携带 session cookie）
+            const FETCH_INIT = { credentials: 'include' };
 
             async function refreshStatus() {
                 try {
-                    const r = await fetch('/wechat/push/api/status');
+                    const r = await fetch('/wechat/push/api/status', FETCH_INIT);
                     if (!r.ok) { pushBtn.style.display='none'; return; }
                     const s = await r.json();
                     pushBtn.dataset.subscribed = s.subscribed ? '1' : '0';
@@ -1840,6 +1845,15 @@
                 return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
             }
 
+            // 等待 SW ready，但 iOS 偶发会卡死，加 5s 超时
+            async function waitForSW(timeoutMs = 5000) {
+                if (!('serviceWorker' in navigator)) return null;
+                return Promise.race([
+                    navigator.serviceWorker.ready,
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('SW ready timeout')), timeoutMs)),
+                ]);
+            }
+
             async function subscribe() {
                 if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
                     showToast('当前浏览器不支持推送，请用 Safari 并添加到主屏幕', 'error'); return;
@@ -1847,45 +1861,97 @@
                 if (isIOS && !isStandalone) {
                     showToast('iPhone 用户请先把网页「添加到主屏幕」，再点这个按钮', 'error'); return;
                 }
-                const perm = await Notification.requestPermission();
-                if (perm !== 'granted') { showToast('请允许通知权限', 'error'); return; }
+                if (typeof Notification === 'undefined') {
+                    showToast('该环境不支持通知 API', 'error'); return;
+                }
+                // 1. 先确保 SW 已注册（在 /wechat/ scope 内）
+                try {
+                    const existing = await navigator.serviceWorker.getRegistration('/wechat/');
+                    if (!existing) {
+                        await navigator.serviceWorker.register('/wechat/sw.js', { scope: '/wechat/' });
+                        console.log('[push] SW registered at /wechat/');
+                    }
+                } catch (regErr) {
+                    console.error('[push] SW register failed', regErr);
+                    showToast('Service Worker 注册失败：' + regErr.message, 'error');
+                    return;
+                }
 
-                const reg = await navigator.serviceWorker.ready;
-                const keyResp = await fetch('/wechat/push/api/vapid_public_key');
+                // 2. 等 SW ready（最多 5s）
+                let reg;
+                try { reg = await waitForSW(5000); }
+                catch (e) {
+                    showToast('Service Worker 启动超时，请关闭后台 Safari 后重试', 'error'); return;
+                }
+                if (!reg || !reg.pushManager) {
+                    showToast('推送管理器不可用', 'error'); return;
+                }
+
+                // 3. 请求权限（iOS 必须从用户手势直接调用）
+                let perm = Notification.permission;
+                if (perm !== 'granted') {
+                    perm = await Notification.requestPermission();
+                }
+                if (perm !== 'granted') {
+                    showToast('未授权通知。请到 设置→Safari→网站设置 检查通知权限', 'error');
+                    return;
+                }
+
+                // 4. 拿服务端 VAPID 公钥
+                const keyResp = await fetch('/wechat/push/api/vapid_public_key', FETCH_INIT);
+                if (!keyResp.ok) { showToast('获取密钥失败 ('+keyResp.status+')', 'error'); return; }
                 const { key } = await keyResp.json();
 
+                // 5. 订阅
                 let sub = await reg.pushManager.getSubscription();
                 if (!sub) {
-                    sub = await reg.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlB64ToUint8Array(key),
-                    });
+                    try {
+                        sub = await reg.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlB64ToUint8Array(key),
+                        });
+                    } catch (subErr) {
+                        console.error('[push] subscribe failed', subErr);
+                        showToast('订阅失败：' + subErr.message, 'error');
+                        return;
+                    }
                 }
+
+                // 6. 把 subscription POST 到服务器
                 const r = await fetch('/wechat/push/api/subscribe', {
+                    ...FETCH_INIT,
                     method: 'POST',
                     headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify(sub),
+                    body: JSON.stringify(sub.toJSON()),
                 });
                 if (r.ok) {
-                    showToast('已开启,试试看能不能收到提醒', 'default');
+                    showToast('订阅成功,正在发送测试推送...', 'default');
                     refreshStatus();
                     // 立刻推一条测试
-                    await fetch('/wechat/push/api/test', {method:'POST'});
+                    await fetch('/wechat/push/api/test', { ...FETCH_INIT, method:'POST' });
                 } else {
-                    showToast('订阅失败,请重试', 'error');
+                    const errBody = await r.text().catch(()=>'');
+                    console.error('[push] save failed', r.status, errBody);
+                    showToast(`订阅保存失败(${r.status}): ${errBody.slice(0,80)}`, 'error');
                 }
             }
 
             async function unsubscribe() {
-                const reg = await navigator.serviceWorker.ready;
-                const sub = await reg.pushManager.getSubscription();
-                if (!sub) { refreshStatus(); return; }
-                await sub.unsubscribe();
-                await fetch('/wechat/push/api/unsubscribe', {
-                    method: 'POST',
-                    headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({endpoint: sub.endpoint}),
-                });
+                try {
+                    const reg = await waitForSW(3000);
+                    if (reg && reg.pushManager) {
+                        const sub = await reg.pushManager.getSubscription();
+                        if (sub) {
+                            await sub.unsubscribe();
+                            await fetch('/wechat/push/api/unsubscribe', {
+                                ...FETCH_INIT,
+                                method: 'POST',
+                                headers: {'Content-Type':'application/json'},
+                                body: JSON.stringify({endpoint: sub.endpoint}),
+                            });
+                        }
+                    }
+                } catch (e) { console.warn('[push] unsubscribe error', e); }
                 showToast('已关闭手机提醒', 'default');
                 refreshStatus();
             }
@@ -1898,10 +1964,11 @@
                 }
             });
 
-            // 注册 Service Worker
+            // 注册 Service Worker 在 /wechat/ scope（manifest 同级）
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/static/wechat/sw.js', {scope: '/static/wechat/'})
-                    .catch(()=>{});
+                navigator.serviceWorker.register('/wechat/sw.js', { scope: '/wechat/' })
+                    .then(reg => console.log('[push] SW ready', reg.scope))
+                    .catch(err => console.warn('[push] SW register fail', err));
             }
             refreshStatus();
         })();

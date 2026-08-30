@@ -1,6 +1,7 @@
-/* WeChat Service Worker - 处理 Web Push 推送
- * 作用域:/static/wechat/sw.js
- * iOS Safari 16.4+ 仅当网页「添加到主屏幕」后才能接收 push 事件
+/* WeChat Service Worker
+ * Scope: /wechat/
+ * iOS Safari 16.4+ 必须把网页「添加到主屏幕」后才能接收 push
+ * 同时必须存在 fetch handler 才会被 iOS 当作有效的 PWA SW
  */
 self.addEventListener("install", (event) => {
     self.skipWaiting();
@@ -8,6 +9,12 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
     event.waitUntil(self.clients.claim());
+});
+
+// 占位 fetch handler —— iOS PWA 要求 SW 文件里出现 fetch 监听器
+self.addEventListener("fetch", (event) => {
+    // 不做缓存,网络优先
+    event.respondWith(fetch(event.request).catch(() => fetch(event.request)));
 });
 
 self.addEventListener("push", (event) => {
