@@ -267,7 +267,11 @@ def _do_recall(msg_id):
 # ── PWA 资源（iOS 16.4+ 需要 SW 与 manifest 与 PWA 同 scope） ─────────
 # 服务端动态路由 /wechat/sw.js 与 /wechat/manifest.json
 # 这样 SW 路径落在 manifest 的 scope=/wechat/ 内，iOS PWA 才能 push
-_PWA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "static", "wechat")
+# chat.py 位于 <root>/app/modules/wechat/，向上 4 级到 <root>，再拼 static/wechat
+_PWA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+    "static", "wechat",
+)
 
 
 @wechat_chat_bp.route("/sw.js")
