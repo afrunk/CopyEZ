@@ -157,7 +157,7 @@ def api_login():
         except Exception:
             pass
 
-session.permanent = True
+    session.permanent = True
 
     session["wechat_user_id"] = user.id
 
