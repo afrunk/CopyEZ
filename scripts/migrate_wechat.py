@@ -47,13 +47,13 @@ def main():
         from app.extensions import db
         from app.models.wechat import WeChatUser, WeChatMessage
 
-        # ── 1. 建表（表存在则跳过）───────────────────────────────────────
+        # -- 1. 建表（表存在则跳过）---------------------------------------
         print("\n[1/3] 检查并创建表...")
         try:
             db.create_all()
-            print("    ✅ 表结构就绪（已存在则跳过）")
+            print("    [OK] 表结构就绪（已存在则跳过）")
         except Exception as e:
-            print(f"    ⚠️  建表异常（可能已存在）: {e}")
+            print(f"    [WARN]  建表异常（可能已存在）: {e}")
 
         # 增量补列：表已存在但缺新字段时，用 ALTER TABLE 追加
         print("    检查并补列...")
@@ -78,12 +78,12 @@ def main():
                         db.text(f"ALTER TABLE wechat_users ADD COLUMN {col_name} {col_def}")
                     )
                     db.session.commit()
-                    print(f"    ✅ 新增列: {col_name}")
+                    print(f"    [OK] 新增列: {col_name}")
                 except Exception as e:
                     db.session.rollback()
-                    print(f"    ⚠️  新增列 {col_name} 失败（可能已存在）: {e}")
+                    print(f"    [WARN]  新增列 {col_name} 失败（可能已存在）: {e}")
 
-        # ── 1b. 补 wechat_messages 缺失的列 ─────────────────────────────
+        # -- 1b. 补 wechat_messages 缺失的列 -----------------------------
         print("\n    检查 wechat_messages 补列...")
         existing_msg_cols = {c["name"] for c in inspector.get_columns("wechat_messages")}
 
@@ -105,12 +105,12 @@ def main():
                         db.text(f"ALTER TABLE wechat_messages ADD COLUMN {col_name} {col_def}")
                     )
                     db.session.commit()
-                    print(f"    ✅ 新增列: wechat_messages.{col_name}")
+                    print(f"    [OK] 新增列: wechat_messages.{col_name}")
                 except Exception as e:
                     db.session.rollback()
-                    print(f"    ⚠️  新增列 wechat_messages.{col_name} 失败（可能已存在）: {e}")
+                    print(f"    [WARN]  新增列 wechat_messages.{col_name} 失败（可能已存在）: {e}")
 
-        # ── 1b-2. 补 wechat_login_history 缺失的列 ─────────────────────────
+        # -- 1b-2. 补 wechat_login_history 缺失的列 -------------------------
         #     服务器上早期版本的表只有 user_id / login_at 列，
         #     写入时缺少 logged_in_at 会直接 500，导致登录接口看起来"账号不存在"。
         print("\n    检查 wechat_login_history 补列...")
@@ -134,12 +134,12 @@ def main():
                         db.text(f"ALTER TABLE wechat_login_history ADD COLUMN {col_name} {col_def}")
                     )
                     db.session.commit()
-                    print(f"    ✅ 新增列: wechat_login_history.{col_name}")
+                    print(f"    [OK] 新增列: wechat_login_history.{col_name}")
                 except Exception as e:
                     db.session.rollback()
-                    print(f"    ⚠️  新增列 wechat_login_history.{col_name} 失败（可能已存在）: {e}")
+                    print(f"    [WARN]  新增列 wechat_login_history.{col_name} 失败（可能已存在）: {e}")
 
-        # ── 1c. 数据回填（幂等）──────────────────────────────────────────
+        # -- 1c. 数据回填（幂等）------------------------------------------
         print("\n    数据回填...")
         try:
             # msg_type ← message_type（仅在历史数据 msg_type 为空时）
@@ -156,7 +156,7 @@ def main():
                     WHERE msg_type IS NULL OR msg_type = ''
                 """))
                 db.session.commit()
-                print(f"    ✅ 回填 msg_type: {null_msg_type} 行")
+                print(f"    [OK] 回填 msg_type: {null_msg_type} 行")
 
             # is_read ← read_at NOT NULL
             null_is_read = db.session.execute(
@@ -168,7 +168,7 @@ def main():
                     WHERE is_read = 0 AND read_at IS NOT NULL
                 """))
                 db.session.commit()
-                print(f"    ✅ 回填 is_read: {null_is_read} 行")
+                print(f"    [OK] 回填 is_read: {null_is_read} 行")
 
             # recalled ← is_deleted=1 OR recalled_at NOT NULL
             null_recalled = db.session.execute(
@@ -180,9 +180,9 @@ def main():
                     WHERE recalled = 0 AND (is_deleted = 1 OR recalled_at IS NOT NULL)
                 """))
                 db.session.commit()
-                print(f"    ✅ 回填 recalled: {null_recalled} 行")
+                print(f"    [OK] 回填 recalled: {null_recalled} 行")
 
-            # receiver_id ← 推断：sender_id=1→2，sender_id=2→1
+            # receiver_id ← 推断：sender_id=1->2，sender_id=2->1
             null_receiver = db.session.execute(
                 db.text("SELECT COUNT(*) FROM wechat_messages WHERE receiver_id IS NULL")
             ).scalar()
@@ -197,7 +197,7 @@ def main():
                     WHERE receiver_id IS NULL
                 """))
                 db.session.commit()
-                print(f"    ✅ 回填 receiver_id: {null_receiver} 行")
+                print(f"    [OK] 回填 receiver_id: {null_receiver} 行")
 
             # image_urls ← content（旧实现把 url 存 content）
             null_image = db.session.execute(
@@ -213,12 +213,12 @@ def main():
                       AND content IS NOT NULL AND content != ''
                 """))
                 db.session.commit()
-                print(f"    ✅ 回填 image_urls: {null_image} 行")
+                print(f"    [OK] 回填 image_urls: {null_image} 行")
         except Exception as e:
             db.session.rollback()
-            print(f"    ⚠️  数据回填失败: {e}")
+            print(f"    [WARN]  数据回填失败: {e}")
 
-        # ── 1d. 旧列放宽 NOT NULL 约束（SQLite 重建表方案）─────────────
+        # -- 1d. 旧列放宽 NOT NULL 约束（SQLite 重建表方案）-------------
         #     旧 message_type / is_deleted 列 NOT NULL 会让 SQLAlchemy 写新数据时报
         #     IntegrityError，因为模型里没有这些列。
         print("\n    检查旧列 NOT NULL 约束...")
@@ -228,7 +228,7 @@ def main():
             legacy_notnull = [row[1] for row in info_rows if row[1] in ("message_type", "is_deleted") and row[3] == 1]
 
             if legacy_notnull:
-                print(f"    ⚠️  旧 NOT NULL 列: {legacy_notnull}，重建表...")
+                print(f"    [WARN]  旧 NOT NULL 列: {legacy_notnull}，重建表...")
                 db.session.execute(db.text("""
                     CREATE TABLE wechat_messages_new (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -266,26 +266,26 @@ def main():
                 db.session.execute(db.text("DROP TABLE wechat_messages"))
                 db.session.execute(db.text("ALTER TABLE wechat_messages_new RENAME TO wechat_messages"))
                 db.session.commit()
-                print("    ✅ 表重建完成")
+                print("    [OK] 表重建完成")
             else:
-                print("    ✅ 无需重建（约束已放宽或不存在）")
+                print("    [OK] 无需重建（约束已放宽或不存在）")
         except Exception as e:
             db.session.rollback()
-            print(f"    ⚠️  重建表失败: {e}")
+            print(f"    [WARN]  重建表失败: {e}")
 
-        # ── 2. 定义要导入的账号 ─────────────────────────────────────────
-        #    username  → 数据库里的登录名
-        #    display   → 页面显示名
-        #    password  → 当前服务器上已设定的密码明文
+        # -- 2. 定义要导入的账号 -----------------------------------------
+        #    username  -> 数据库里的登录名
+        #    display   -> 页面显示名
+        #    password  -> 当前服务器上已设定的密码明文
         #
-        #    ⚠️  注意：请根据实际情况修改这里的密码。
+        #    [WARN]  注意：请根据实际情况修改这里的密码。
         #        如果账号已在数据库里（已修改过密码），这个脚本不会覆盖它。
         ACCOUNTS = [
             {"username": "笨笨", "display": "笨笨", "password": "123456"},
             {"username": "蛋蛋", "display": "蛋蛋", "password": "123456"},
         ]
 
-        # ── 3. 幂等导入账号 ─────────────────────────────────────────────
+        # -- 3. 幂等导入账号 ---------------------------------------------
         print("\n[2/3] 导入账号...")
         created = []
         skipped = []
@@ -304,9 +304,9 @@ def main():
                 db.session.add(user)
                 db.session.commit()
                 created.append(acc["username"])
-                print(f"    ✅ 创建账号: {acc['username']} ({acc['display']})")
+                print(f"    [OK] 创建账号: {acc['username']} ({acc['display']})")
 
-        # ── 4. 汇总 ──────────────────────────────────────────────────────
+        # -- 4. 汇总 ------------------------------------------------------
         print("\n[3/3] 完成汇总")
         print(f"    新建账号: {created if created else '无'}")
         print(f"    跳过账号: {skipped if skipped else '无'}")
