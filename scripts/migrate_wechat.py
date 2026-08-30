@@ -142,7 +142,7 @@ def main():
         # -- 1c. 数据回填（幂等）------------------------------------------
         print("\n    数据回填...")
         try:
-            # msg_type ← message_type（仅在历史数据 msg_type 为空时）
+            # msg_type <- message_type（仅在历史数据 msg_type 为空时）
             null_msg_type = db.session.execute(
                 db.text("SELECT COUNT(*) FROM wechat_messages WHERE msg_type IS NULL OR msg_type = ''")
             ).scalar()
@@ -158,7 +158,7 @@ def main():
                 db.session.commit()
                 print(f"    [OK] 回填 msg_type: {null_msg_type} 行")
 
-            # is_read ← read_at NOT NULL
+            # is_read <- read_at NOT NULL
             null_is_read = db.session.execute(
                 db.text("SELECT COUNT(*) FROM wechat_messages WHERE is_read = 0 AND read_at IS NOT NULL")
             ).scalar()
@@ -170,7 +170,7 @@ def main():
                 db.session.commit()
                 print(f"    [OK] 回填 is_read: {null_is_read} 行")
 
-            # recalled ← is_deleted=1 OR recalled_at NOT NULL
+            # recalled <- is_deleted=1 OR recalled_at NOT NULL
             null_recalled = db.session.execute(
                 db.text("SELECT COUNT(*) FROM wechat_messages WHERE recalled = 0 AND (is_deleted = 1 OR recalled_at IS NOT NULL)")
             ).scalar()
@@ -182,7 +182,7 @@ def main():
                 db.session.commit()
                 print(f"    [OK] 回填 recalled: {null_recalled} 行")
 
-            # receiver_id ← 推断：sender_id=1->2，sender_id=2->1
+            # receiver_id <- 推断：sender_id=1->2，sender_id=2->1
             null_receiver = db.session.execute(
                 db.text("SELECT COUNT(*) FROM wechat_messages WHERE receiver_id IS NULL")
             ).scalar()
@@ -199,7 +199,7 @@ def main():
                 db.session.commit()
                 print(f"    [OK] 回填 receiver_id: {null_receiver} 行")
 
-            # image_urls ← content（旧实现把 url 存 content）
+            # image_urls <- content（旧实现把 url 存 content）
             null_image = db.session.execute(
                 db.text("SELECT COUNT(*) FROM wechat_messages WHERE (msg_type = 'image' OR message_type = 'image' OR message_type IN ('burn_image','flash_image')) AND (image_urls IS NULL OR image_urls = '' OR image_urls = '[]') AND content IS NOT NULL AND content != ''")
             ).scalar()
@@ -294,7 +294,7 @@ def main():
             existing = WeChatUser.query.filter_by(username=acc["username"]).first()
             if existing:
                 skipped.append(acc["username"])
-                print(f"    ⏭️  跳过（已存在）: {acc['username']} ({acc['display']})")
+                print(f"    [NEXT]  跳过（已存在）: {acc['username']} ({acc['display']})")
             else:
                 user = WeChatUser(
                     username=acc["username"],
