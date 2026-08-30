@@ -17,6 +17,14 @@ WeChat 模块增量迁移脚本
 """
 import os
 import sys
+import io
+
+# 强制 UTF-8 输出，避免 Windows / GBK 终端打印 emoji 时挂掉
+try:
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
