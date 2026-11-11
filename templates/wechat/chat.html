@@ -1668,6 +1668,9 @@
         /* 原图下载控制器：切图时用来取消上一张的下载 */
         let lbFullCtrl = null;
 
+        /* 原图下载防抖：快速滑动时先不发请求，停下来再拉 */
+        let lbFullTimer = null;
+
         let lbScale = 1, lbX = 0, lbY = 0;
 
         let lbDragging = false, lbDragStartX = 0, lbDragStartY = 0, lbLastX = 0, lbLastY = 0;
@@ -1819,6 +1822,10 @@
 
             lightbox.style.animation = 'fadeOut 0.15s ease both';
 
+            /* 关掉灯箱就别再拉原图了 */
+            if (lbFullTimer) { clearTimeout(lbFullTimer); lbFullTimer = null; }
+            if (lbFullCtrl) { lbFullCtrl.abort(); lbFullCtrl = null; }
+
             setTimeout(() => {
 
                 lightbox.style.display = 'none';
@@ -1892,7 +1899,7 @@
                 }
 
                 /* 后台补原图：加载完且用户没切走，再换成清晰版 */
-                loadFullRes(url, thumbUrl, token);
+                scheduleFullRes(url, thumbUrl, token);
 
             }
 
@@ -1928,6 +1935,26 @@
             img.onload = () => { lbLoadedImgs[url] = img; };
 
             img.src = url;
+
+        }
+
+        /* 原图 3MB，滑动过程中完全没必要拉。
+           这里做 500ms 防抖：用户还在快速切图就一个都不发，
+           停下来只补当前这一张。 */
+        function scheduleFullRes(url, thumbUrl, token) {
+
+            if (lbFullTimer) { clearTimeout(lbFullTimer); lbFullTimer = null; }
+
+            /* 已经在下的那张先掐掉，把带宽让出来 */
+            if (lbFullCtrl) { lbFullCtrl.abort(); lbFullCtrl = null; }
+
+            lbFullTimer = setTimeout(() => {
+
+                lbFullTimer = null;
+
+                loadFullRes(url, thumbUrl, token);
+
+            }, 500);
 
         }
 
