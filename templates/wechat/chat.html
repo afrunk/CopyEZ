@@ -1665,6 +1665,9 @@
         /* 灯箱当前显示的是哪张图的缩略图（用于判断后台原图能否替换） */
         let lbCurrentThumb = '';
 
+        /* 原图下载控制器：切图时用来取消上一张的下载 */
+        let lbFullCtrl = null;
+
         let lbScale = 1, lbX = 0, lbY = 0;
 
         let lbDragging = false, lbDragStartX = 0, lbDragStartY = 0, lbLastX = 0, lbLastY = 0;
@@ -1928,18 +1931,28 @@
 
         }
 
-        /* 后台加载原图；加载完成且用户仍停留在这张时，再替换成清晰版 */
-        function loadFullRes(url, thumbUrl, token) {
+        /* 后台加载原图；加载完成且用户仍停留在这张时，再替换成清晰版。
+           同一时刻只允许一个原图在途，切图时直接取消上一张，
+           否则连续滑动会把 3MB×N 全部排上队列。 */
+        async function loadFullRes(url, thumbUrl, token) {
 
             if (!url) return;
 
-            const full = new Image();
+            if (lbFullCtrl) lbFullCtrl.abort();
 
-            full.decoding = 'async';
+            const ctrl = new AbortController();
 
-            full.onload = () => {
+            lbFullCtrl = ctrl;
 
-                lbLoadedImgs[url] = full;
+            try {
+
+                const r = await fetch(url, { signal: ctrl.signal });
+
+                if (!r.ok) return;
+
+                await r.arrayBuffer();
+
+                if (ctrl.signal.aborted) return;
 
                 /* 已经切到别的图了，丢弃这次升级 */
                 if (token !== lbRenderToken) return;
@@ -1949,9 +1962,15 @@
 
                 lbImg.src = url;
 
-            };
+            } catch (e) {
 
-            full.src = url;
+                /* 被取消或失败，保持缩略图即可 */
+
+            } finally {
+
+                if (lbFullCtrl === ctrl) lbFullCtrl = null;
+
+            }
 
         }
 
