@@ -976,8 +976,12 @@
 
         }
 
-        /* 顶部插入内容之后，把滚动位置还原回原来那条消息 */
+        /* 顶部插入内容之后，把滚动位置还原回原来那条消息。
+           注意：图片解码后高度还会再变，需要再校正几次；
+           但如果用户已经开始自己滚动，就不能再抢位置（否则会一直拉不到下一屏）。 */
         function restoreScrollAfterPrepend(oldTop, oldHeight) {
+
+            let applied = false;
 
             const apply = () => {
 
@@ -985,13 +989,20 @@
 
                 if (!delta) return;
 
-                chatBody.scrollTop = oldTop + delta;
+                const target = oldTop + delta;
+
+                /* 用户已经手动滚动了 → 放弃纠正 */
+                if (applied && Math.abs(chatBody.scrollTop - target) > 8) return;
+
+                chatBody.scrollTop = target;
+
+                applied = true;
 
             };
 
             requestAnimationFrame(() => { apply(); requestAnimationFrame(apply); });
 
-            /* 图片解码完成后高度还会再变一次，稍后再校正一次 */
+            /* 图片解码完成后高度还会再变一次，稍后再校正 */
             setTimeout(apply, 300);
             setTimeout(apply, 1000);
 
@@ -1027,11 +1038,25 @@
 
         function normalizeImageItem(item) {
 
-            if (typeof item === 'string') return {url: item, thumb_url: item};
+            /* 历史上有一批消息把正文误写进了 image_urls（如 "安排"），
+               这里只保留真正的地址，否则浏览器会去加载 /wechat/安排 这种 404 */
+            if (typeof item === 'string') {
+
+                if (!item || !(item.startsWith('/') || item.startsWith('http'))) return null;
+
+                return {url: item, thumb_url: item};
+
+            }
 
             if (!item || typeof item !== 'object' || !item.url) return null;
 
-            return {url: item.url, thumb_url: item.thumb_url || item.url};
+            const url = item.url;
+
+            if (!(url.startsWith('/') || url.startsWith('http'))) return null;
+
+            const thumb = item.thumb_url || url;
+
+            return {url, thumb_url: (thumb.startsWith('/') || thumb.startsWith('http')) ? thumb : url};
 
         }
 
@@ -1202,9 +1227,9 @@
 
             let inner = '';
 
-            if (msg.msg_type === 'image' && msg.image_urls?.length) {
+            const imageItems = (msg.image_urls || []).map(normalizeImageItem).filter(Boolean);
 
-                const imageItems = msg.image_urls.map(normalizeImageItem).filter(Boolean);
+            if (msg.msg_type === 'image' && imageItems.length) {
 
                 const imgs = imageItems.map((image, i) =>
 
@@ -1246,7 +1271,7 @@
 
             el.insertBefore(avatarEl, el.firstChild);
 
-            if (msg.msg_type === 'image' && !msg.recalled) {
+            if (msg.msg_type === 'image' && !msg.recalled && imageItems.length) {
 
                 el.querySelectorAll('.wx-msg-image').forEach(img => {
 

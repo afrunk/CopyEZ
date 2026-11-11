@@ -96,19 +96,23 @@ def _normalize_image_items(raw):
     items = []
     for entry in raw:
         if isinstance(entry, str):
-            if not entry:
-                continue
-            items.append({"url": entry, "thumb_url": entry})
+            url = entry
+            thumb = entry
         elif isinstance(entry, dict):
             url = entry.get("url") or ""
-            if not url:
-                continue
-            items.append({
-                "url": url,
-                "thumb_url": entry.get("thumb_url") or url,
-                "width": entry.get("width"),
-                "height": entry.get("height"),
-            })
+            thumb = entry.get("thumb_url") or url
+        else:
+            continue
+        # 历史上有一批消息把正文误写进了 image_urls（如 "安排"），这里过滤掉，
+        # 否则浏览器会去加载 /wechat/安排 这种不存在的地址。
+        if not (url.startswith("/") or url.startswith("http")):
+            continue
+        items.append({
+            "url": url,
+            "thumb_url": thumb if (thumb.startswith("/") or thumb.startswith("http")) else url,
+            "width": entry.get("width") if isinstance(entry, dict) else None,
+            "height": entry.get("height") if isinstance(entry, dict) else None,
+        })
     return items
 
 
