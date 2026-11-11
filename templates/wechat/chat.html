@@ -101,6 +101,14 @@
 
         <div class="wx-chat-body" id="chatBody">
 
+            <div class="wx-history-top" id="historyTop">
+
+                <button type="button" class="wx-history-btn" id="loadMoreBtn">加载更早的消息</button>
+
+                <div class="wx-history-tip" id="historyTip"></div>
+
+            </div>
+
             <div class="wx-msg-empty" id="emptyState">
 
                 <div class="wx-msg-empty-icon">💬</div>
@@ -145,6 +153,10 @@
 
         <div class="wx-emoji-panel" id="emojiPanel" style="display:none"></div>
 
+        <!-- ── Jump to latest ── -->
+
+        <button type="button" class="wx-jump-latest" id="jumpLatest" style="display:none">回到最新</button>
+
         <!-- ── Image preview bar ── -->
 
         <div class="wx-preview-bar" id="previewBar" style="display:none">
@@ -170,6 +182,10 @@
             <span class="wx-lb-counter" id="lbCounter">1 / 1</span>
 
             <div class="wx-lb-top-actions">
+
+                <button class="wx-lb-btn" id="lbPrevBtn" title="上一张 (←)">&#x2039;</button>
+
+                <button class="wx-lb-btn" id="lbNextBtn" title="下一张 (→)">&#x203A;</button>
 
                 <button class="wx-lb-btn" id="lbInfoBtn" title="图片信息">ℹ</button>
 
@@ -239,13 +255,21 @@
 
         let partnerInfo = null;
 
-        let messages = [], prevDate = '';
+        let messages = [], lastRenderedDate = '';
 
         let hasMoreMessages = false;
 
         let loadingMessages = false;
 
         let loadingOlder = false;
+
+        /* 上一次拉取历史的时间戳：避免重建 DOM 触发的 scroll 事件造成连续拉取 */
+
+        let lastOlderLoadAt = 0;
+
+        /* 停留在历史位置时收到的新消息条数 */
+
+        let pendingNewCount = 0;
 
         /* 模块级 myUser，avatar 事件监听器和 loadMessages 静默刷新都依赖它 */
 
@@ -505,9 +529,28 @@
 
                 messages.forEach(m => { if (!m.is_mine) m.is_read = true; });
 
-                renderMessages(); refreshUnread();
+                updateReadBadges(); refreshUnread();
 
             } catch {} finally { markReadPending = false; }
+
+        }
+
+        /* 只更新「已读/未读」角标，不重建整个列表（重建会把滚动位置冲掉） */
+        function updateReadBadges() {
+
+            chatBody.querySelectorAll('.wx-msg.mine').forEach(el => {
+
+                const id = parseInt(el.dataset.msgId, 10);
+
+                const m = messages.find(x => x.id === id);
+
+                const badge = el.querySelector('.wx-msg-read');
+
+                if (!m || !badge) return;
+
+                badge.textContent = m.is_read ? '已读' : '未读';
+
+            });
 
         }
 
@@ -669,6 +712,8 @@
 
             await loadMessages({initial: true});
 
+            setupHistoryObserver();
+
         }
 
         /* ── 头像跨标签同步 ── */
@@ -687,7 +732,7 @@
 
             myUser.avatar_url   = u.avatar_url   || null;
 
-            renderMessages();
+            rerenderPreservingScroll();
 
         });
 
@@ -708,17 +753,46 @@
                 const data = await r.json();
 
                 const incoming = data.messages || [];
+
                 const knownIds = new Set(messages.map(message => message.id));
+
                 const newMessages = incoming.filter(message => !knownIds.has(message.id));
-                if (initial || !messages.length) messages = incoming;
-                else messages.push(...newMessages);
+
                 hasMoreMessages = Boolean(data.has_more);
 
                 partnerInfo = data.partner;
 
                 renderHeader();
 
-                if (initial || newMessages.length) renderMessages({forceBottom: initial});
+                updateHistoryTop();
+
+                if (initial || !messages.length) {
+
+                    messages = incoming;
+
+                    renderMessages({forceBottom: true});
+
+                } else if (newMessages.length) {
+
+                    const wasAtBottom = isAtBottom();
+
+                    messages.push(...newMessages);
+
+                    appendMessages(newMessages);
+
+                    if (wasAtBottom) {
+
+                        scrollBottom();
+
+                    } else {
+
+                        pendingNewCount += newMessages.length;
+
+                        showJumpLatest();
+
+                    }
+
+                }
 
                 await markMessagesRead(initial ? messages : newMessages);
 
@@ -740,11 +814,131 @@
 
         }
 
+        function isAtBottom() {
+
+            return chatBody.scrollHeight - chatBody.scrollTop - chatBody.clientHeight < 80;
+
+        }
+
+        /* 需要整体重绘但又不想打断用户阅读位置时使用 */
+        function rerenderPreservingScroll() {
+
+            const top = chatBody.scrollTop;
+
+            const wasAtBottom = isAtBottom();
+
+            renderMessages();
+
+            if (wasAtBottom) scrollBottom();
+
+            else chatBody.scrollTop = top;
+
+        }
+
+        /* ── 顶部「加载更早的消息」区域 ── */
+
+        const historyTop  = document.getElementById('historyTop');
+
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+
+        const historyTip  = document.getElementById('historyTip');
+
+        let historyObserver = null;
+
+        let historyTipShown = false;
+
+        function updateHistoryTop() {
+
+            if (!loadMoreBtn) return;
+
+            if (hasMoreMessages) {
+
+                loadMoreBtn.style.display = 'inline-flex';
+
+                historyTip.textContent = '';
+
+                historyTipShown = false;
+
+            } else {
+
+                loadMoreBtn.style.display = 'none';
+
+                if (messages.length && !historyTipShown) {
+
+                    historyTip.textContent = '已经是最早的消息了';
+
+                    historyTipShown = true;
+
+                }
+
+            }
+
+        }
+
+        function showHistoryLoading(on) {
+
+            if (!loadMoreBtn) return;
+
+            loadMoreBtn.textContent = on ? '正在加载…' : '加载更早的消息';
+
+            loadMoreBtn.disabled = on;
+
+        }
+
+        /* ── 回到最新 ── */
+
+        const jumpLatest = document.getElementById('jumpLatest');
+
+        function showJumpLatest() {
+
+            if (!jumpLatest) return;
+
+            jumpLatest.textContent = pendingNewCount > 0 ? `${pendingNewCount} 条新消息` : '回到最新';
+
+            jumpLatest.style.display = 'inline-flex';
+
+        }
+
+        function hideJumpLatest() {
+
+            if (!jumpLatest) return;
+
+            pendingNewCount = 0;
+
+            jumpLatest.style.display = 'none';
+
+        }
+
+        jumpLatest?.addEventListener('click', () => {
+
+            pendingNewCount = 0;
+
+            jumpLatest.style.display = 'none';
+
+            scrollBottom();
+
+            loadMessages();
+
+        });
+
+        /* 拉取更早的历史消息。
+
+           旧实现只在 scrollTop < 80 时触发，iOS Safari 上基本一次都触发不到
+           （服务器日志里 before_id 请求数长期为 0），历史消息因此永远拉不下来。
+           现在用「IntersectionObserver 哨兵 + scroll 兜底 + 手动按钮」三重保障。
+        */
         async function loadOlderMessages() {
 
             if (loadingOlder || !hasMoreMessages || !messages.length) return;
 
+            /* 刚加载完就不要再被同一次重建引发的 scroll 事件重复带进来 */
+            if (Date.now() - lastOlderLoadAt < 500) return;
+
             loadingOlder = true;
+
+            lastOlderLoadAt = Date.now();
+
+            showHistoryLoading(true);
 
             const oldHeight = chatBody.scrollHeight;
 
@@ -760,23 +954,74 @@
 
                 const knownIds = new Set(messages.map(message => message.id));
 
-                messages = [...(data.messages || []).filter(message => !knownIds.has(message.id)), ...messages];
+                const older = (data.messages || []).filter(message => !knownIds.has(message.id));
 
                 hasMoreMessages = Boolean(data.has_more);
 
-                renderMessages();
+                if (older.length) {
 
-                chatBody.scrollTop = chatBody.scrollHeight - oldHeight + oldTop;
+                    messages = [...older, ...messages];
+
+                    prependMessages(older);
+
+                    restoreScrollAfterPrepend(oldTop, oldHeight);
+
+                }
+
+                updateHistoryTop();
 
             } catch (e) { console.error('load older failed', e); }
 
-            finally { loadingOlder = false; }
+            finally { loadingOlder = false; showHistoryLoading(false); }
+
+        }
+
+        /* 顶部插入内容之后，把滚动位置还原回原来那条消息 */
+        function restoreScrollAfterPrepend(oldTop, oldHeight) {
+
+            const apply = () => {
+
+                const delta = chatBody.scrollHeight - oldHeight;
+
+                if (!delta) return;
+
+                chatBody.scrollTop = oldTop + delta;
+
+            };
+
+            requestAnimationFrame(() => { apply(); requestAnimationFrame(apply); });
+
+            /* 图片解码完成后高度还会再变一次，稍后再校正一次 */
+            setTimeout(apply, 300);
+            setTimeout(apply, 1000);
+
+        }
+
+        loadMoreBtn?.addEventListener('click', () => loadOlderMessages());
+
+        function setupHistoryObserver() {
+
+            if (!('IntersectionObserver' in window) || !historyTop) return;
+
+            historyObserver = new IntersectionObserver(entries => {
+
+                entries.forEach(entry => {
+
+                    if (entry.isIntersecting) loadOlderMessages();
+
+                });
+
+            }, { root: chatBody, rootMargin: '160px 0px 0px 0px', threshold: 0 });
+
+            historyObserver.observe(historyTop);
 
         }
 
         chatBody.addEventListener('scroll', () => {
 
-            if (chatBody.scrollTop < 80) loadOlderMessages();
+            if (chatBody.scrollTop < 160) loadOlderMessages();
+
+            if (isAtBottom()) { pendingNewCount = 0; hideJumpLatest(); }
 
         });
 
@@ -792,11 +1037,11 @@
 
         function renderMessages({forceBottom = false} = {}) {
 
-            const wasAtBottom = chatBody.scrollHeight - chatBody.scrollTop <= chatBody.clientHeight + 80;
+            const wasAtBottom = isAtBottom();
 
             chatBody.querySelectorAll('.wx-msg, .wx-date-divider').forEach(el => el.remove());
 
-            prevDate = '';
+            lastRenderedDate = '';
 
             if (!messages.length) {
 
@@ -807,6 +1052,115 @@
             }
 
             emptyState.style.display = 'none';
+
+            const fragment = document.createDocumentFragment();
+
+            let dateKey = '';
+
+            messages.forEach(msg => {
+
+                const key = msg.created_at?.split('T')[0] || '';
+
+                if (key !== dateKey) {
+
+                    dateKey = key;
+
+                    lastRenderedDate = key;
+
+                    fragment.appendChild(makeDateDivider(key));
+
+                }
+
+                fragment.appendChild(buildMessageNode(msg));
+
+            });
+
+            chatBody.appendChild(fragment);
+
+            if (forceBottom || wasAtBottom) {
+
+                chatBody.scrollTop = chatBody.scrollHeight;
+
+            }
+
+        }
+
+        function makeDateDivider(dateKey) {
+
+            const divider = document.createElement('div');
+
+            divider.className = 'wx-date-divider';
+
+            divider.innerHTML = `<span class="wx-date-chip">${dateKey}</span>`;
+
+            return divider;
+
+        }
+
+        /* 只追加新消息，不重建整个列表 —— 避免轮询时把用户的滚动位置冲掉 */
+
+        function appendMessages(list) {
+
+            if (!list || !list.length) return;
+
+            const fragment = document.createDocumentFragment();
+
+            list.forEach(msg => {
+
+                const key = msg.created_at?.split('T')[0] || '';
+
+                if (key !== lastRenderedDate) {
+
+                    lastRenderedDate = key;
+
+                    fragment.appendChild(makeDateDivider(key));
+
+                }
+
+                fragment.appendChild(buildMessageNode(msg));
+
+            });
+
+            chatBody.appendChild(fragment);
+
+            emptyState.style.display = messages.length ? 'none' : 'flex';
+
+        }
+
+        /* 把更早的消息插到最前面，不重建整个列表（历史消息可能有几千条） */
+        function prependMessages(list) {
+
+            if (!list || !list.length) return;
+
+            const anchor = chatBody.querySelector('.wx-msg, .wx-date-divider');
+
+            if (!anchor) { renderMessages(); return; }
+
+            const fragment = document.createDocumentFragment();
+
+            let dateKey = '';
+
+            list.forEach(msg => {
+
+                const key = msg.created_at?.split('T')[0] || '';
+
+                if (key !== dateKey) {
+
+                    dateKey = key;
+
+                    fragment.appendChild(makeDateDivider(key));
+
+                }
+
+                fragment.appendChild(buildMessageNode(msg));
+
+            });
+
+            anchor.before(fragment);
+
+        }
+
+        function buildMessageNode(msg) {
 
             const meName = myName;
 
@@ -822,123 +1176,95 @@
 
             };
 
-            const fragment = document.createDocumentFragment();
+            const dateKey = msg.created_at?.split('T')[0] || '';
 
-            messages.forEach(msg => {
+            const el = document.createElement('div');
 
-                const dateKey = msg.created_at?.split('T')[0] || '';
+            el.className = 'wx-msg ' + (msg.is_mine ? 'mine' : 'partner');
 
-                if (dateKey !== prevDate) {
+            el.dataset.msgId = msg.id;
 
-                    prevDate = dateKey;
+            const avatarEl = document.createElement('div');
 
-                    const divider = document.createElement('div');
+            avatarEl.className = 'wx-msg-avatar';
 
-                    divider.className = 'wx-date-divider';
+            renderAvatarEl(avatarEl, msg.is_mine ? myUser : partnerUser, msg.is_mine);
 
-                    divider.innerHTML = `<span class="wx-date-chip">${dateKey}</span>`;
+            const timeStr = msg.created_at
 
-                    fragment.appendChild(divider);
+                ? new Date(msg.created_at).toLocaleTimeString('zh-CN', {
 
-                }
+                    hour: '2-digit', minute: '2-digit', hour12: false,
 
-                const el = document.createElement('div');
+                })
 
-                el.className = 'wx-msg ' + (msg.is_mine ? 'mine' : 'partner');
+                : '';
 
-                el.dataset.msgId = msg.id;
+            let inner = '';
 
-                const avatarEl = document.createElement('div');
+            if (msg.msg_type === 'image' && msg.image_urls?.length) {
 
-                avatarEl.className = 'wx-msg-avatar';
+                const imageItems = msg.image_urls.map(normalizeImageItem).filter(Boolean);
 
-                renderAvatarEl(avatarEl, msg.is_mine ? myUser : partnerUser, msg.is_mine);
+                const imgs = imageItems.map((image, i) =>
 
-                const timeStr = msg.created_at
+                    `<img class="wx-msg-image" data-img-idx="${i}" src="${image.thumb_url}" data-full-src="${image.url}" loading="lazy" decoding="async" alt="">`
 
-                    ? new Date(msg.created_at).toLocaleTimeString('zh-CN', {
+                ).join('');
 
-                        hour: '2-digit', minute: '2-digit', hour12: false,
+                inner = `<div class="wx-msg-bubble wx-msg-bubble-image">
 
-                    })
+                    <div class="wx-msg-image-grid count-${Math.min(imageItems.length, 9)}">${imgs}</div>
 
-                    : '';
+                </div>`;
 
-                let inner = '';
+            } else if (!msg.recalled) {
 
-                if (msg.msg_type === 'image' && msg.image_urls?.length) {
+                inner = `<div class="wx-msg-bubble">${escHtml(msg.content)}</div>`;
 
-                    const imageItems = msg.image_urls.map(normalizeImageItem).filter(Boolean);
+            }
 
-                    const imgs = imageItems.map((image, i) =>
+            el.innerHTML = `
 
-                        `<img class="wx-msg-image" data-img-idx="${i}" src="${image.thumb_url}" data-full-src="${image.url}" loading="lazy" decoding="async" alt="">`
+                <div class="wx-msg-content">
 
-                    ).join('');
+                    ${msg.recalled
 
-                    inner = `<div class="wx-msg-bubble wx-msg-bubble-image">
+                        ? `<div class="wx-msg-recalled">${msg.is_mine ? '你撤回了一条消息' : '对方撤回了一条消息'}</div>`
 
-                        <div class="wx-msg-image-grid count-${Math.min(imageItems.length, 9)}">${imgs}</div>
+                        : inner}
 
-                    </div>`;
+                    <div class="wx-msg-meta">
 
-                } else if (!msg.recalled) {
+                        <span class="wx-msg-time">${timeStr}</span>
 
-                    inner = `<div class="wx-msg-bubble">${escHtml(msg.content)}</div>`;
+                        ${msg.is_mine && !msg.recalled ? `<span class="wx-msg-read">${msg.is_read ? '已读' : '未读'}</span>` : ''}
 
-                }
+                    </div>
 
-                el.innerHTML = `
+                </div>`;
 
-                    <div class="wx-msg-content">
+            el.insertBefore(avatarEl, el.firstChild);
 
-                        ${msg.recalled
+            if (msg.msg_type === 'image' && !msg.recalled) {
 
-                            ? `<div class="wx-msg-recalled">${msg.is_mine ? '你撤回了一条消息' : '对方撤回了一条消息'}</div>`
+                el.querySelectorAll('.wx-msg-image').forEach(img => {
 
-                            : inner}
+                    img.addEventListener('click', e => {
 
-                        <div class="wx-msg-meta">
+                        e.stopPropagation();
 
-                            <span class="wx-msg-time">${timeStr}</span>
-
-                            ${msg.is_mine && !msg.recalled ? `<span class="wx-msg-read">${msg.is_read ? '已读' : '未读'}</span>` : ''}
-
-                        </div>
-
-                    </div>`;
-
-                el.insertBefore(avatarEl, el.firstChild);
-
-                if (msg.msg_type === 'image' && !msg.recalled) {
-
-                    el.querySelectorAll('.wx-msg-image').forEach(img => {
-
-                        img.addEventListener('click', e => {
-
-                            e.stopPropagation();
-
-                            openLightbox(msg, parseInt(img.dataset.imgIdx, 10));
-
-                        });
+                        openLightbox(msg, parseInt(img.dataset.imgIdx, 10));
 
                     });
 
-                }
-
-                if (msg.is_mine && !msg.recalled) attachLongPress(el, () => showMsgMenu(msg, el));
-
-                fragment.appendChild(el);
-
-            });
-
-            chatBody.appendChild(fragment);
-
-            if (forceBottom || wasAtBottom) {
-
-                chatBody.scrollTop = chatBody.scrollHeight;
+                });
 
             }
+
+            if (msg.is_mine && !msg.recalled) attachLongPress(el, () => showMsgMenu(msg, el));
+
+            return el;
 
         }
 
@@ -982,7 +1308,7 @@
 
                 if (!r.ok) { msgInput.value = content; showToast(d.error||'发送失败','error'); return; }
 
-                messages.push(d.message); prevDate=''; renderMessages(); scrollBottom();
+                messages.push(d.message); appendMessages([d.message]); scrollBottom();
 
             } catch { msgInput.value = content; showToast('发送失败','error'); }
 
@@ -1020,7 +1346,7 @@
 
                 if (!mr.ok) { showToast(md.error||'发送失败','error'); return; }
 
-                messages.push(md.message); prevDate=''; renderMessages(); scrollBottom(); msgInput.value='';
+                messages.push(md.message); appendMessages([md.message]); scrollBottom(); msgInput.value='';
 
             } catch { pendingFiles=files; renderPreview(); showToast('发送失败','error'); }
 
@@ -1264,7 +1590,7 @@
 
                 if (m) m.recalled = true;
 
-                renderMessages();
+                rerenderPreservingScroll();
 
             } catch { showToast('撤回失败','error'); }
 
@@ -1294,9 +1620,19 @@
 
         const lbMeta    = document.getElementById('lbMeta');
 
-        let galleryImages = [];  // 全局图片索引表: { url, msgId, localIdx, isMine, displayName, createdAt }
+        const lbPrevBtn = document.getElementById('lbPrevBtn');
+
+        const lbNextBtn = document.getElementById('lbNextBtn');
+
+        let galleryImages = [];  // 全局图片索引表: { url, thumb_url, msgId, localIdx, isMine, displayName, createdAt }
 
         let lbImages = [], lbIdx = 0;
+
+        /* 全量图片（来自 /wechat/api/images），让查看器能翻到没有加载进页面的历史图片 */
+        let fullGallery = null, fullGalleryLoading = false;
+
+        /* 渲染序号：避免快速连点时旧的延时回调把图片换回去 */
+        let lbRenderToken = 0;
 
         let lbScale = 1, lbX = 0, lbY = 0;
 
@@ -1309,6 +1645,9 @@
         const lbLoadedImgs = {};
 
         let lbExitMsgId = null;
+
+        /* 图片加载完成后恢复不透明度（只注册一次，避免监听器堆积） */
+        lbImg.addEventListener('load', () => { lbImg.style.opacity = '1'; });
 
         function getImageItems(msg) {
 
@@ -1340,9 +1679,17 @@
 
             rebuildGallery();
 
-            if (!galleryImages.length) return;
+            const items = getImageItems(msg);
 
-            const gi = galleryImages.findIndex(g => g.msgId === msg.id && g.localIdx === localIdx);
+            const clickedUrl = items[localIdx]?.url;
+
+            if (!galleryImages.length && !clickedUrl) return;
+
+            const gi = clickedUrl
+
+                ? galleryImages.findIndex(g => g.url === clickedUrl)
+
+                : 0;
 
             lbImages = galleryImages.map(g => g.url);
 
@@ -1367,6 +1714,70 @@
             lightbox.style.animation = 'fadeIn 0.15s ease both';
 
             document.body.style.overflow = 'hidden';
+
+            /* 后台补齐全量图片，补齐后自动把当前位置对齐到同一张 */
+            loadFullGallery(clickedUrl);
+
+        }
+
+        /* 拉取会话里的全部图片（不只是已经加载到页面上的那些） */
+        async function loadFullGallery(clickedUrl) {
+
+            if (fullGallery || fullGalleryLoading) return;
+
+            fullGalleryLoading = true;
+
+            try {
+
+                const r = await fetch('/wechat/api/images');
+
+                if (!r.ok) return;
+
+                const data = await r.json();
+
+                const list = data.images || [];
+
+                if (!list.length) return;
+
+                const partnerName = partnerInfo?.display_name || '对方';
+
+                fullGallery = list.map(item => ({
+
+                    url: item.url,
+
+                    thumb_url: item.thumb_url || item.url,
+
+                    msgId: item.msg_id,
+
+                    localIdx: 0,
+
+                    isMine: item.is_mine,
+
+                    displayName: item.is_mine ? myName : partnerName,
+
+                    createdAt: item.created_at,
+
+                }));
+
+            } catch (e) { console.warn('load full gallery failed', e); }
+
+            finally { fullGalleryLoading = false; }
+
+            if (!fullGallery || !fullGallery.length) return;
+
+            if (lightbox.style.display === 'none') return;
+
+            const idx = clickedUrl ? fullGallery.findIndex(g => g.url === clickedUrl) : -1;
+
+            galleryImages = fullGallery;
+
+            lbImages = fullGallery.map(g => g.url);
+
+            if (idx >= 0) lbIdx = idx;
+
+            renderThumbs();
+
+            showLightboxImg(false);
 
         }
 
@@ -1414,19 +1825,20 @@
 
             }
 
-            lbImg.addEventListener('load', () => {
-
-                lbImg.style.opacity = '1';
-
-            });
-
             if (animate) {
+
+                /* 旧实现用 setTimeout(160ms) 再换 src，连续快速切换时旧的定时器
+                   会把图片换回上一张（手机上左右滑动最明显）。
+                   现在直接换 src，再用序号保证只有最后一次渲染生效。 */
+                lbRenderToken++;
 
                 lbImg.style.transition = 'opacity 0.15s';
 
                 lbImg.style.opacity = '0';
 
-                setTimeout(() => { lbImg.src = url; lbImg.style.opacity = '1'; }, 160);
+                lbImg.src = url;
+
+                requestAnimationFrame(() => { lbImg.style.opacity = '1'; });
 
             } else {
 
@@ -1444,7 +1856,7 @@
 
             });
 
-            lbThumbs.querySelectorAll('.wx-lb-thumb')[lbIdx]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            lbThumbs.querySelectorAll('.wx-lb-thumb')[lbIdx]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 
             if (lbImages[lbIdx - 1]) loadImg(lbImages[lbIdx - 1]);
 
@@ -1494,9 +1906,14 @@
 
         }
 
-        function prevImg() { lbIdx = (lbIdx - 1 + lbImages.length) % lbImages.length; showLightboxImg(true); }
+        function prevImg() { if (!lbImages.length) return; lbIdx = (lbIdx - 1 + lbImages.length) % lbImages.length; showLightboxImg(true); }
 
-        function nextImg() { lbIdx = (lbIdx + 1) % lbImages.length; showLightboxImg(true); }
+        function nextImg() { if (!lbImages.length) return; lbIdx = (lbIdx + 1) % lbImages.length; showLightboxImg(true); }
+
+        /* 手机上没有左右箭头按钮，只能靠滑动 —— 这里补上显式按钮 */
+        lbPrevBtn?.addEventListener('click', e => { e.stopPropagation(); prevImg(); });
+
+        lbNextBtn?.addEventListener('click', e => { e.stopPropagation(); nextImg(); });
 
         // Touch: swipe / pinch
 
@@ -1591,6 +2008,20 @@
                 } else { lbX = 0; lbY = 0; applyTransform(true); }
 
             }
+
+        }, { passive: true });
+
+        /* iOS 在某些情况下会发 touchcancel（把手势判定成页面滚动），
+           不处理的话滑动会停在半路，表现为"左右滑不动" */
+        lbStage.addEventListener('touchcancel', () => {
+
+            lbDragging = false;
+
+            swipeVelocity = 0;
+
+            lbX = 0; lbY = 0;
+
+            applyTransform(true);
 
         }, { passive: true });
 
@@ -1836,8 +2267,17 @@
                     if (!r.ok) { pushBtn.style.display='none'; return; }
                     const s = await r.json();
                     pushBtn.dataset.subscribed = s.subscribed ? '1' : '0';
-                    pushBtn.title = s.subscribed ? '已开启手机提醒' : '开启手机提醒';
-                    pushBtn.style.opacity = s.subscribed ? '1' : '0.6';
+                    pushBtn.dataset.secure = s.secure ? '1' : '0';
+                    if (s.subscribed) {
+                        pushBtn.title = '已开启手机提醒（点击查看详情）';
+                        pushBtn.style.opacity = '1';
+                    } else if (!s.secure) {
+                        pushBtn.title = '需要 HTTPS 才能开启手机提醒';
+                        pushBtn.style.opacity = '0.6';
+                    } else {
+                        pushBtn.title = '开启手机提醒';
+                        pushBtn.style.opacity = '0.6';
+                    }
                 } catch (e) { pushBtn.style.display='none'; }
             }
 
@@ -1858,8 +2298,12 @@
             }
 
             async function subscribe() {
-                if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                    showToast('当前浏览器不支持推送，请用 Safari 并添加到主屏幕', 'error'); return;
+                /* ── 以下三步必须保持"同步 + 用户手势内" ──
+                   iOS 只允许在用户手势里直接调用 Notification.requestPermission()，
+                   一旦先 await 了别的异步操作，手势就失效、弹不出授权框。 */
+                if (!window.isSecureContext) {
+                    showToast('当前是 HTTP，iOS 不允许注册推送。请用 HTTPS 打开本页面', 'error');
+                    return;
                 }
                 if (isIOS && !isStandalone) {
                     showToast('iPhone 用户请先把网页「添加到主屏幕」，再点这个按钮', 'error'); return;
@@ -1867,7 +2311,21 @@
                 if (typeof Notification === 'undefined') {
                     showToast('该环境不支持通知 API', 'error'); return;
                 }
-                // 1. 先确保 SW 已注册（在 /wechat/ scope 内）
+                if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                    showToast('当前浏览器不支持推送，请用 Safari 并添加到主屏幕', 'error'); return;
+                }
+
+                // 1. 先在用户手势里申请通知权限（iOS 必须第一步就做）
+                let perm = Notification.permission;
+                if (perm !== 'granted') {
+                    perm = await Notification.requestPermission();
+                }
+                if (perm !== 'granted') {
+                    showToast('未授权通知。请到 设置→Safari→网站设置 检查通知权限', 'error');
+                    return;
+                }
+
+                // 2. 再确保 SW 已注册（在 /wechat/ scope 内）
                 try {
                     const existing = await navigator.serviceWorker.getRegistration('/wechat/');
                     if (!existing) {
@@ -1880,7 +2338,7 @@
                     return;
                 }
 
-                // 2. 等 SW ready（最多 5s）
+                // 3. 等 SW ready（最多 5s）
                 let reg;
                 try { reg = await waitForSW(5000); }
                 catch (e) {
@@ -1888,16 +2346,6 @@
                 }
                 if (!reg || !reg.pushManager) {
                     showToast('推送管理器不可用', 'error'); return;
-                }
-
-                // 3. 请求权限（iOS 必须从用户手势直接调用）
-                let perm = Notification.permission;
-                if (perm !== 'granted') {
-                    perm = await Notification.requestPermission();
-                }
-                if (perm !== 'granted') {
-                    showToast('未授权通知。请到 设置→Safari→网站设置 检查通知权限', 'error');
-                    return;
                 }
 
                 // 4. 拿服务端 VAPID 公钥
@@ -1931,7 +2379,13 @@
                     showToast('订阅成功,正在发送测试推送...', 'default');
                     refreshStatus();
                     // 立刻推一条测试
-                    await fetch('/wechat/push/api/test', { ...FETCH_INIT, method:'POST' });
+                    const tr = await fetch('/wechat/push/api/test', { ...FETCH_INIT, method:'POST' });
+                    if (tr.ok) {
+                        const td = await tr.json().catch(()=>({}));
+                        if (!td.sent) {
+                            showToast('订阅已保存，但测试推送没有送达（' + (td.total || 0) + ' 条订阅）', 'error');
+                        }
+                    }
                 } else {
                     const errBody = await r.text().catch(()=>'');
                     console.error('[push] save failed', r.status, errBody);
@@ -1967,11 +2421,43 @@
                 }
             });
 
+            /* 长按铃铛 → 查看订阅诊断信息（排查"为什么收不到提醒"） */
+            let pushHoldTimer = null;
+            pushBtn.addEventListener('touchstart', () => {
+                pushHoldTimer = setTimeout(showPushDiagnostics, 700);
+            }, {passive:true});
+            ['touchend','touchmove','touchcancel'].forEach(evt =>
+                pushBtn.addEventListener(evt, () => { if (pushHoldTimer) { clearTimeout(pushHoldTimer); pushHoldTimer = null; } }, {passive:true}));
+
+            async function showPushDiagnostics() {
+                try {
+                    const r = await fetch('/wechat/push/api/status', FETCH_INIT);
+                    const s = await r.json();
+                    const lines = [
+                        `安全上下文：${window.isSecureContext ? '是' : '否'}${s.secure ? '' : '（服务端也认为不是 HTTPS）'}`,
+                        `独立窗口(PWA)：${isStandalone ? '是' : '否'}`,
+                        `通知权限：${typeof Notification !== 'undefined' ? Notification.permission : '不可用'}`,
+                        `Service Worker：${('serviceWorker' in navigator) ? '支持' : '不支持'}`,
+                        `有效订阅：${s.count} 条（库里共 ${s.raw_count} 条）`,
+                    ];
+                    (s.subscriptions || []).forEach(sub => {
+                        lines.push(` · ${sub.endpoint_host || '?'}${sub.is_apple ? ' (iOS)' : ''}`);
+                    });
+                    showToast(lines.join('\n'), 'default');
+                } catch (e) {
+                    showToast('无法获取推送状态', 'error');
+                }
+            }
+
             // 注册 Service Worker 在 /wechat/ scope（manifest 同级）
-            if ('serviceWorker' in navigator) {
+            // 注意：Service Worker 只在 HTTPS（或 localhost）下可用，
+            // HTTP 下 navigator.serviceWorker 根本不存在 —— 这就是 iOS 收不到提醒的根因。
+            if (window.isSecureContext && 'serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/wechat/sw.js', { scope: '/wechat/' })
                     .then(reg => console.log('[push] SW ready', reg.scope))
                     .catch(err => console.warn('[push] SW register fail', err));
+            } else if (!window.isSecureContext) {
+                console.warn('[push] 当前不是安全上下文（HTTPS），无法注册 Service Worker / 开启推送');
             }
             refreshStatus();
         })();

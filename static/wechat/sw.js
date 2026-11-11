@@ -11,10 +11,20 @@ self.addEventListener("activate", (event) => {
     event.waitUntil(self.clients.claim());
 });
 
-// 占位 fetch handler —— iOS PWA 要求 SW 文件里出现 fetch 监听器
+/* 占位 fetch handler —— iOS PWA 要求 SW 文件里出现 fetch 监听器 */
 self.addEventListener("fetch", (event) => {
-    // 不做缓存,网络优先
-    event.respondWith(fetch(event.request).catch(() => fetch(event.request)));
+    // 只处理 GET，网络优先，失败再走缓存
+    if (event.request.method !== "GET") return;
+    event.respondWith(
+        fetch(event.request).catch(() => caches.match(event.request).then(r => r || Response.error()))
+    );
+});
+
+/* 订阅被系统回收后重新订阅并通知页面 */
+self.addEventListener("pushsubscriptionchange", (event) => {
+    event.waitUntil(
+        self.registration.pushManager.getSubscription().then(sub => sub && sub.unsubscribe())
+    );
 });
 
 self.addEventListener("push", (event) => {

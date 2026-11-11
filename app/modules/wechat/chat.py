@@ -26,10 +26,7 @@ def api_messages():
     if not partner:
         return jsonify({"messages": [], "partner": None, "has_more": False})
 
-    conversation = db.or_(
-        db.and_(WeChatMessage.sender_id == user.id, WeChatMessage.receiver_id == partner.id),
-        db.and_(WeChatMessage.sender_id == partner.id, WeChatMessage.receiver_id == user.id),
-    )
+    conversation = _conversation_filter(user.id, partner.id)
     try:
         limit = min(max(int(request.args.get("limit", 50)), 1), 100)
     except (TypeError, ValueError):
@@ -65,6 +62,90 @@ def api_messages():
         "partner": partner.to_dict(),
         "has_more": has_more,
     })
+
+
+def _conversation_filter(user_id: int, partner_id: int):
+    """当前登录用户与对方之间的消息过滤条件。"""
+    return db.or_(
+        db.and_(WeChatMessage.sender_id == user_id, WeChatMessage.receiver_id == partner_id),
+        db.and_(WeChatMessage.sender_id == partner_id, WeChatMessage.receiver_id == user_id),
+    )
+
+
+def _normalize_image_items(raw):
+    """把 image_urls 字段统一成 [{url, thumb_url, width, height}, ...]。
+
+    历史上 image_urls 有三种形态：
+      1. None（老数据只有 "[图片]" 文本）
+      2. ["<url>", ...]            纯字符串数组
+      3. [{"url":..., "thumb_url":...}]  上传接口写入的对象数组
+    另外 JSON 列里偶尔会被写成"被再次序列化的字符串"，这里一并兜底。
+    """
+    import json as _json
+
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = _json.loads(raw)
+        except (ValueError, TypeError):
+            raw = [raw]
+    if not isinstance(raw, list):
+        return []
+
+    items = []
+    for entry in raw:
+        if isinstance(entry, str):
+            if not entry:
+                continue
+            items.append({"url": entry, "thumb_url": entry})
+        elif isinstance(entry, dict):
+            url = entry.get("url") or ""
+            if not url:
+                continue
+            items.append({
+                "url": url,
+                "thumb_url": entry.get("thumb_url") or url,
+                "width": entry.get("width"),
+                "height": entry.get("height"),
+            })
+    return items
+
+
+@wechat_chat_bp.route("/api/images", methods=["GET"])
+@login_required
+def api_images():
+    """返回会话内的全部图片（按时间正序），供图片查看器左右翻页。
+
+    之前查看器只能翻到"已经加载进页面的消息"里的图片，历史图片永远翻不到；
+    这里一次性返回全部图片，保证能翻到任意一张。
+    """
+    user = get_current_user()
+    partner = WeChatUser.query.filter(WeChatUser.id != user.id).first()
+    if not partner:
+        return jsonify({"images": [], "total": 0})
+
+    rows = WeChatMessage.query.filter(
+        _conversation_filter(user.id, partner.id),
+        WeChatMessage.msg_type == "image",
+        WeChatMessage.recalled.is_(False),
+        WeChatMessage.image_urls.isnot(None),
+    ).order_by(WeChatMessage.id.asc()).all()
+
+    images = []
+    for message in rows:
+        for item in _normalize_image_items(message.image_urls):
+            images.append({
+                "msg_id": message.id,
+                "url": item["url"],
+                "thumb_url": item["thumb_url"],
+                "width": item.get("width"),
+                "height": item.get("height"),
+                "is_mine": message.sender_id == user.id,
+                "created_at": message.created_at.isoformat() if message.created_at else None,
+            })
+
+    return jsonify({"images": images, "total": len(images)})
 
 
 @wechat_chat_bp.route("/api/messages/send", methods=["POST"])

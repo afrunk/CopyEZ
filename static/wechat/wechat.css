@@ -1086,7 +1086,9 @@ body {
     box-shadow: 0 4px 24px rgba(0,0,0,0.25);
     animation: toastIn var(--dur) var(--ease-spring) both;
     pointer-events: none;
-    white-space: nowrap;
+    white-space: pre-line;
+    max-width: 86vw;
+    text-align: center;
 }
 .wx-toast.success { border-color: rgba(34,197,94,0.3); color: var(--success); }
 .wx-toast.error   { border-color: rgba(239,68,68,0.3);  color: var(--danger); }
@@ -1559,4 +1561,87 @@ body {
         width: calc(100% - 24px);
         margin: 16px 12px 0;
     }
+}
+﻿
+/* ============================================================
+   WeChat 优化补丁：历史消息加载 / 回到最新 / 图片查看器手势
+   ============================================================ */
+
+/* 顶部「加载更早的消息」区域 */
+.wx-history-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0 10px;
+    flex-shrink: 0;
+}
+
+.wx-history-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    padding: 0 14px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--divider);
+    background: var(--btn-glass);
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur-fast);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.wx-history-btn:hover { background: var(--btn-glass-hi); color: var(--text); }
+.wx-history-btn:active { transform: scale(0.97); }
+.wx-history-btn:disabled { opacity: 0.55; cursor: default; }
+
+.wx-history-tip {
+    font-size: var(--fs-xs);
+    color: var(--text-3);
+}
+
+/* 停留在历史位置时的「回到最新」悬浮按钮 */
+.wx-jump-latest {
+    position: absolute;
+    right: 14px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 68px);
+    z-index: 15;
+    height: 30px;
+    padding: 0 14px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--divider);
+    background: var(--surface-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    color: var(--text);
+    font-size: var(--fs-sm);
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    -webkit-tap-highlight-color: transparent;
+    animation: msgIn var(--dur-fast) var(--ease-out) both;
+}
+
+.wx-jump-latest:active { transform: scale(0.96); }
+
+/* 图片查看器：禁用浏览器默认手势，保证左右滑动可用 */
+.wx-lb-stage,
+.wx-lb-img-wrap,
+.wx-lb-img {
+    touch-action: none;
+}
+
+/* 缩略图条：图片多的时候不能被居中裁掉（否则左侧缩略图点不到） */
+.wx-lb-thumbs {
+    justify-content: flex-start;
+}
+
+.wx-lb-thumbs::before,
+.wx-lb-thumbs::after {
+    content: '';
+    margin-inline: auto;
+    flex: 0 0 auto;
 }
