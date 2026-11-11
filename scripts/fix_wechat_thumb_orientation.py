@@ -8,7 +8,7 @@
    而 PIL 保存 JPEG/PNG 时默认丢弃 EXIF 段，Orientation 标记随之消失。
    → 手机横拍照片（EXIF Orientation=6）在磁盘上是"侧躺"的原始像素。
 
-2. 生成缩略图时却调用了 ImageOps.exif_transpose()，得到的是正立版本。
+2. 生成缩略图时却调用 ImageOps.exif_transpose()，得到的是正立版本。
 
 结果：大图（灯箱上方）与缩略图（下方）相差 90°，看起来像两张不同的照片。
 
@@ -16,9 +16,10 @@
 ----
 对每一组「原图 + 同名 _thumb.webp」：
 
-1. 先算出浏览器实际显示的朝向（原图经 EXIF 归一化后的结果）；
-2. 若浏览器显示的朝向已经和缩略图一致 → 跳过；
-3. 否则找出能让原图像素与缩略图对齐的旋转角，把原图转正后覆盖保存；
+1. 把缩略图和原图的四种朝向逐个比较（全图缩放比较，不裁剪，
+   这样 90° 错位会得到极高的 MSE，不会被误判成"同一张图"）；
+2. 若差异在阈值以内 → 跳过；
+3. 否则选出能让原图与缩略图对齐的旋转角，把原图转正后覆盖保存；
    JPEG 走 jpegtran（无损，不重新压缩），其余格式走 Pillow；
 4. 同步更新 wechat_messages.image_urls 里记录的 width/height。
 
@@ -54,23 +55,22 @@ DB_PATH = os.path.join(PROJECT_ROOT, "instance", "copyez.db")
 
 ANGLES = (0, 90, 180, 270)
 
-# MSE 低于该值视为"同一张图"
-MATCH_MSE = 900.0
+# MSE 低于该值视为"同一张图"（48x48 全图灰度）
+MATCH_MSE = 150.0
 
 
 def _vector(image):
-    """把图片缩成 48x48 灰度向量，用于比较内容是否一致。"""
+    """把图片整幅缩成 48x48 灰度向量，用于比较内容是否一致。
+
+    注意：这里必须缩放"整幅"画面而不是裁中间的正方形。
+    裁剪会把横图和竖图的中心凑在一起，90° 错位也可能得到很低的 MSE，
+    从而漏掉真正需要旋转的图。
+    """
     from PIL import Image
 
     if image.mode != "L":
         image = image.convert("L")
-    width, height = image.size
-    side = min(width, height)
-    left = (width - side) // 2
-    top = (height - side) // 2
-    cropped = image.crop((left, top, left + side, top + side))
-    cropped = cropped.resize((48, 48), Image.Resampling.LANCZOS)
-    return list(cropped.getdata())
+    return list(image.resize((48, 48), Image.Resampling.LANCZOS).getdata())
 
 
 def _mse(a, b):
@@ -188,6 +188,7 @@ def _update_db_dims(stem, new_size):
 def main():
     parser = argparse.ArgumentParser(description="修复微信图片原图/缩略图方向错位")
     parser.add_argument("--dry-run", action="store_true", help="只报告，不修改文件")
+    parser.add_argument("--verbose", action="store_true", help="打印每张图的比较结果")
     args = parser.parse_args()
 
     from PIL import Image, ImageOps
@@ -197,7 +198,8 @@ def main():
         return 1
 
     use_jpegtran = _jpegtran_available()
-    print(f"扫描缩略图 {len(glob.glob(os.path.join(THUMB_DIR, '*.webp')))} 个，目录: {THUMB_DIR}")
+    thumbs = sorted(glob.glob(os.path.join(THUMB_DIR, "*.webp")))
+    print(f"扫描缩略图 {len(thumbs)} 个，目录: {THUMB_DIR}")
     print(f"JPEG 无损旋转工具 jpegtran: {'可用' if use_jpegtran else '不可用（改用 Pillow）'}")
     if not args.dry_run:
         os.makedirs(BACKUP_DIR, exist_ok=True)
@@ -205,7 +207,7 @@ def main():
 
     fixed, failed, skipped = [], [], 0
 
-    for thumb_path in sorted(glob.glob(os.path.join(THUMB_DIR, "*.webp"))):
+    for thumb_path in thumbs:
         thumb_name = os.path.basename(thumb_path)
         stem = thumb_name[:-len("_thumb.webp")]
         orig_path = _find_original(stem)
@@ -224,16 +226,29 @@ def main():
 
         # 浏览器实际显示的朝向（带 EXIF 归一化）
         displayed = ImageOps.exif_transpose(raw.copy()) if orientation not in (None, 1) else raw
-        if _mse(thumb_vec, _vector(displayed)) < MATCH_MSE:
+        scores = {}
+        for angle in ANGLES:
+            scores[angle] = _mse(thumb_vec, _vector(_transpose(raw, angle)))
+        displayed_score = _mse(thumb_vec, _vector(displayed))
+
+        best_angle = min(scores, key=scores.get)
+        best_score = scores[best_angle]
+
+        if args.verbose:
+            with Image.open(thumb_path) as t2:
+                thumb_size = t2.size
+            print(f"[CHECK] {thumb_name} 原图 {raw.size} 缩略图 {thumb_size} "
+                  f"EXIF={orientation} "
+                  + " ".join(f"{a}°={scores[a]:.0f}" for a in ANGLES)
+                  + f" displayed={displayed_score:.0f} → best {best_angle}° ({best_score:.0f})")
+
+        # 只有"0° 就已经吻合"才算正常。
+        # 如果 90°/180°/270° 能完美对上，说明磁盘上的原图是侧躺的，必须转正。
+        if best_angle == 0 and best_score < MATCH_MSE:
             skipped += 1
             continue
 
         # 原图需要转多少度才能和缩略图对齐
-        scores = {}
-        for angle in ANGLES:
-            scores[angle] = _mse(thumb_vec, _vector(_transpose(raw, angle)))
-        best_angle = min(scores, key=scores.get)
-
         print(f"[错位] {thumb_name}")
         print(f"        原图: {os.path.basename(orig_path)}  EXIF Orientation={orientation}")
         print(f"        旋转 0°={scores[0]:.0f} 90°={scores[90]:.0f} "
