@@ -35,8 +35,12 @@ def _save_optimized_original(image: Image.Image, source_path: Path, image_format
 
 
 def _create_thumbnail(image: Image.Image, thumb_path: Path, image_format: str) -> None:
-    """生成气泡和缩略条使用的轻量图片。"""
-    thumb = ImageOps.exif_transpose(image.copy())
+    """生成气泡和缩略条使用的轻量图片。
+
+    image 在传入前已经做过 EXIF 方向归一化（见 upload_image），
+    这里不再重复 transpose，避免缩略图和原图出现 90° 错位。
+    """
+    thumb = image.copy()
     thumb.thumbnail((THUMB_MAX_EDGE, THUMB_MAX_EDGE), Image.Resampling.LANCZOS)
     if image_format == "GIF":
         thumb = thumb.convert("RGB")
@@ -88,19 +92,27 @@ def upload_image():
         try:
             with Image.open(file_storage) as image:
                 image_format = (image.format or ext).upper()
-                width, height = image.size
                 image.verify()
             file_storage.seek(0)
-            if image_format == "GIF":
-                save_path.write_bytes(file_storage.read())
-            else:
-                with Image.open(file_storage) as image:
-                    _save_optimized_original(image, save_path, image_format)
-            file_storage.seek(0)
             with Image.open(file_storage) as image:
+                # 统一 EXIF 方向：原图和缩略图必须来自同一份"摆正"的像素。
+                # 否则手机横拍照片（EXIF Orientation=6）会出现：
+                #   原图  = 原始像素且 EXIF 已被 PIL 丢弃 → 浏览器按原始方向显示
+                #   缩略图 = 被 exif_transpose 旋转 90°     → 与原图差 90°
+                # 结果就是大图和缩略图对不上。
+                oriented = ImageOps.exif_transpose(image)
+                width, height = oriented.size
+
+                if image_format == "GIF":
+                    # 动画 GIF 保留原始字节（保住帧序列与 EXIF）
+                    file_storage.seek(0)
+                    save_path.write_bytes(file_storage.read())
+                else:
+                    _save_optimized_original(oriented, save_path, image_format)
+
                 thumb_url = f"/static/wechat/uploads/thumbs/{thumb_name}"
                 try:
-                    _create_thumbnail(image, thumb_path, image_format)
+                    _create_thumbnail(oriented, thumb_path, image_format)
                 except (OSError, ValueError):
                     thumb_url = f"/static/wechat/uploads/{fname}"
         except (UnidentifiedImageError, OSError, ValueError):
