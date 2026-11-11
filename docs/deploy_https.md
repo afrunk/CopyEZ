@@ -1,22 +1,44 @@
 # 生产环境部署说明（HTTPS + iOS 推送）
 
-> 最后更新：2026-11-11
+> 最后更新：2026-11-12
 
 ## 1. 架构
 
 ```
 浏览器 / iPhone PWA
-        |  https://39.106.147.188[:5000]
+        |  http://39.106.147.188:5000  ──► 301 ──► https://39.106.147.188:5000
+        |  https://39.106.147.188:5000
         v
-     nginx  (443 / 5000 -> TLS 终止, 80 -> ACME 校验)
+     haproxy  (5000: 按协议分流)
+        ├── TLS   ──► nginx 127.0.0.1:8443  (TLS 终止)
+        └── 明文  ──► nginx 127.0.0.1:8080  (301 跳到 https)
+        v
+     nginx  (443 -> TLS 终止, 80 -> ACME 校验 + 明文兜底)
         |  http://127.0.0.1:5001
         v
    Flask (systemd: copyez.service, 只监听 127.0.0.1:5001)
 ```
 
-- nginx 配置：`/etc/nginx/conf.d/copyez.conf`
+- haproxy 配置：`/etc/haproxy/haproxy.cfg`（仓库内 `deploy/haproxy/haproxy.cfg`）
+- nginx 配置：`/etc/nginx/conf.d/copyez.conf`（仓库内 `deploy/nginx/copyez.conf`）
 - 证书：`/etc/letsencrypt/live/39.106.147.188/`
 - Flask 服务：`/etc/systemd/system/copyez.service`
+
+### 为什么 5000 端口要套一层 haproxy
+
+5000 端口上原来是纯 HTTP，后来为了 iOS 推送改成了 TLS 端口。结果老书签
+（手机桌面图标、聊天记录里的 `http://39.106.147.188:5000`）访问时，
+nginx 直接返回 **400 The plain HTTP request was sent to HTTPS port**。
+
+解法是让 5000 端口同时接受两种协议：haproxy 读第一个字节判断是不是
+TLS ClientHello，是就转给 nginx 的 TLS 端口，不是就转给 nginx 的跳转端口
+（301 到同地址的 https）。这样 http 和 https 两个入口都能用。
+
+> 注意：nginx 自带的 `stream` + `ssl_preread` 方案在 Ubuntu 的
+> `libnginx-mod-stream` 包里**不可用**——该包把 `ngx_stream_ssl_preread_module`
+> 和 `ngx_stream_proxy_module` 编译进同一个 `.so`，模块顺序导致变量上游
+> 在读到 ClientHello 之前就被解析，`$ssl_preread_protocol` 永远为空。
+> 所以这里用 haproxy 的 `req.ssl_hello_type` 来判断。
 
 ## 2. 为什么必须要 HTTPS
 
@@ -39,6 +61,10 @@ journalctl -u copyez -f
 nginx -t && systemctl reload nginx
 tail -f /var/log/nginx/access.log
 
+# haproxy (5000 端口分流)
+haproxy -c -f /etc/haproxy/haproxy.cfg && systemctl reload haproxy
+tail -f /var/log/haproxy.log
+
 # 证书续期（shortlived 证书每 6 天过期）
 /opt/certbot-venv/bin/certbot renew
 systemctl list-timers | grep certbot        # 定时续期已配置，每 6 小时检查一次
@@ -56,10 +82,11 @@ openssl x509 -enddate -noout -in /etc/letsencrypt/live/39.106.147.188/fullchain.
 | 22 | SSH | 已有 |
 | 80 | ACME 校验 + 明文兜底 | 已有 |
 | 443 | HTTPS（推荐入口） | **需要新增** |
-| 5000 | HTTPS（备用入口，端口已开放时立即可用） | 已有 |
+| 5000 | 主入口，http/https 都支持 | 已有 |
 
 > 443 未放行时，直接使用 `https://39.106.147.188:5000/` 即可，
 > 证书、Service Worker、推送全部正常工作。
+> 5000 端口的 http 入口会自动 301 跳到 https，不会再出现 400 页面。
 
 ## 5. iPhone 端开启提醒的步骤
 
