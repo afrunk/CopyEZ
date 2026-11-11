@@ -40,6 +40,13 @@ except ImportError:
 
 app = Flask(__name__)
 
+# ── 反向代理支持（nginx 在前面终止 TLS） ──────────────────────────────
+# 必须信任 nginx 转发的 X-Forwarded-* 头，否则：
+#   1. request.is_secure 永远是 False  → 推送状态接口误判为"非 HTTPS"
+#   2. url_for() 生成 http:// 链接      → PWA / 静态资源地址不对
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
 # 从 config.py 加载配置
 from config import Config
 app.config.from_object(Config)
