@@ -607,10 +607,13 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
         ensure_schema()
+    # 监听地址/端口可用环境变量覆盖（生产环境由 nginx 反代到本机端口）
+    _host = os.environ.get("COPYEZ_HOST", "0.0.0.0")
+    _port = int(os.environ.get("COPYEZ_PORT", "5000"))
     app.run(
         debug=False,
-        host="0.0.0.0",
-        port=5000,
+        host=_host,
+        port=_port,
         threaded=True,
         processes=1
     )
