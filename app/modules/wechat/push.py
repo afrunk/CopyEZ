@@ -30,6 +30,20 @@ wechat_push_bp = Blueprint("wechat_push", __name__, url_prefix="/wechat/push")
 APPLE_PUSH_HOSTS = ("api.push.apple.com", "web.push.apple.com")
 
 
+def _vapid_private_key(raw):
+    """把配置里的 VAPID 私钥转成 py_vapid 能识别的形式。
+
+    py_vapid.Vapid.from_string() 只支持 raw(32 字节) / DER，
+    而 config.py 里存的是标准 PEM —— 直接传进去会在签名前就抛
+    "Could not deserialize key data"，推送永远发不出去。
+    这里统一转成 Vapid 对象。
+    """
+    if isinstance(raw, str) and "-----BEGIN" in raw:
+        from py_vapid import Vapid
+        return Vapid.from_pem(raw.encode())
+    return raw
+
+
 def _apple_push_headers(vapid_sub: str) -> dict:
     """构造 iOS 推送必需的 APNs 扩展头。"""
     return {
@@ -67,7 +81,7 @@ def _send_one(sub: WeChatPushSubscription, title: str, body: str, url: str = "/w
                 "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
             },
             data=payload,
-            vapid_private_key=cfg["VAPID_PRIVATE_KEY"],
+            vapid_private_key=_vapid_private_key(cfg["VAPID_PRIVATE_KEY"]),
             vapid_claims={"sub": vapid_sub},
             headers=extra_headers or None,
             timeout=10,
