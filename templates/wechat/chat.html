@@ -1662,6 +1662,9 @@
         /* 渲染序号：避免快速连点时旧的延时回调把图片换回去 */
         let lbRenderToken = 0;
 
+        /* 灯箱当前显示的是哪张图的缩略图（用于判断后台原图能否替换） */
+        let lbCurrentThumb = '';
+
         let lbScale = 1, lbX = 0, lbY = 0;
 
         let lbDragging = false, lbDragStartX = 0, lbDragStartY = 0, lbLastX = 0, lbLastY = 0;
@@ -1853,24 +1856,40 @@
 
             }
 
-            if (animate) {
+            /* 原图动辄 3MB，手机上点开一张要等 5~6 秒，快速切图时
+               屏幕上停留的还是上一张（看上去就是"图文不符"）。
+               这里先立刻显示缩略图（十几 KB），原图在后台加载完再无缝替换。 */
+            const thumbUrl = gi?.thumb_url || url;
 
-                /* 旧实现用 setTimeout(160ms) 再换 src，连续快速切换时旧的定时器
-                   会把图片换回上一张（手机上左右滑动最明显）。
-                   现在直接换 src，再用序号保证只有最后一次渲染生效。 */
-                lbRenderToken++;
+            lbRenderToken++;
 
-                lbImg.style.transition = 'opacity 0.15s';
+            const token = lbRenderToken;
 
-                lbImg.style.opacity = '0';
+            lbCurrentThumb = thumbUrl;
 
-                lbImg.src = url;
+            if (lbImg.getAttribute('src') !== url) {
 
-                requestAnimationFrame(() => { lbImg.style.opacity = '1'; });
+                if (animate) {
 
-            } else {
+                    /* 旧实现用 setTimeout(160ms) 再换 src，连续快速切换时旧的定时器
+                       会把图片换回上一张（手机上左右滑动最明显）。
+                       现在直接换 src，再用序号保证只有最后一次渲染生效。 */
+                    lbImg.style.transition = 'opacity 0.15s';
 
-                lbImg.src = url;
+                    lbImg.style.opacity = '0';
+
+                    lbImg.src = thumbUrl;
+
+                    requestAnimationFrame(() => { lbImg.style.opacity = '1'; });
+
+                } else {
+
+                    lbImg.src = thumbUrl;
+
+                }
+
+                /* 后台补原图：加载完且用户没切走，再换成清晰版 */
+                loadFullRes(url, thumbUrl, token);
 
             }
 
@@ -1886,9 +1905,12 @@
 
             lbThumbs.querySelectorAll('.wx-lb-thumb')[lbIdx]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 
-            if (lbImages[lbIdx - 1]) loadImg(lbImages[lbIdx - 1]);
+            /* 预取相邻两张的缩略图（原图 3MB，没必要提前拉） */
+            const prevItem = galleryImages[lbIdx - 1];
+            const nextItem = galleryImages[lbIdx + 1];
 
-            if (lbImages[lbIdx + 1]) loadImg(lbImages[lbIdx + 1]);
+            if (prevItem?.thumb_url) loadImg(prevItem.thumb_url);
+            if (nextItem?.thumb_url) loadImg(nextItem.thumb_url);
 
             updateInfo(url);
 
@@ -1903,6 +1925,33 @@
             img.onload = () => { lbLoadedImgs[url] = img; };
 
             img.src = url;
+
+        }
+
+        /* 后台加载原图；加载完成且用户仍停留在这张时，再替换成清晰版 */
+        function loadFullRes(url, thumbUrl, token) {
+
+            if (!url) return;
+
+            const full = new Image();
+
+            full.decoding = 'async';
+
+            full.onload = () => {
+
+                lbLoadedImgs[url] = full;
+
+                /* 已经切到别的图了，丢弃这次升级 */
+                if (token !== lbRenderToken) return;
+
+                /* 当前显示的不是这张图的缩略图，也丢弃 */
+                if (lbCurrentThumb !== thumbUrl) return;
+
+                lbImg.src = url;
+
+            };
+
+            full.src = url;
 
         }
 
