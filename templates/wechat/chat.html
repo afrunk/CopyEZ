@@ -758,17 +758,20 @@
 
                 const newMessages = incoming.filter(message => !knownIds.has(message.id));
 
-                hasMoreMessages = Boolean(data.has_more);
-
                 partnerInfo = data.partner;
 
                 renderHeader();
 
-                updateHistoryTop();
-
                 if (initial || !messages.length) {
 
                     messages = incoming;
+
+                    /* 只有首次加载才用 has_more 表示"还有更早的历史"；
+                       轮询用 after_id，接口返回的 has_more=false 指的是"没有更新的消息"，
+                       之前直接覆盖会导致上滑加载历史在 5 秒后被关掉（只能拉 2~3 次） */
+                    hasMoreMessages = Boolean(data.has_more);
+
+                    updateHistoryTop();
 
                     renderMessages({forceBottom: true});
 
