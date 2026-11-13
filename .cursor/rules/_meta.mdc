@@ -21,7 +21,6 @@ CopyEZ 是一个正在渐进式模块化重构的 Flask 多项目工作台。
 | 模块 | 路径 | 负责功能 |
 |------|------|---------|
 | **CopyEZ** | `app/modules/copyez/` | 核心笔记、Memo、分类、搜索、Dashboard |
-| **LedgerEZ** | `app/modules/ledger/` | 账本功能 |
 | **Portal** | `app/modules/portal/` | 首页入口 |
 | **ORC_documents** | `app/modules/orc_documents/` | 文档扫描 landing |
 | **Models** | `app/models/` | 数据库模型定义 |

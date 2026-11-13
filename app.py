@@ -60,8 +60,7 @@ from app.models import Note, Memo, CustomCategory
 from app.models.wechat import WeChatUser, WeChatMessage, WeChatLoginHistory  # noqa: F401
 
 # 从 app/routes 导入已迁移的路由和 Blueprint
-from app.routes import portal_index, guide_page, orc_documents_page, ledger_bp, search_page
-from app.modules.ledger.api import ledger_api_bp
+from app.routes import portal_index, guide_page, orc_documents_page, search_page
 # 从 note_pages 单独导入 standalone 函数用于 add_url_rule
 from app.modules.copyez.note_pages import notes_page
 
@@ -147,12 +146,6 @@ def decoration_upload_image():
 
     file_url = url_for("static", filename=f"uploads/decoration/{random_name}")
     return jsonify({"success": True, "url": file_url, "filename": random_name})
-
-# LedgerEZ Blueprint
-from app.modules.ledger.auth import auth_bp
-app.register_blueprint(ledger_bp)
-app.register_blueprint(ledger_api_bp)
-app.register_blueprint(auth_bp)
 
 # Memos Blueprint
 app.register_blueprint(memos_bp)
@@ -527,31 +520,6 @@ def ensure_schema():
         if "starred_at" not in memo_cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE memos ADD COLUMN starred_at DATETIME"))
-
-    # === LedgerEZ 表的自修复迁移 ===
-    # 兼容老库：为 ledger_transactions 表补充 owner_id 字段
-    if "ledger_transactions" in table_names:
-        tx_cols = [c["name"] for c in insp.get_columns("ledger_transactions")]
-
-        if "owner_id" not in tx_cols:
-            with engine.begin() as conn:
-                # 添加 owner_id 列，默认值为 1（第一个用户）
-                conn.execute(text("ALTER TABLE ledger_transactions ADD COLUMN owner_id INTEGER REFERENCES ledger_users(id)"))
-                # 给现有记录设置默认值
-                conn.execute(text("UPDATE ledger_transactions SET owner_id = 1 WHERE owner_id IS NULL"))
-
-        if "remark" not in tx_cols:
-            with engine.begin() as conn:
-                conn.execute(text("ALTER TABLE ledger_transactions ADD COLUMN remark VARCHAR(200) DEFAULT ''"))
-
-    # 兼容老库：为 ledger_accounts 表补充 owner_id 字段
-    if "ledger_accounts" in table_names:
-        acc_cols = [c["name"] for c in insp.get_columns("ledger_accounts")]
-
-        if "owner_id" not in acc_cols:
-            with engine.begin() as conn:
-                conn.execute(text("ALTER TABLE ledger_accounts ADD COLUMN owner_id INTEGER REFERENCES ledger_users(id)"))
-                conn.execute(text("UPDATE ledger_accounts SET owner_id = 1 WHERE owner_id IS NULL"))
 
     # === BondageDiary 表的自修复迁移 ===
     # 首次启动时：依次创建 7 张表（diary_users / diary_entries / diary_images /

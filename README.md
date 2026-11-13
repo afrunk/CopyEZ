@@ -22,9 +22,6 @@ CopyEZ/
 │   │   ├── note.py            # Note 素材模型
 │   │   ├── memo.py            # Memo 随心记模型
 │   │   ├── category.py        # 自定义分类模型
-│   │   ├── ledger_account.py  # 账户模型
-│   │   ├── ledger_category.py # 收支分类模型
-│   │   └── ledger_transaction.py # 交易记录模型
 │   ├── modules/               # 功能模块（各 Blueprint）
 │   │   ├── copyez/           # CopyEZ 核心模块
 │   │   │   ├── note_pages.py  # 笔记页面（列表/阅读/新建/编辑）
@@ -43,7 +40,6 @@ CopyEZ/
 │   │   │   ├── search.py      # 搜索页面
 │   │   │   ├── guide.py       # 使用手册页面
 │   │   │   └── scrape.py     # 内容抓取 Blueprint
-│   │   ├── ledger/            # LedgerEZ 账本模块
 │   │   ├── portal/            # 首页入口模块
 │   │   └── orc_documents/     # 文档扫描入口
 │   ├── routes/                # 页面路由统一导出
@@ -75,7 +71,6 @@ CopyEZ/
 │   ├── my_quotes.html       # 语录本页面
 │   ├── portal.html          # 首页
 │   ├── landing.html         # 落地页
-│   └── ledger/              # 账本模板
 ├── scripts/                  # 维护脚本
 ├── fonts/                   # 字体资源
 ├── images/                  # 图片资源
@@ -101,8 +96,6 @@ CopyEZ/
 | `/edit/<id>` | `edit_note` | 编辑素材 |
 | `/memos` | `memos_page` | 随心记 |
 | `/my_quotes` | `my_quotes_page` | 语录本 |
-| `/ledger/` | `ledger.ledger_home` | 记账本首页 |
-| `/ledger/overview` | `ledger.ledger_overview` | 账单概览 |
 
 ### API 路由
 
@@ -125,13 +118,6 @@ CopyEZ/
 | `/api/upload_image` | POST | `upload_image` | 图片上传 |
 | `/api/scrape` | POST | `scrape_content` | 内容抓取 |
 | `/scrape/wechat` | GET | `scrape_wechat` | 微信抓取页 |
-| `/ledger/api/accounts` | GET/POST | `ledger_api.get_accounts` | 账户列表/创建 |
-| `/ledger/api/accounts/<id>` | PUT/DELETE | `ledger_api.update_account` | 更新/删除账户 |
-| `/ledger/api/categories` | GET/POST | `ledger_api.get_categories` | 收支分类列表/创建 |
-| `/ledger/api/transactions` | GET/POST | `ledger_api.get_transactions` | 交易列表/创建 |
-| `/ledger/api/transactions/<id>` | PUT/DELETE | `ledger_api.update_transaction` | 更新/删除交易 |
-| `/ledger/api/stats/monthly` | GET | `ledger_api.monthly_stats` | 月度统计 |
-| `/ledger/api/stats/trend` | GET | `ledger_api.monthly_trend` | 近月趋势 |
 | `/api/categories` | GET | `get_categories` | 分类列表 |
 | `/api/tags` | GET | `get_tags` | 标签列表 |
 | `/api/activity_stats` | GET | `api_activity_stats` | 热力图数据 |
@@ -181,41 +167,6 @@ CopyEZ/
 | `name` | String(100) | 分类名称 |
 | `main_category` | String(50) | 所属一级分类 |
 
-### Account（账户）
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | Integer | 主键 |
-| `name` | String(50) | 账户名称 |
-| `account_type` | String(20) | 类型（cash/bank/alipay/wechat） |
-| `initial_balance` | Numeric(12,2) | 初始余额 |
-| `balance` | Numeric(12,2) | 当前余额 |
-| `icon` | String(30) | 图标名 |
-| `color` | String(7) | 主题色 |
-| `is_active` | Boolean | 是否启用 |
-
-### LedgerCategory（收支分类）
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | Integer | 主键 |
-| `name` | String(50) | 分类名称 |
-| `category_type` | String(10) | 类型（income/expense） |
-| `icon` | String(30) | 图标名 |
-| `color` | String(7) | 主题色 |
-
-### Transaction（交易记录）
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | Integer | 主键 |
-| `account_id` | Integer | 账户 ID |
-| `category_id` | Integer | 分类 ID |
-| `amount` | Numeric(12,2) | 金额 |
-| `transaction_type` | String(10) | 类型（income/expense） |
-| `note` | String(200) | 备注 |
-| `transaction_date` | Date | 交易日期 |
-
 ## 快速启动
 
 ```bash
@@ -252,13 +203,6 @@ python app.py
 - **开门见锁**：沉浸式屏幕锁定，保障素材私密性
 - **数据自修复**：启动时自动检测并补全数据库字段
 
-### LedgerEZ 个人记账
-- **账户管理**：现金、银行卡、支付宝、微信支付等多账户支持
-- **收支记录**：支持收入/支出分类、备注、日期记录
-- **月度统计**：本月收支汇总、结余计算
-- **支出分布**：甜甜圈图表展示各类目支出占比
-- **近月趋势**：近6个月收支双柱状图对比
-
 ## 变更记录
 
 ### [2.3.0] - 2026-05-10
@@ -270,12 +214,6 @@ python app.py
 - **依赖整合**：`utils/scraper/` 移入 `app/utils/scraper/`，统一使用 `app.utils` 命名空间
 - **配置精简**：`config.py` 仅保留运行时配置，预置数据统一由 `app/utils/presets.py` 提供
 - **导入统一**：修复 `upload_utils.py`、`category.py`、`scrape.py` 等模块的导入路径
-### LedgerEZ 个人记账
-- **数据模型**：新增 `Account`、`LedgerCategory`、`Transaction` 三个模型
-- **API 接口**：完整的账户/分类/交易 CRUD + 月度统计 + 近月趋势 API
-- **记账主页**：`templates/ledger/index.html`，顶部月结余卡片、账户横滑条、收支流水列表、底部 FAB 记账弹窗
-- **账单概览**：`templates/ledger/overview.html`，甜甜圈支出分布图、6个月趋势柱状图、账户总资产卡片
-- **UI 设计**：移动优先，绿色渐变主题，DM Sans 字体，底部弹窗表单，Toast 反馈
 
 ### [2.2.1] - 2026-03-10
 - guide page: 添加功能介绍

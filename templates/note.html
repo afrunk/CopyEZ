@@ -5,7 +5,7 @@
 {# 只在详情页，在顶部导航的 + 按钮右侧显示“编辑”入口 #}
 {% block header_actions %}
   <a
-    href="{{ url_for('edit_note', note_id=note.id) }}"
+    href="{{ url_for('note_pages.edit_note', note_id=note.id) }}"
     class="btn-flat-primary"
     title="编辑当前素材"
     aria-label="编辑当前素材"
