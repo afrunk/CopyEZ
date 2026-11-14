@@ -51,6 +51,7 @@ USER = _setting("COPYEZ_DEPLOY_USER", "root")
 PASSWORD = _setting("COPYEZ_DEPLOY_PASSWORD")
 
 # Pure-ASCII deploy script (no emoji, no CJK)
+# 端口约定: 5000 = haproxy(对外入口), 5001 = Flask(copyez.service), 8443/8080 = nginx
 DEPLOY_SCRIPT = r"""#!/bin/bash
 set -e
 
@@ -63,25 +64,17 @@ echo "--- latest commit ---"
 git log --oneline -1
 
 echo ""
-echo "==== [2] kill old flask ===="
-lsof -i:5000 2>/dev/null || echo "(no port 5000)"
-fuser -k 5000/tcp 2>/dev/null || echo "(nothing to kill)"
-sleep 2
+echo "==== [2] backup db ===="
+cp instance/copyez.db instance/copyez.db.bak.$(date +%s) 2>/dev/null || echo "(no db to backup)"
 
 echo ""
-echo "==== [3] git pull ===="
-git pull origin main || true
-echo "--- latest commit ---"
-git log --oneline -1
-
-echo ""
-echo "==== [4] activate venv ===="
+echo "==== [3] activate venv ===="
 source /root/CopyEZ/venv/bin/activate
 which python
 python --version
 
 echo ""
-echo "==== [4b] ensure deps ===="
+echo "==== [4] ensure deps ===="
 pip install -q pywebpush==2.5.0 cryptography==50.0.1 || true
 python -c "import pywebpush" && echo "[OK] pywebpush installed"
 
@@ -90,19 +83,29 @@ echo "==== [5] run wechat migration ===="
 python scripts/migrate_wechat.py
 
 echo ""
-echo "==== [6] start flask (background) ===="
-cd /root/CopyEZ
-nohup python app.py > app.log 2>&1 &
-echo "Flask PID: $!"
-sleep 4
+echo "==== [6] restart copyez.service ===="
+systemctl restart copyez
+sleep 5
+systemctl is-active copyez
+systemctl status copyez --no-pager -l | head -6
 
 echo ""
 echo "==== [7] tail app.log ===="
-tail -30 app.log
+tail -20 app.log
 
 echo ""
-echo "==== [8] verify port 5000 ===="
-ss -lntp 2>/dev/null | grep 5000 || lsof -i:5000 2>/dev/null || echo "(not listening)"
+echo "==== [8] verify ports ===="
+echo "-- flask (5001) --"
+ss -lntp 2>/dev/null | grep 5001 || echo "(flask NOT listening on 5001)"
+echo "-- haproxy (5000) --"
+ss -lntp 2>/dev/null | grep 5000 || echo "(haproxy NOT listening on 5000)"
+
+echo ""
+echo "==== [9] smoke test ===="
+for p in / /gongwen/ /notes /search; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5001$p)
+  echo "$p -> $code"
+done
 
 echo ""
 echo "==== DEPLOY DONE ===="
