@@ -619,79 +619,14 @@
             return;
           }
 
-          // 总是接管粘贴事件，以便做行首空格清理和公文标题识别
+          // 总是接管粘贴事件，统一按纯文本写入
           e.preventDefault();
 
           try {
-            var markdown = "";
-            if (html && window.TurndownService) {
-              // Turndown 可用：走“HTML → Markdown”完整链路
-              var cleanHtml = sanitizeHtml(html);
-              var turndownService = new TurndownService({
-                headingStyle: "atx",
-                bulletListMarker: "-"
-              });
-
-              // 识别基于字体的公文标题（黑体 / 楷体）
-              turndownService.addRule("fontHeadingParagraph", {
-                filter: function (node) {
-                  if (!node || !node.nodeName) return false;
-                  var name = node.nodeName.toUpperCase();
-                  if (name !== "P" && name !== "DIV") return false;
-                  return detectHeadingLevelByFont(node) > 0;
-                },
-                replacement: function (content, node) {
-                  var level = detectHeadingLevelByFont(node);
-                  if (!level) return content;
-                  var text = (content || "").trim();
-                  if (!text) return "";
-                  // 去掉包在整段外面的 **...**，避免加粗和标题重复
-                  text = text.replace(/^\*{2}([\s\S]*?)\*{2}$/g, "$1");
-                  var prefix = "# ";
-                  if (level === 2) {
-                    prefix = "## ";
-                  }
-                  return "\n\n" + prefix + text + "\n\n";
-                }
-              });
-
-              markdown = turndownService.turndown(cleanHtml);
-
-              // 规范空白：将连续空格压缩为单空格
-              markdown = markdown.replace(/ {2,}/g, " ");
-
-              // 修正粗体内部与外部空格：
-              // 1）删除 ** 和内容之间的空格：** 三是突出韧性。** → **三是突出韧性。**
-              markdown = markdown.replace(
-                /\*\*\s+([^\*\n]+?)\s+\*\*/g,
-                "**$1**"
-              );
-              // 2）如果前后直接跟着中文/数字/字母，则在外侧补一个空格：**三是突出韧性。**内容 → **三是突出韧性。** 内容
-              markdown = markdown
-                .replace(
-                  /(\*\*[^*]+?\*\*)(?=[\u4e00-\u9fff0-9A-Za-z])/g,
-                  "$1 "
-                )
-                .replace(
-                  /([\u4e00-\u9fff0-9A-Za-z])(\*\*[^*]+?\*\*)/g,
-                  "$1 $2"
-                );
-
-              // 英文标点 → 中文标点（简单全局替换，足够覆盖大部分公文场景）
-              markdown = markdown
-                .replace(/,/g, "，")
-                .replace(/;/g, "；")
-                .replace(/:/g, "：")
-                .replace(/\?/g, "？")
-                .replace(/!/g, "！");
-            } else {
-              // Turndown 不可用：退化为对纯文本做“清行首空格 + 公文标题识别”
-              markdown = plain;
-            }
-
-            markdown = normalizeTextLines(markdown);
-            // 序号类标题兜底处理
-            markdown = applySmartHeading(markdown);
+            // 纯文本粘贴：直接采用剪贴板的 text/plain，原样写入编辑器。
+            // 不做任何加工：不走 Turndown 的 HTML → Markdown 转换（避免 * ` _ 等字符
+            // 被转义成反斜杠语法），也不额外追加标题等 Markdown 语法。
+            var markdown = plain;
 
             cmInstance.replaceSelection(markdown);
           } catch (err) {
