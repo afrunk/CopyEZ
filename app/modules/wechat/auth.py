@@ -36,6 +36,8 @@ from app.models.wechat import WeChatUser, WeChatLoginHistory
 
 from app.utils.datetime_utils import now_bj
 
+from app.modules.wechat.identity import person_label
+
 
 
 wechat_auth_bp = Blueprint("wechat_auth", __name__, url_prefix="/wechat/auth")
@@ -140,7 +142,6 @@ def api_login():
         return jsonify({"error": "用户名或密码错误"}), 401
 
 
-
     user.update_last_seen()
 
     # 写入登录历史（表结构异常时不影响登录成功）
@@ -214,7 +215,13 @@ def api_me():
 
     user = get_current_user()
 
-    return jsonify(user.to_dict())
+    data = user.to_dict()
+
+    # 同一个人可能有多个账号行（中文名 / 拼音名别名），前端用 person 字段判断身份，
+    # 不要直接用 username（dandan / benben 这类别名会让权限判断失效）
+    data["person"] = person_label(user)
+
+    return jsonify(data)
 
 
 

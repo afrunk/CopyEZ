@@ -293,7 +293,7 @@
 
         headerAction.addEventListener('click', () => {
 
-            if (myUser?.username === '蛋蛋') {
+            if (myUser?.person === '蛋蛋') {
 
                 showLoginHistory();
 
@@ -432,7 +432,7 @@
 
             headerStatus.textContent = formatLastSeen(partnerInfo.last_seen);
 
-            headerAction.style.display = myUser?.username === '蛋蛋' ? 'flex' : 'none';
+            headerAction.style.display = myUser?.person === '蛋蛋' ? 'flex' : 'none';
 
         }
 
@@ -695,6 +695,13 @@
                     id: me.id,
 
                     username: me.username,
+
+                    /* 身份判断用 person（中文人名），不用 username。
+
+                       同一个人可能有多个账号行（蛋蛋 / dandan），用 username 判断
+                       会导致「登录历史」按钮在部分设备上不显示。 */
+
+                    person: me.person || me.display_name || me.username,
 
                     display_name: myName,
 

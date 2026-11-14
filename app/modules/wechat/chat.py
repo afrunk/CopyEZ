@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, request, jsonify, current_app, sen
 from app.extensions import db
 from app.models.wechat import WeChatUser, WeChatMessage, WeChatLoginHistory
 from app.modules.wechat.auth import login_required, get_current_user
+from app.modules.wechat.identity import resolve_context, person_label
 
 wechat_chat_bp = Blueprint("wechat_chat", __name__, url_prefix="/wechat")
 
@@ -22,11 +23,11 @@ def chat_page():
 def api_messages():
     """获取聊天消息，默认返回最近消息，支持向前翻页和增量更新。"""
     user = get_current_user()
-    partner = WeChatUser.query.filter(WeChatUser.id != user.id).first()
+    my_ids, their_ids, partner = resolve_context(user)
     if not partner:
         return jsonify({"messages": [], "partner": None, "has_more": False})
 
-    conversation = _conversation_filter(user.id, partner.id)
+    conversation = _conversation_filter(my_ids, their_ids)
     try:
         limit = min(max(int(request.args.get("limit", 50)), 1), 100)
     except (TypeError, ValueError):
@@ -54,7 +55,7 @@ def api_messages():
     result = []
     for message in messages:
         item = message.to_dict()
-        item["is_mine"] = message.sender_id == user.id
+        item["is_mine"] = message.sender_id in my_ids
         result.append(item)
 
     return jsonify({
@@ -64,11 +65,21 @@ def api_messages():
     })
 
 
-def _conversation_filter(user_id: int, partner_id: int):
-    """当前登录用户与对方之间的消息过滤条件。"""
+def _conversation_filter(my_ids: set, their_ids: set):
+    """当前登录者与对方之间的消息过滤条件。
+
+    my_ids / their_ids 是「人」级别的账号 id 集合（同一个人的多个账号行都在里面），
+    这样无论用哪个账号登录，看到的历史都是同一份。
+    """
     return db.or_(
-        db.and_(WeChatMessage.sender_id == user_id, WeChatMessage.receiver_id == partner_id),
-        db.and_(WeChatMessage.sender_id == partner_id, WeChatMessage.receiver_id == user_id),
+        db.and_(
+            WeChatMessage.sender_id.in_(my_ids),
+            WeChatMessage.receiver_id.in_(their_ids),
+        ),
+        db.and_(
+            WeChatMessage.sender_id.in_(their_ids),
+            WeChatMessage.receiver_id.in_(my_ids),
+        ),
     )
 
 
@@ -125,12 +136,12 @@ def api_images():
     这里一次性返回全部图片，保证能翻到任意一张。
     """
     user = get_current_user()
-    partner = WeChatUser.query.filter(WeChatUser.id != user.id).first()
+    my_ids, their_ids, partner = resolve_context(user)
     if not partner:
         return jsonify({"images": [], "total": 0})
 
     rows = WeChatMessage.query.filter(
-        _conversation_filter(user.id, partner.id),
+        _conversation_filter(my_ids, their_ids),
         WeChatMessage.msg_type == "image",
         WeChatMessage.recalled.is_(False),
         WeChatMessage.image_urls.isnot(None),
@@ -145,7 +156,7 @@ def api_images():
                 "thumb_url": item["thumb_url"],
                 "width": item.get("width"),
                 "height": item.get("height"),
-                "is_mine": message.sender_id == user.id,
+                "is_mine": message.sender_id in my_ids,
                 "created_at": message.created_at.isoformat() if message.created_at else None,
             })
 
@@ -166,7 +177,7 @@ def api_send_message():
     if msg_type == "image" and not image_urls:
         return jsonify({"error": "图片不能为空"}), 400
 
-    partner = WeChatUser.query.filter(WeChatUser.id != user.id).first()
+    my_ids, their_ids, partner = resolve_context(user)
     if not partner:
         return jsonify({"error": "对方不存在"}), 404
 
@@ -208,12 +219,13 @@ def api_send_message():
 @login_required
 def api_mark_read():
     user = get_current_user()
+    my_ids, their_ids, _ = resolve_context(user)
     data = request.get_json(silent=True) or {}
     message_ids = data.get("message_ids", [])
     if message_ids:
         WeChatMessage.query.filter(
             WeChatMessage.id.in_(message_ids),
-            WeChatMessage.receiver_id == user.id,
+            WeChatMessage.receiver_id.in_(my_ids),
         ).update({WeChatMessage.is_read: True}, synchronize_session=False)
         db.session.commit()
     return jsonify({"ok": True})
@@ -224,8 +236,11 @@ def api_mark_read():
 def api_mark_all_read():
     """将当前用户收到的全部未读消息标记为已读。"""
     user = get_current_user()
-    updated = WeChatMessage.query.filter_by(
-        receiver_id=user.id, is_read=False, recalled=False
+    my_ids, their_ids, _ = resolve_context(user)
+    updated = WeChatMessage.query.filter(
+        WeChatMessage.receiver_id.in_(my_ids),
+        WeChatMessage.is_read == False,
+        WeChatMessage.recalled == False,
     ).update({WeChatMessage.is_read: True}, synchronize_session=False)
     db.session.commit()
     return jsonify({"ok": True, "updated": updated})
@@ -235,8 +250,11 @@ def api_mark_all_read():
 @login_required
 def api_unread_count():
     user = get_current_user()
-    count = WeChatMessage.query.filter_by(
-        receiver_id=user.id, is_read=False, recalled=False
+    my_ids, their_ids, _ = resolve_context(user)
+    count = WeChatMessage.query.filter(
+        WeChatMessage.receiver_id.in_(my_ids),
+        WeChatMessage.is_read == False,
+        WeChatMessage.recalled == False,
     ).count()
     return jsonify({"unread": count})
 
@@ -249,14 +267,11 @@ def api_search_messages():
     if not q:
         return jsonify({"results": [], "q": ""})
 
-    partner = WeChatUser.query.filter(WeChatUser.id != user.id).first()
+    my_ids, their_ids, partner = resolve_context(user)
     if not partner:
         return jsonify({"results": [], "q": q})
 
-    conversation = db.or_(
-        db.and_(WeChatMessage.sender_id == user.id, WeChatMessage.receiver_id == partner.id),
-        db.and_(WeChatMessage.sender_id == partner.id, WeChatMessage.receiver_id == user.id),
-    )
+    conversation = _conversation_filter(my_ids, their_ids)
     hits = WeChatMessage.query.filter(
         WeChatMessage.recalled.is_(False), conversation,
         WeChatMessage.content.ilike(f"%{q}%"),
@@ -265,7 +280,7 @@ def api_search_messages():
     results = []
     for message in hits:
         item = message.to_dict()
-        item["is_mine"] = message.sender_id == user.id
+        item["is_mine"] = message.sender_id in my_ids
         results.append(item)
     return jsonify({"results": results, "q": q})
 
@@ -275,13 +290,20 @@ def api_search_messages():
 def api_partner_last_seen():
     """返回对方最后上线时间。"""
     user = get_current_user()
-    partner = WeChatUser.query.filter(WeChatUser.id != user.id).first()
+    _, their_ids, partner = resolve_context(user)
     if not partner:
         return jsonify({"visible": False, "last_seen": None, "display_name": None})
+
+    # 对方可能有多个账号行（同一个人的历史别名），取最近一次上线时间
+    last_seen = None
+    for other in WeChatUser.query.filter(WeChatUser.id.in_(their_ids)).all():
+        if other.last_seen and (last_seen is None or other.last_seen > last_seen):
+            last_seen = other.last_seen
+
     return jsonify({
         "visible": True,
-        "last_seen": partner.last_seen.isoformat() if partner.last_seen else None,
-        "display_name": partner.display_name,
+        "last_seen": last_seen.isoformat() if last_seen else None,
+        "display_name": partner.display_name or person_label(partner),
     })
 
 
@@ -290,10 +312,17 @@ def api_partner_last_seen():
 def api_login_history():
     """仅允许蛋蛋查看笨笨的成功登录记录。"""
     user = get_current_user()
-    if user.username != "蛋蛋":
+    if person_label(user) != "蛋蛋":
         return jsonify({"error": "无权查看登录历史"}), 403
 
-    benben = WeChatUser.query.filter_by(username="笨笨").first()
+    # 笨笨可能有多个账号行（历史别名），登录记录要合并
+    benben_ids = {
+        u.id for u in WeChatUser.query.all() if person_label(u) == "笨笨"
+    }
+    benben = (
+        WeChatUser.query.filter(WeChatUser.id.in_(benben_ids)).first()
+        if benben_ids else None
+    )
     if not benben:
         return jsonify({"entries": [], "user": None})
 
@@ -302,7 +331,9 @@ def api_login_history():
     except (TypeError, ValueError):
         limit = 50
 
-    entries = WeChatLoginHistory.query.filter_by(user_id=benben.id).order_by(
+    entries = WeChatLoginHistory.query.filter(
+        WeChatLoginHistory.user_id.in_(benben_ids)
+    ).order_by(
         WeChatLoginHistory.logged_in_at.desc()
     ).limit(limit).all()
     return jsonify({
@@ -326,10 +357,11 @@ def api_recall_message(msg_id):
 
 def _do_recall(msg_id):
     user = get_current_user()
+    my_ids, their_ids, _ = resolve_context(user)
     msg = db.session.get(WeChatMessage, msg_id)
     if not msg:
         return jsonify({"error": "消息不存在"}), 404
-    if msg.sender_id != user.id:
+    if msg.sender_id not in my_ids:
         return jsonify({"error": "只能撤回自己的消息"}), 403
     if msg.recalled:
         return jsonify({"error": "消息已撤回"}), 400
