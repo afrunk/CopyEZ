@@ -97,6 +97,10 @@
         color: var(--color-brand-purple);
       }
 
+      .hero-title .accent-green {
+        color: var(--color-brand-green);
+      }
+
       .hero-desc {
         font-size: 15px;
         line-height: 1.75;
@@ -245,6 +249,11 @@
       .card-tag.card-tag-purple {
         color: var(--color-brand-purple);
         background: rgba(139, 92, 246, 0.1);
+      }
+
+      .card-tag.card-tag-green {
+        color: var(--color-brand-green);
+        background: rgba(16, 185, 129, 0.1);
       }
 
       .card-headline {
@@ -494,6 +503,48 @@
               进入装修助手
             </a>
             <a href="{{ url_for('decoration.budget') }}" class="btn-ghost">预算管理</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第四行：Gongwen 公文写作提示词工作台入口（右侧卡片 + 左侧介绍） -->
+      <div class="hero-row reverse">
+        <a href="{{ url_for('gongwen.index') }}" class="floating-card">
+          <div class="card-header">
+            <span class="card-title">Gongwen</span>
+            <span class="card-tag card-tag-green">公文提示词工作台</span>
+          </div>
+          <p class="card-headline">按文体生成提示词，一次粘贴写完整篇材料</p>
+          <p class="card-desc">
+            18 类材料 · 选类型 → 底座 → 标题 → 正文 → 改句 → 清理 · 参数预设可存多套
+          </p>
+          <div class="card-meta">
+            <span>内置数字脱敏 · 参数存本机</span>
+            <span>进入工作台 →</span>
+          </div>
+        </a>
+        <div class="hero-block">
+          <div class="hero-status">
+            <span class="hero-status-dot" style="background: #10b981;"></span>
+            <span>机关材料写作提示词工作台</span>
+          </div>
+          <h2 class="hero-title">
+            <span class="brand">五段提示词</span> <span class="accent-green">逐类生成</span>
+          </h2>
+          <p class="hero-desc">
+            按材料类型生成起稿、标题、正文、改句、通读清理五段提示词。文体骨架、文风、标题规格一次到位，配套素材脱敏和多套参数预设。
+          </p>
+          <div class="hero-features">
+            <span class="hero-feature">18 类公文文体全覆盖</span>
+            <span class="hero-feature">素材数字一键脱敏</span>
+            <span class="hero-feature">参数预设本地存储</span>
+          </div>
+          <div class="hero-actions">
+            <a href="{{ url_for('gongwen.index') }}" class="btn-primary btn-primary-green">
+              <i data-lucide="pen-line" style="width: 18px; height: 18px;"></i>
+              进入工作台
+            </a>
+            <a href="{{ url_for('gongwen.index') }}" class="btn-ghost">查看文种</a>
           </div>
         </div>
       </div>

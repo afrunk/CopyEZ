@@ -85,6 +85,8 @@ from app.modules.copyez import (
     note_pages_bp,
 )
 from app.modules.renovamate import renovamate_bp
+# Gongwen 模块（机关材料写作提示词工作台）
+from app.modules.gongwen import gongwen_bp
 
 # ── 路由注册区 ──────────────────────────────────────────────────────────────
 # 低风险页面路由（通过 add_url_rule 保持原 endpoint 不变）
@@ -178,6 +180,9 @@ app.register_blueprint(note_pages_bp)
 
 # RenovaMate Blueprint
 app.register_blueprint(renovamate_bp)
+
+# Gongwen Blueprint（机关材料写作提示词工作台，公开访问）
+app.register_blueprint(gongwen_bp)
 
 # BondageDiary Blueprint (Phase 7)
 from app.modules.bondage_diary import (
