@@ -1,7 +1,13 @@
 """
 Deploy script: SSH to server, git pull, run migration, restart Flask.
 All output uses sys.stdout.buffer to avoid Windows GBK encoding crashes.
+
+凭据来源（按优先级）:
+  1. 环境变量 COPYEZ_DEPLOY_PASSWORD / COPYEZ_DEPLOY_HOST / COPYEZ_DEPLOY_USER
+  2. 项目根目录 .env 文件中的同名键
+服务器密码不再硬编码在源码中。
 """
+import os
 import sys
 import io
 import paramiko
@@ -13,10 +19,36 @@ try:
 except Exception:
     pass
 
-HOST = "39.106.147.188"
-PORT = 22
-USER = "root"
-PASSWORD = "4d&cGd$~S8JE94&"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load_dotenv(path):
+    """极简 .env 解析：KEY=VALUE，忽略 # 注释与空行"""
+    values = {}
+    if not os.path.exists(path):
+        return values
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+_dotenv = _load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+
+def _setting(name, default=None):
+    """环境变量优先，其次 .env，最后默认值"""
+    return os.environ.get(name) or _dotenv.get(name) or default
+
+
+HOST = _setting("COPYEZ_DEPLOY_HOST", "39.106.147.188")
+PORT = int(_setting("COPYEZ_DEPLOY_PORT", "22"))
+USER = _setting("COPYEZ_DEPLOY_USER", "root")
+PASSWORD = _setting("COPYEZ_DEPLOY_PASSWORD")
 
 # Pure-ASCII deploy script (no emoji, no CJK)
 DEPLOY_SCRIPT = r"""#!/bin/bash
@@ -78,6 +110,13 @@ echo "==== DEPLOY DONE ===="
 
 
 def run_ssh():
+    if not PASSWORD:
+        print(
+            "[FAILED] 未配置服务器密码。请设置环境变量 COPYEZ_DEPLOY_PASSWORD，"
+            "或在项目根目录 .env 中写入 COPYEZ_DEPLOY_PASSWORD=...",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     print(f"[connect] {USER}@{HOST}:{PORT}", flush=True)

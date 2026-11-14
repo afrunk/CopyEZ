@@ -33,3 +33,14 @@ master.txt
 pup.txt
 nul
 test-results/
+
+# 忽略一次性运维/验证脚本（内含服务器凭据，禁止入库）
+ssh_*.py
+deploy_*.py
+verify_*.py
+
+# 忽略一次性运维输出日志
+backfill.txt
+dep.txt
+verify.txt
+*.log
