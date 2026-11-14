@@ -45,7 +45,10 @@ app = Flask(__name__)
 #   1. request.is_secure 永远是 False  → 推送状态接口误判为"非 HTTPS"
 #   2. url_for() 生成 http:// 链接      → PWA / 静态资源地址不对
 from werkzeug.middleware.proxy_fix import ProxyFix
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+# x_host=1 让 Flask 信任 X-Forwarded-Host（含 :5000 端口），否则 redirect 会丢端口。
+# 注意 nginx 侧必须传 Host $http_host（见 deploy/nginx/copyez.conf），
+# 且不要传 X-Forwarded-Port $server_port（haproxy 转发后本机端口是 8443，会污染）。
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
 # 从 config.py 加载配置
 from config import Config
